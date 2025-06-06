@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     # Logging
     LOG_LEVEL: str = "INFO"
 
+    # Azure OpenAI settings
+    AZURE_OPENAI_API_KEY: str | None = None
+    AZURE_OPENAI_ENDPOINT: str | None = None
+    AZURE_OPENAI_API_VERSION: str = "2025-04-01-preview"
+    AZURE_OPENAI_DEPLOYMENT_NAME: str | None = None
+
     model_config = ConfigDict(env_file=".env", case_sensitive=True)
 
 
