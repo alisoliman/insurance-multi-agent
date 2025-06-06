@@ -1,0 +1,21 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "environmentName": {
+            "value": "${AZURE_ENV_NAME}"
+        },
+        "location": {
+            "value": "${AZURE_LOCATION=eastus2}"
+        },
+        "backendContainerImage": {
+            "value": "${SERVICE_API_IMAGE_NAME}"
+        },
+        "frontendContainerImage": {
+            "value": "${SERVICE_WEB_IMAGE_NAME}"
+        },
+        "projectName": {
+            "value": "shadcn-fastapi"
+        }
+    }
+}

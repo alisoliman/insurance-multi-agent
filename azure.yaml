@@ -1,0 +1,25 @@
+name: shadcn-fastapi-starter
+metadata:
+  template: shadcn-fastapi-starter@0.0.1-beta
+
+infra:
+  provider: bicep
+  path: infra
+
+services:
+  api:
+    project: ./backend
+    language: python
+    host: containerapp
+  web:
+    project: ./frontend
+    language: js
+    host: containerapp
+
+hooks:
+  postprovision:
+    shell: sh
+    run: |
+      echo "Setting container registry endpoint..."
+      azd env set AZURE_CONTAINER_REGISTRY_ENDPOINT $(azd env get-value containerRegistryLoginServer)
+    continueOnError: false

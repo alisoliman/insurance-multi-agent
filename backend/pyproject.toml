@@ -1,0 +1,16 @@
+[project]
+name = "uv-fastapi-example"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.112.1",
+    "pydantic-settings>=2.9.1",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "httpx>=0.24.0",
+]

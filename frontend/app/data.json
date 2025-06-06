@@ -1,0 +1,92 @@
+[
+    {
+        "id": 1,
+        "header": "Executive Summary",
+        "type": "Executive Summary",
+        "status": "Done",
+        "target": "2",
+        "limit": "3",
+        "reviewer": "Eddie Lake"
+    },
+    {
+        "id": 2,
+        "header": "Technical Approach",
+        "type": "Technical Approach",
+        "status": "In Progress",
+        "target": "15",
+        "limit": "20",
+        "reviewer": "Jamik Tashpulatov"
+    },
+    {
+        "id": 3,
+        "header": "Project Management",
+        "type": "Narrative",
+        "status": "Done",
+        "target": "8",
+        "limit": "10",
+        "reviewer": "Emily Whalen"
+    },
+    {
+        "id": 4,
+        "header": "Past Performance",
+        "type": "Capabilities",
+        "status": "Not Started",
+        "target": "5",
+        "limit": "7",
+        "reviewer": "Assign reviewer"
+    },
+    {
+        "id": 5,
+        "header": "Key Personnel",
+        "type": "Design",
+        "status": "In Progress",
+        "target": "3",
+        "limit": "4",
+        "reviewer": "Eddie Lake"
+    },
+    {
+        "id": 6,
+        "header": "Corporate Experience",
+        "type": "Capabilities",
+        "status": "Done",
+        "target": "6",
+        "limit": "8",
+        "reviewer": "Jamik Tashpulatov"
+    },
+    {
+        "id": 7,
+        "header": "Quality Assurance",
+        "type": "Technical Approach",
+        "status": "Not Started",
+        "target": "4",
+        "limit": "5",
+        "reviewer": "Assign reviewer"
+    },
+    {
+        "id": 8,
+        "header": "Risk Management",
+        "type": "Narrative",
+        "status": "In Progress",
+        "target": "3",
+        "limit": "4",
+        "reviewer": "Emily Whalen"
+    },
+    {
+        "id": 9,
+        "header": "Cost Proposal",
+        "type": "Focus Documents",
+        "status": "Done",
+        "target": "1",
+        "limit": "2",
+        "reviewer": "Eddie Lake"
+    },
+    {
+        "id": 10,
+        "header": "Appendices",
+        "type": "Focus Documents",
+        "status": "Not Started",
+        "target": "10",
+        "limit": "15",
+        "reviewer": "Assign reviewer"
+    }
+]
