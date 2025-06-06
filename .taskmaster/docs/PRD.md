@@ -311,7 +311,7 @@ Since this PoC focuses on **explainable demonstrations** rather than a fully-fle
 ## 9. Assumptions & Dependencies
 
 ### 9.1 Foundation Model Access
-- Access to **GPT-4.1** and **GPT-4o** foundation models via OpenAI API
+- Access to **GPT-4.1** and **GPT-4o** foundation models via Azure OpenAI API
 - No fine-tuning required - leveraging pre-trained foundation model capabilities
 - Sufficient API rate limits and cost budgets for multi-agent interactions
 
