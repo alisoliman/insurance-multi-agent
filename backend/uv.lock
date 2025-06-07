@@ -1048,6 +1048,11 @@ test = [
     { name = "pytest" },
 ]
 
+[package.dev-dependencies]
+test = [
+    { name = "pytest" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "autogen-agentchat", specifier = ">=0.6.1" },
@@ -1059,6 +1064,9 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0" },
 ]
 provides-extras = ["test"]
+
+[package.metadata.requires-dev]
+test = [{ name = "pytest", specifier = ">=8.4.0" }]
 
 [[package]]
 name = "uvicorn"

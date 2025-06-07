@@ -17,3 +17,8 @@ test = [
     "pytest>=7.0.0",
     "httpx>=0.24.0",
 ]
+
+[dependency-groups]
+test = [
+    "pytest>=8.4.0",
+]
