@@ -13,6 +13,7 @@ alwaysApply: true
   ---
 
   - **Main Points in Bold**
+    - DONOT RERUN THE BACKEND NOR THE FRONTEND
     - Sub-points with details
     - Examples and explanations
   ```

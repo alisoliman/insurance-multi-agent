@@ -5,7 +5,8 @@ Debug script to understand complexity assessment logic.
 
 from app.agents.orchestrator import OrchestratorAgent, ClaimComplexity
 import sys
-sys.path.append('/Users/ali/Dev/ip/simple-insurance-multi-agent/backend')
+
+sys.path.append("/Users/ali/Dev/ip/simple-insurance-multi-agent/backend")
 
 
 def debug_complexity_assessment():
@@ -14,11 +15,11 @@ def debug_complexity_assessment():
 
     # Test case that was failing
     claim = {
-        'claim_id': 'test-low-001',
-        'policy_number': 'POL123456',
-        'incident_date': '2024-01-15',
-        'description': 'Small scratch on door',
-        'amount': 500
+        "claim_id": "test-low-001",
+        "policy_number": "POL123456",
+        "incident_date": "2024-01-15",
+        "description": "Small scratch on door",
+        "amount": 500,
     }
 
     print("🔍 Debugging Complexity Assessment")
@@ -29,7 +30,7 @@ def debug_complexity_assessment():
     complexity_score = 0
 
     # Check amount
-    amount = orchestrator._parse_amount(claim.get('amount', 0))
+    amount = orchestrator._parse_amount(claim.get("amount", 0))
     print(f"1. Amount parsing: {claim.get('amount')} -> {amount}")
 
     if amount > 50000:
@@ -42,8 +43,8 @@ def debug_complexity_assessment():
         print(f"   Amount <= 10000: +0 (score still {complexity_score})")
 
     # Check keywords
-    description = claim.get('description', '').lower()
-    keywords = orchestrator.escalation_criteria['complex_keywords']
+    description = claim.get("description", "").lower()
+    keywords = orchestrator.escalation_criteria["complex_keywords"]
     print(f"2. Keyword check in '{description}':")
     print(f"   Looking for: {keywords}")
 
@@ -59,7 +60,7 @@ def debug_complexity_assessment():
         print(f"   No keywords found: +0 (score still {complexity_score})")
 
     # Check documentation
-    required_docs = ['incident_report', 'photos', 'police_report']
+    required_docs = ["incident_report", "photos", "police_report"]
     missing_docs = [doc for doc in required_docs if not claim.get(doc)]
     print(f"3. Documentation check:")
     print(f"   Required docs: {required_docs}")
@@ -72,14 +73,17 @@ def debug_complexity_assessment():
     if amount > 5000 and len(missing_docs) > 1:
         complexity_score += 1
         print(
-            f"   Documentation penalty applied (amount > $5000, >1 missing): +1 (score now {complexity_score})")
+            f"   Documentation penalty applied (amount > $5000, >1 missing): +1 (score now {complexity_score})"
+        )
     elif amount >= 1000 and len(missing_docs) >= 3:
         complexity_score += 1
         print(
-            f"   Documentation penalty applied (amount >= $1000, all missing): +1 (score now {complexity_score})")
+            f"   Documentation penalty applied (amount >= $1000, all missing): +1 (score now {complexity_score})"
+        )
     else:
         print(
-            f"   No documentation penalty (amount < $1000 or insufficient missing docs) (score still {complexity_score})")
+            f"   No documentation penalty (amount < $1000 or insufficient missing docs) (score still {complexity_score})"
+        )
 
     print(f"\n4. Final complexity score: {complexity_score}")
 

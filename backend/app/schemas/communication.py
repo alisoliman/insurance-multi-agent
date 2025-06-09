@@ -8,6 +8,7 @@ from typing import Dict, Any, Optional
 
 class CommunicationRequest(BaseModel):
     """Request model for communication generation."""
+
     customer_name: str
     claim_id: str
     policy_number: str
@@ -21,5 +22,6 @@ class CommunicationRequest(BaseModel):
 
 class AssessmentBasedCommunicationRequest(BaseModel):
     """Request model for assessment-based communication generation."""
+
     assessment_result: Dict[str, Any]
     customer_data: Dict[str, Any]

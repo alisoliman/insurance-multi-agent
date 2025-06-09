@@ -12,13 +12,20 @@ from typing import Dict, Any
 from enum import Enum
 
 # Add the app directory to the path for imports
-sys.path.append('/Users/ali/Dev/ip/simple-insurance-multi-agent/backend')
+sys.path.append("/Users/ali/Dev/ip/simple-insurance-multi-agent/backend")
 
 
 class MockLLMAssessment:
     """Mock LLM assessment to demonstrate the concept without API calls."""
 
-    def __init__(self, complexity: str, confidence: float, reasoning: str, risk_factors: list, escalation: bool):
+    def __init__(
+        self,
+        complexity: str,
+        confidence: float,
+        reasoning: str,
+        risk_factors: list,
+        escalation: bool,
+    ):
         self.complexity = ClaimComplexity(complexity)
         self.confidence_score = confidence
         self.reasoning = reasoning
@@ -35,66 +42,81 @@ def mock_llm_complexity_assessment(claim_data: Dict[str, Any]) -> MockLLMAssessm
     This simulates what a real LLM would analyze and decide.
     """
 
-    description = claim_data.get('description', '').lower()
-    amount = claim_data.get('amount', 0)
+    description = claim_data.get("description", "").lower()
+    amount = claim_data.get("amount", 0)
 
     # Simulate LLM reasoning for different scenarios
-    if 'professional athlete' in description and 'career-ending' in description:
+    if "professional athlete" in description and "career-ending" in description:
         return MockLLMAssessment(
             complexity="high",
             confidence=0.92,
             reasoning="Despite moderate claim amount, this case involves a professional athlete claiming career-ending injury from a minor collision. The high-value career implications, potential for significant future earnings loss, and likelihood of expert medical testimony and legal representation make this a complex case requiring specialized handling.",
-            risk_factors=["high_profile_claimant", "career_impact_claims",
-                          "medical_complexity", "potential_litigation"],
-            escalation=True
+            risk_factors=[
+                "high_profile_claimant",
+                "career_impact_claims",
+                "medical_complexity",
+                "potential_litigation",
+            ],
+            escalation=True,
         )
 
-    elif 'fire' in description and 'coverage' in description and amount > 100000:
+    elif "fire" in description and "coverage" in description and amount > 100000:
         return MockLLMAssessment(
             complexity="high",
             confidence=0.89,
             reasoning="Multiple fraud indicators present: recent coverage increase, convenient timing, missing safety equipment, and suspicious pre-fire activity. The high claim amount combined with these red flags requires thorough investigation by specialized fraud investigators.",
-            risk_factors=["fraud_indicators", "timing_suspicious",
-                          "high_value", "investigation_required"],
-            escalation=True
+            risk_factors=[
+                "fraud_indicators",
+                "timing_suspicious",
+                "high_value",
+                "investigation_required",
+            ],
+            escalation=True,
         )
 
-    elif 'three-car' in description or 'multiple injuries' in description:
+    elif "three-car" in description or "multiple injuries" in description:
         return MockLLMAssessment(
             complexity="high",
             confidence=0.85,
             reasoning="Multi-vehicle accident with injuries involves complex liability determination, multiple insurance carriers, potential subrogation, and medical claim management. Weather conditions add additional complexity to fault determination.",
-            risk_factors=["multi_party_liability", "injury_claims",
-                          "weather_factors", "subrogation_potential"],
-            escalation=False
+            risk_factors=[
+                "multi_party_liability",
+                "injury_claims",
+                "weather_factors",
+                "subrogation_potential",
+            ],
+            escalation=False,
         )
 
-    elif 'slip and fall' in description and 'pre-existing' in description:
+    elif "slip and fall" in description and "pre-existing" in description:
         return MockLLMAssessment(
             complexity="medium",
             confidence=0.78,
             reasoning="Slip and fall with pre-existing conditions requires careful medical evaluation to determine causation. Conflicting witness statements add complexity but case is manageable with proper medical review.",
-            risk_factors=["medical_causation",
-                          "pre_existing_conditions", "witness_conflicts"],
-            escalation=False
+            risk_factors=[
+                "medical_causation",
+                "pre_existing_conditions",
+                "witness_conflicts",
+            ],
+            escalation=False,
         )
 
-    elif 'hailstorm' in description and 'neighbors' in description:
+    elif "hailstorm" in description and "neighbors" in description:
         return MockLLMAssessment(
             complexity="low",
             confidence=0.91,
             reasoning="Weather-related damage with corroborating evidence from weather service and similar neighbor claims. Straightforward property damage claim with clear causation and standard repair process.",
             risk_factors=["weather_verification_needed"],
-            escalation=False
+            escalation=False,
         )
 
-    elif amount < 1000 and 'scratch' in description:
+    elif amount < 1000 and "scratch" in description:
         return MockLLMAssessment(
             complexity="low",
             confidence=0.94,
             reasoning="Minor cosmetic damage with low financial impact. Clear causation, minimal investigation required, standard repair process applicable.",
             risk_factors=["minimal_risk"],
-            escalation=False
+            escalation=False,
         )
 
     else:
@@ -103,7 +125,7 @@ def mock_llm_complexity_assessment(claim_data: Dict[str, Any]) -> MockLLMAssessm
             confidence=0.70,
             reasoning="Standard claim requiring moderate investigation and documentation review.",
             risk_factors=["standard_processing"],
-            escalation=False
+            escalation=False,
         )
 
 
@@ -129,8 +151,8 @@ def demonstrate_assessment_approaches():
                 "amount": 15000,
                 "incident_report": True,
                 "photos": True,
-                "police_report": False
-            }
+                "police_report": False,
+            },
         },
         {
             "name": "Suspicious Fire Claim",
@@ -143,8 +165,8 @@ def demonstrate_assessment_approaches():
                 "amount": 350000,
                 "incident_report": True,
                 "photos": False,
-                "police_report": False
-            }
+                "police_report": False,
+            },
         },
         {
             "name": "Simple Scratch",
@@ -157,9 +179,9 @@ def demonstrate_assessment_approaches():
                 "amount": 500,
                 "incident_report": True,
                 "photos": True,
-                "police_report": False
-            }
-        }
+                "police_report": False,
+            },
+        },
     ]
 
     for i, scenario in enumerate(test_scenarios, 1):
@@ -169,36 +191,37 @@ def demonstrate_assessment_approaches():
         print(f"Amount: ${scenario['claim']['amount']:,}")
 
         # Rule-based assessment
-        rule_result = orchestrator.assess_claim_complexity(scenario['claim'])
+        rule_result = orchestrator.assess_claim_complexity(scenario["claim"])
         print(f"\n📏 RULE-BASED ASSESSMENT: {rule_result.value.upper()}")
         print("   Logic:")
         print(
-            f"   • Amount threshold: ${scenario['claim']['amount']:,} ({'< $10k' if scenario['claim']['amount'] < 10000 else '< $50k' if scenario['claim']['amount'] < 50000 else '≥ $50k'})")
+            f"   • Amount threshold: ${scenario['claim']['amount']:,} ({'< $10k' if scenario['claim']['amount'] < 10000 else '< $50k' if scenario['claim']['amount'] < 50000 else '≥ $50k'})"
+        )
         print(
-            f"   • Keyword matching: {'fraud/litigation keywords found' if any(word in scenario['claim']['description'].lower() for word in ['fraud', 'litigation', 'lawsuit']) else 'no fraud keywords'}")
+            f"   • Keyword matching: {'fraud/litigation keywords found' if any(word in scenario['claim']['description'].lower() for word in ['fraud', 'litigation', 'lawsuit']) else 'no fraud keywords'}"
+        )
         print(
-            f"   • Documentation: {'some missing' if not scenario['claim'].get('police_report') else 'complete'}")
+            f"   • Documentation: {'some missing' if not scenario['claim'].get('police_report') else 'complete'}"
+        )
 
         # LLM-driven assessment (mocked)
-        llm_result = mock_llm_complexity_assessment(scenario['claim'])
-        print(
-            f"\n🧠 LLM-DRIVEN ASSESSMENT: {llm_result.complexity.value.upper()}")
+        llm_result = mock_llm_complexity_assessment(scenario["claim"])
+        print(f"\n🧠 LLM-DRIVEN ASSESSMENT: {llm_result.complexity.value.upper()}")
         print(f"   Confidence: {llm_result.confidence_score:.1%}")
         print(f"   Reasoning: {llm_result.reasoning}")
         print(f"   Risk Factors: {', '.join(llm_result.risk_factors)}")
-        print(
-            f"   Escalation: {'Yes' if llm_result.escalation_recommended else 'No'}")
+        print(f"   Escalation: {'Yes' if llm_result.escalation_recommended else 'No'}")
 
         # Highlight differences
         if rule_result != llm_result.complexity:
             print(f"\n⚠️  ASSESSMENT DISAGREEMENT:")
             print(f"   Rule-based sees this as {rule_result.value.upper()}")
-            print(
-                f"   LLM-driven sees this as {llm_result.complexity.value.upper()}")
+            print(f"   LLM-driven sees this as {llm_result.complexity.value.upper()}")
             print(f"   LLM reasoning shows why context matters beyond simple rules")
         else:
             print(
-                f"\n✅ ASSESSMENT AGREEMENT: Both approaches agree on {rule_result.value.upper()} complexity")
+                f"\n✅ ASSESSMENT AGREEMENT: Both approaches agree on {rule_result.value.upper()} complexity"
+            )
 
     print("\n" + "=" * 70)
     print("📊 KEY DIFFERENCES SUMMARY")

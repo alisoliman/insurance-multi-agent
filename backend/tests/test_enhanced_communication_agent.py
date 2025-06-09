@@ -16,7 +16,7 @@ from app.agents.communication import (
     CommunicationType,
     CommunicationContext,
     Language,
-    CommunicationTone
+    CommunicationTone,
 )
 
 
@@ -52,19 +52,18 @@ class CommunicationTestSuite:
                     assessment_result={
                         "decision": "approve",
                         "confidence_score": 0.95,
-                        "reasoning": "All documentation complete, clear liability, within policy limits"
+                        "reasoning": "All documentation complete, clear liability, within policy limits",
                     },
                     policy_details={
                         "policy_type": "Auto Insurance",
                         "coverage_limits": "$50,000",
-                        "deductible": "$500"
+                        "deductible": "$500",
                     },
-                    preferred_language=Language.ENGLISH
+                    preferred_language=Language.ENGLISH,
                 ),
                 "expected_tone": CommunicationTone.CONGRATULATORY,
-                "expected_elements": ["approved", "congratulations", "payment"]
+                "expected_elements": ["approved", "congratulations", "payment"],
             },
-
             {
                 "name": "Claim Rejection - English",
                 "context": CommunicationContext(
@@ -75,19 +74,18 @@ class CommunicationTestSuite:
                     assessment_result={
                         "decision": "reject",
                         "confidence_score": 0.88,
-                        "reasoning": "Incident occurred outside policy coverage period"
+                        "reasoning": "Incident occurred outside policy coverage period",
                     },
                     policy_details={
                         "policy_type": "Home Insurance",
                         "coverage_limits": "$200,000",
-                        "deductible": "$1,000"
+                        "deductible": "$1,000",
                     },
-                    preferred_language=Language.ENGLISH
+                    preferred_language=Language.ENGLISH,
                 ),
                 "expected_tone": CommunicationTone.EMPATHETIC,
-                "expected_elements": ["regret", "appeal", "coverage"]
+                "expected_elements": ["regret", "appeal", "coverage"],
             },
-
             {
                 "name": "Information Request - Spanish",
                 "context": CommunicationContext(
@@ -97,12 +95,11 @@ class CommunicationTestSuite:
                     communication_type=CommunicationType.INFORMATION_REQUEST,
                     special_instructions="Request police report and additional photos",
                     preferred_language=Language.SPANISH,
-                    urgency_level="high"
+                    urgency_level="high",
                 ),
                 "expected_tone": CommunicationTone.PROFESSIONAL,
-                "expected_elements": ["documentation", "required", "submit"]
+                "expected_elements": ["documentation", "required", "submit"],
             },
-
             {
                 "name": "Human Review Notification - French",
                 "context": CommunicationContext(
@@ -113,14 +110,13 @@ class CommunicationTestSuite:
                     assessment_result={
                         "decision": "human_review",
                         "confidence_score": 0.65,
-                        "reasoning": "Complex case requiring specialist review"
+                        "reasoning": "Complex case requiring specialist review",
                     },
-                    preferred_language=Language.FRENCH
+                    preferred_language=Language.FRENCH,
                 ),
                 "expected_tone": CommunicationTone.REASSURING,
-                "expected_elements": ["specialist", "review", "timeline"]
+                "expected_elements": ["specialist", "review", "timeline"],
             },
-
             {
                 "name": "Investigation Update - German",
                 "context": CommunicationContext(
@@ -131,15 +127,14 @@ class CommunicationTestSuite:
                     assessment_result={
                         "decision": "investigate",
                         "confidence_score": 0.72,
-                        "reasoning": "Requires additional investigation for fraud indicators"
+                        "reasoning": "Requires additional investigation for fraud indicators",
                     },
                     preferred_language=Language.GERMAN,
-                    urgency_level="normal"
+                    urgency_level="normal",
                 ),
                 "expected_tone": CommunicationTone.PROFESSIONAL,
-                "expected_elements": ["investigation", "cooperation", "update"]
+                "expected_elements": ["investigation", "cooperation", "update"],
             },
-
             {
                 "name": "Status Update - Portuguese",
                 "context": CommunicationContext(
@@ -148,12 +143,11 @@ class CommunicationTestSuite:
                     policy_number="POL_22222",
                     communication_type=CommunicationType.CLAIM_STATUS_UPDATE,
                     preferred_language=Language.PORTUGUESE,
-                    special_instructions="Provide general status update"
+                    special_instructions="Provide general status update",
                 ),
                 "expected_tone": CommunicationTone.PROFESSIONAL,
-                "expected_elements": ["status", "processing", "contact"]
+                "expected_elements": ["status", "processing", "contact"],
             },
-
             {
                 "name": "High-Value Claim Approval",
                 "context": CommunicationContext(
@@ -164,20 +158,19 @@ class CommunicationTestSuite:
                     assessment_result={
                         "decision": "approve",
                         "confidence_score": 0.91,
-                        "reasoning": "High-value claim approved after thorough review"
+                        "reasoning": "High-value claim approved after thorough review",
                     },
                     policy_details={
                         "policy_type": "Commercial Property",
                         "coverage_limits": "$1,000,000",
-                        "deductible": "$10,000"
+                        "deductible": "$10,000",
                     },
                     preferred_language=Language.ENGLISH,
-                    urgency_level="high"
+                    urgency_level="high",
                 ),
                 "expected_tone": CommunicationTone.CONGRATULATORY,
-                "expected_elements": ["approved", "high-value", "payment"]
+                "expected_elements": ["approved", "high-value", "payment"],
             },
-
             {
                 "name": "General Inquiry Response",
                 "context": CommunicationContext(
@@ -186,11 +179,11 @@ class CommunicationTestSuite:
                     policy_number="POL_44444",
                     communication_type=CommunicationType.GENERAL_INQUIRY_RESPONSE,
                     preferred_language=Language.CHINESE,
-                    special_instructions="Response to general policy inquiry"
+                    special_instructions="Response to general policy inquiry",
                 ),
                 "expected_tone": CommunicationTone.PROFESSIONAL,
-                "expected_elements": ["inquiry", "assistance", "policy"]
-            }
+                "expected_elements": ["inquiry", "assistance", "policy"],
+            },
         ]
 
         return scenarios
@@ -217,15 +210,17 @@ class CommunicationTestSuite:
                     "communication_id": result.communication_id,
                     "subject": result.subject,
                     "content_length": len(result.content),
-                    "content_preview": result.content[:200] + "..." if len(result.content) > 200 else result.content,
+                    "content_preview": result.content[:200] + "..."
+                    if len(result.content) > 200
+                    else result.content,
                     "language": result.language.value,
                     "tone": result.tone.value,
                     "personalization_score": result.personalization_score,
                     "compliance_verified": result.compliance_verified,
-                    "processing_time_seconds": result.processing_time_seconds
+                    "processing_time_seconds": result.processing_time_seconds,
                 },
                 "analysis": analysis,
-                "metadata": result.metadata
+                "metadata": result.metadata,
             }
 
         except Exception as e:
@@ -233,7 +228,7 @@ class CommunicationTestSuite:
                 "scenario_name": scenario["name"],
                 "success": False,
                 "error": str(e),
-                "processing_time": time.time() - start_time
+                "processing_time": time.time() - start_time,
             }
 
     def analyze_communication_result(self, result, scenario) -> Dict[str, Any]:
@@ -241,13 +236,14 @@ class CommunicationTestSuite:
 
         analysis = {
             "tone_match": result.tone == scenario["expected_tone"],
-            "language_correct": result.language == scenario["context"].preferred_language,
+            "language_correct": result.language
+            == scenario["context"].preferred_language,
             "has_subject": bool(result.subject and len(result.subject) > 0),
             "has_content": bool(result.content and len(result.content) > 50),
             "personalization_adequate": result.personalization_score >= 0.3,
             "compliance_verified": result.compliance_verified,
             "expected_elements_found": [],
-            "quality_score": 0.0
+            "quality_score": 0.0,
         }
 
         # Check for expected elements in content
@@ -263,7 +259,7 @@ class CommunicationTestSuite:
             analysis["has_subject"],
             analysis["has_content"],
             analysis["personalization_adequate"],
-            len(analysis["expected_elements_found"]) > 0
+            len(analysis["expected_elements_found"]) > 0,
         ]
 
         analysis["quality_score"] = sum(quality_factors) / len(quality_factors)
@@ -276,8 +272,7 @@ class CommunicationTestSuite:
         print("\n🔄 Running performance tests...")
 
         # Test concurrent communication generation
-        concurrent_scenarios = self.create_test_scenarios()[
-            :3]  # Use first 3 scenarios
+        concurrent_scenarios = self.create_test_scenarios()[:3]  # Use first 3 scenarios
 
         start_time = time.time()
         concurrent_tasks = [
@@ -294,8 +289,9 @@ class CommunicationTestSuite:
                     "success": True,
                     "scenarios_count": len(concurrent_scenarios),
                     "total_time": concurrent_time,
-                    "average_time_per_communication": concurrent_time / len(concurrent_scenarios),
-                    "results_count": len(concurrent_results)
+                    "average_time_per_communication": concurrent_time
+                    / len(concurrent_scenarios),
+                    "results_count": len(concurrent_results),
                 }
             }
         except Exception as e:
@@ -303,7 +299,7 @@ class CommunicationTestSuite:
                 "concurrent_generation": {
                     "success": False,
                     "error": str(e),
-                    "total_time": time.time() - start_time
+                    "total_time": time.time() - start_time,
                 }
             }
 
@@ -318,20 +314,23 @@ class CommunicationTestSuite:
                     "success": True,
                     "agent_type": capabilities.get("agent_type"),
                     "llm_driven": capabilities.get("llm_driven"),
-                    "communication_types_count": len(capabilities.get("communication_types", [])),
-                    "supported_languages_count": len(capabilities.get("supported_languages", [])),
+                    "communication_types_count": len(
+                        capabilities.get("communication_types", [])
+                    ),
+                    "supported_languages_count": len(
+                        capabilities.get("supported_languages", [])
+                    ),
                     "tone_options_count": len(capabilities.get("tone_options", [])),
-                    "personalization_features_count": len(capabilities.get("personalization_features", [])),
-                    "compliance_features_count": len(capabilities.get("compliance_features", []))
+                    "personalization_features_count": len(
+                        capabilities.get("personalization_features", [])
+                    ),
+                    "compliance_features_count": len(
+                        capabilities.get("compliance_features", [])
+                    ),
                 }
             }
         except Exception as e:
-            return {
-                "capabilities_test": {
-                    "success": False,
-                    "error": str(e)
-                }
-            }
+            return {"capabilities_test": {"success": False, "error": str(e)}}
 
     async def run_all_tests(self):
         """Run the complete test suite."""
@@ -346,7 +345,8 @@ class CommunicationTestSuite:
         # Test agent capabilities
         capabilities_result = await self.test_agent_capabilities()
         print(
-            f"✅ Capabilities test: {capabilities_result['capabilities_test']['success']}")
+            f"✅ Capabilities test: {capabilities_result['capabilities_test']['success']}"
+        )
 
         # Create test scenarios
         scenarios = self.create_test_scenarios()
@@ -362,7 +362,8 @@ class CommunicationTestSuite:
 
             if result["success"]:
                 print(
-                    f"    ✅ Success (Quality: {result['analysis']['quality_score']:.2f})")
+                    f"    ✅ Success (Quality: {result['analysis']['quality_score']:.2f})"
+                )
             else:
                 print(f"    ❌ Failed: {result['error']}")
 
@@ -372,8 +373,9 @@ class CommunicationTestSuite:
         # Generate summary
         self.generate_test_summary(capabilities_result, performance_result)
 
-    def generate_test_summary(self, capabilities_result: Dict[str, Any],
-                              performance_result: Dict[str, Any]):
+    def generate_test_summary(
+        self, capabilities_result: Dict[str, Any], performance_result: Dict[str, Any]
+    ):
         """Generate and display test summary."""
 
         print("\n" + "=" * 60)
@@ -386,30 +388,34 @@ class CommunicationTestSuite:
 
         print(f"Total Tests: {len(self.test_results)}")
         print(
-            f"Successful: {len(successful_tests)} ({len(successful_tests)/len(self.test_results)*100:.1f}%)")
+            f"Successful: {len(successful_tests)} ({len(successful_tests) / len(self.test_results) * 100:.1f}%)"
+        )
         print(
-            f"Failed: {len(failed_tests)} ({len(failed_tests)/len(self.test_results)*100:.1f}%)")
+            f"Failed: {len(failed_tests)} ({len(failed_tests) / len(self.test_results) * 100:.1f}%)"
+        )
 
         if successful_tests:
             # Performance metrics
             processing_times = [r["processing_time"] for r in successful_tests]
             personalization_scores = [
-                r["result"]["personalization_score"] for r in successful_tests]
-            quality_scores = [r["analysis"]["quality_score"]
-                              for r in successful_tests]
+                r["result"]["personalization_score"] for r in successful_tests
+            ]
+            quality_scores = [r["analysis"]["quality_score"] for r in successful_tests]
 
             print(f"\n📈 PERFORMANCE METRICS:")
             print(
-                f"Average Processing Time: {sum(processing_times)/len(processing_times):.3f}s")
+                f"Average Processing Time: {sum(processing_times) / len(processing_times):.3f}s"
+            )
             print(
-                f"Average Personalization Score: {sum(personalization_scores)/len(personalization_scores):.3f}")
+                f"Average Personalization Score: {sum(personalization_scores) / len(personalization_scores):.3f}"
+            )
             print(
-                f"Average Quality Score: {sum(quality_scores)/len(quality_scores):.3f}")
+                f"Average Quality Score: {sum(quality_scores) / len(quality_scores):.3f}"
+            )
 
             # Language distribution
             languages = [r["result"]["language"] for r in successful_tests]
-            language_counts = {lang: languages.count(
-                lang) for lang in set(languages)}
+            language_counts = {lang: languages.count(lang) for lang in set(languages)}
             print(f"\n🌍 LANGUAGE DISTRIBUTION:")
             for lang, count in language_counts.items():
                 print(f"  {lang}: {count} tests")
@@ -438,7 +444,8 @@ class CommunicationTestSuite:
             print(f"Concurrent Scenarios: {perf['scenarios_count']}")
             print(f"Total Time: {perf['total_time']:.3f}s")
             print(
-                f"Average per Communication: {perf['average_time_per_communication']:.3f}s")
+                f"Average per Communication: {perf['average_time_per_communication']:.3f}s"
+            )
 
         # Failed tests details
         if failed_tests:

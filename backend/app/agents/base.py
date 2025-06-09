@@ -11,6 +11,7 @@ try:
     from autogen_agentchat.teams import RoundRobinGroupChat
     from autogen_agentchat.conditions import MaxMessageTermination
     from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
+
     AUTOGEN_AVAILABLE = True
 except ImportError as e:
     AUTOGEN_AVAILABLE = False
@@ -28,7 +29,11 @@ class AutoGenConfig:
         if not AUTOGEN_AVAILABLE:
             return None
 
-        if not settings.AZURE_OPENAI_ENDPOINT or not settings.AZURE_OPENAI_DEPLOYMENT_NAME or not settings.AZURE_OPENAI_API_KEY:
+        if (
+            not settings.AZURE_OPENAI_ENDPOINT
+            or not settings.AZURE_OPENAI_DEPLOYMENT_NAME
+            or not settings.AZURE_OPENAI_API_KEY
+        ):
             raise ValueError(
                 "Azure OpenAI configuration missing. Please set AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT_NAME, and AZURE_OPENAI_API_KEY"
             )
@@ -61,7 +66,8 @@ class BaseInsuranceAgent:
         self.model_client = AutoGenConfig.get_model_client()
         if self.model_client is None:
             raise ValueError(
-                "Could not create model client - check Azure OpenAI configuration")
+                "Could not create model client - check Azure OpenAI configuration"
+            )
 
         # Create the internal AutoGen agent
         self.agent = AssistantAgent(
@@ -78,7 +84,8 @@ class BaseInsuranceAgent:
         if hasattr(self.agent, name):
             return getattr(self.agent, name)
         raise AttributeError(
-            f"'{self.__class__.__name__}' object has no attribute '{name}'")
+            f"'{self.__class__.__name__}' object has no attribute '{name}'"
+        )
 
     # Insurance-specific methods
     async def process_message(self, message: str) -> str:
@@ -95,7 +102,7 @@ class BaseInsuranceAgent:
             # Use AutoGen agent with proper termination
             team = RoundRobinGroupChat(
                 participants=[self.agent],
-                termination_condition=MaxMessageTermination(max_messages=2)
+                termination_condition=MaxMessageTermination(max_messages=2),
             )
 
             result = await team.run(task=message)
@@ -121,8 +128,16 @@ class BaseInsuranceAgent:
             True if the message appears to be insurance-related
         """
         insurance_keywords = [
-            'claim', 'policy', 'coverage', 'deductible', 'premium',
-            'insurance', 'damage', 'accident', 'liability', 'beneficiary'
+            "claim",
+            "policy",
+            "coverage",
+            "deductible",
+            "premium",
+            "insurance",
+            "damage",
+            "accident",
+            "liability",
+            "beneficiary",
         ]
         message_lower = message.lower()
         return any(keyword in message_lower for keyword in insurance_keywords)
@@ -139,25 +154,26 @@ class BaseInsuranceAgent:
         """
         try:
             # Validate required fields
-            required_fields = ['policy_number', 'incident_date', 'description']
+            required_fields = ["policy_number", "incident_date", "description"]
             missing_fields = [
-                field for field in required_fields if field not in claim_data]
+                field for field in required_fields if field not in claim_data
+            ]
 
             if missing_fields:
                 return {
-                    'status': 'incomplete',
-                    'missing_fields': missing_fields,
-                    'message': f"Missing required fields: {', '.join(missing_fields)}"
+                    "status": "incomplete",
+                    "missing_fields": missing_fields,
+                    "message": f"Missing required fields: {', '.join(missing_fields)}",
                 }
 
             # Format claim data for agent processing
             claim_message = f"""
             Please assess this insurance claim:
             
-            Policy Number: {claim_data.get('policy_number')}
-            Incident Date: {claim_data.get('incident_date')}
-            Description: {claim_data.get('description')}
-            Estimated Amount: {claim_data.get('amount', 'Not specified')}
+            Policy Number: {claim_data.get("policy_number")}
+            Incident Date: {claim_data.get("incident_date")}
+            Description: {claim_data.get("description")}
+            Estimated Amount: {claim_data.get("amount", "Not specified")}
             
             Please provide a structured assessment including:
             1. Completeness review
@@ -169,17 +185,17 @@ class BaseInsuranceAgent:
             response = await self.process_message(claim_message)
 
             return {
-                'status': 'processed',
-                'assessment': response,
-                'claim_id': claim_data.get('claim_id'),
-                'processed_by': self.name
+                "status": "processed",
+                "assessment": response,
+                "claim_id": claim_data.get("claim_id"),
+                "processed_by": self.name,
             }
 
         except Exception as e:
             return {
-                'status': 'error',
-                'error': str(e),
-                'claim_id': claim_data.get('claim_id')
+                "status": "error",
+                "error": str(e),
+                "claim_id": claim_data.get("claim_id"),
             }
 
     def get_agent_info(self) -> dict:
@@ -190,16 +206,16 @@ class BaseInsuranceAgent:
             Dictionary with agent information
         """
         return {
-            'name': self.name,
-            'type': self.__class__.__name__,
-            'system_message': self.system_message,
-            'model_client_type': type(self.model_client).__name__,
-            'autogen_compatible': True,
-            'insurance_features': [
-                'claim_processing',
-                'context_validation',
-                'structured_assessment'
-            ]
+            "name": self.name,
+            "type": self.__class__.__name__,
+            "system_message": self.system_message,
+            "model_client_type": type(self.model_client).__name__,
+            "autogen_compatible": True,
+            "insurance_features": [
+                "claim_processing",
+                "context_validation",
+                "structured_assessment",
+            ],
         }
 
 
@@ -219,7 +235,9 @@ class ClaimAssessmentAgent(BaseInsuranceAgent):
         """
         super().__init__("ClaimAssessmentAgent", system_message)
 
-    async def assess_claim_validity(self, claim_data: dict, policy_terms: dict = None) -> dict:
+    async def assess_claim_validity(
+        self, claim_data: dict, policy_terms: dict = None
+    ) -> dict:
         """
         Specialized method for claim validity assessment.
 
@@ -233,11 +251,9 @@ class ClaimAssessmentAgent(BaseInsuranceAgent):
         assessment = await self.process_insurance_claim(claim_data)
 
         # Add claim-specific analysis
-        if assessment['status'] == 'processed':
-            assessment['validity_score'] = self._calculate_validity_score(
-                claim_data)
-            assessment['risk_factors'] = self._identify_risk_factors(
-                claim_data)
+        if assessment["status"] == "processed":
+            assessment["validity_score"] = self._calculate_validity_score(claim_data)
+            assessment["risk_factors"] = self._identify_risk_factors(claim_data)
 
         return assessment
 
@@ -246,15 +262,15 @@ class ClaimAssessmentAgent(BaseInsuranceAgent):
         score = 0.0
         total_factors = 5
 
-        if claim_data.get('policy_number'):
+        if claim_data.get("policy_number"):
             score += 1
-        if claim_data.get('incident_date'):
+        if claim_data.get("incident_date"):
             score += 1
-        if claim_data.get('description') and len(claim_data['description']) > 20:
+        if claim_data.get("description") and len(claim_data["description"]) > 20:
             score += 1
-        if claim_data.get('amount') and isinstance(claim_data['amount'], (int, float)):
+        if claim_data.get("amount") and isinstance(claim_data["amount"], (int, float)):
             score += 1
-        if claim_data.get('documentation'):
+        if claim_data.get("documentation"):
             score += 1
 
         return score / total_factors
@@ -263,13 +279,13 @@ class ClaimAssessmentAgent(BaseInsuranceAgent):
         """Identify potential risk factors in the claim."""
         risk_factors = []
 
-        amount = claim_data.get('amount', 0)
+        amount = claim_data.get("amount", 0)
         if isinstance(amount, (int, float)) and amount > 10000:
-            risk_factors.append('high_value_claim')
+            risk_factors.append("high_value_claim")
 
-        description = claim_data.get('description', '').lower()
-        if any(word in description for word in ['total loss', 'destroyed', 'stolen']):
-            risk_factors.append('total_loss_indicator')
+        description = claim_data.get("description", "").lower()
+        if any(word in description for word in ["total loss", "destroyed", "stolen"]):
+            risk_factors.append("total_loss_indicator")
 
         return risk_factors
 
@@ -290,7 +306,9 @@ class CustomerCommunicationAgent(BaseInsuranceAgent):
         """
         super().__init__("CustomerCommunicationAgent", system_message)
 
-    async def draft_customer_response(self, customer_inquiry: str, context: dict = None) -> dict:
+    async def draft_customer_response(
+        self, customer_inquiry: str, context: dict = None
+    ) -> dict:
         """
         Draft a customer response with appropriate tone and information.
 
@@ -308,9 +326,9 @@ class CustomerCommunicationAgent(BaseInsuranceAgent):
                 Customer Inquiry: {customer_inquiry}
                 
                 Additional Context:
-                - Customer ID: {context.get('customer_id', 'Not provided')}
-                - Claim Status: {context.get('claim_status', 'Unknown')}
-                - Policy Type: {context.get('policy_type', 'Not specified')}
+                - Customer ID: {context.get("customer_id", "Not provided")}
+                - Claim Status: {context.get("claim_status", "Unknown")}
+                - Policy Type: {context.get("policy_type", "Not specified")}
                 
                 Please provide a helpful, empathetic response addressing their inquiry.
                 """
@@ -320,16 +338,12 @@ class CustomerCommunicationAgent(BaseInsuranceAgent):
             response = await self.process_message(enhanced_inquiry)
 
             return {
-                'status': 'success',
-                'response': response,
-                'tone': 'professional_empathetic',
-                'generated_by': self.name,
-                'context_used': bool(context)
+                "status": "success",
+                "response": response,
+                "tone": "professional_empathetic",
+                "generated_by": self.name,
+                "context_used": bool(context),
             }
 
         except Exception as e:
-            return {
-                'status': 'error',
-                'error': str(e),
-                'fallback_response': "Thank you for contacting us. We're experiencing technical difficulties but will respond to your inquiry as soon as possible."
-            }
+            return {"status": "error", "error": str(e)}

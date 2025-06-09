@@ -14,10 +14,7 @@ class Settings(BaseSettings):
     API_PREFIX: str = "/api"
 
     # CORS settings
-    CORS_ORIGINS: list[str] = [
-        "http://localhost:3000",
-        "http://localhost:8000"
-    ]
+    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:8000"]
 
     # Environment detection
     ENVIRONMENT: str = "development"

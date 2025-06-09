@@ -13,6 +13,7 @@ router = APIRouter()
 
 class HealthResponse(BaseModel):
     """Response model for health check."""
+
     status: str
     timestamp: str
     version: str
@@ -39,6 +40,7 @@ async def health_check():
         try:
             from app.agents.assessment import EnhancedAssessmentAgent
             from app.agents.communication import EnhancedCommunicationAgent
+
             services["agents"] = "healthy"
         except Exception:
             services["agents"] = "unhealthy"
@@ -47,7 +49,7 @@ async def health_check():
             status="healthy",
             timestamp=datetime.utcnow().isoformat(),
             version="1.0.0",
-            services=services
+            services=services,
         )
 
     except Exception as e:
@@ -55,7 +57,7 @@ async def health_check():
             status="unhealthy",
             timestamp=datetime.utcnow().isoformat(),
             version="1.0.0",
-            services={"error": str(e)}
+            services={"error": str(e)},
         )
 
 
@@ -70,41 +72,44 @@ async def detailed_health_check():
     health_data = {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
-        "components": {}
+        "components": {},
     }
 
     # Test agent initialization
     try:
         from app.agents.assessment import EnhancedAssessmentAgent
+
         agent = EnhancedAssessmentAgent()
         health_data["components"]["assessment_agent"] = {
             "status": "healthy",
             "name": agent.name,
-            "type": agent.agent_type
+            "type": agent.agent_type,
         }
     except Exception as e:
         health_data["components"]["assessment_agent"] = {
             "status": "unhealthy",
-            "error": str(e)
+            "error": str(e),
         }
 
     try:
         from app.agents.communication import EnhancedCommunicationAgent
+
         agent = EnhancedCommunicationAgent()
         health_data["components"]["communication_agent"] = {
             "status": "healthy",
             "name": agent.name,
-            "capabilities": len(agent.supported_languages)
+            "capabilities": len(agent.supported_languages),
         }
     except Exception as e:
         health_data["components"]["communication_agent"] = {
             "status": "unhealthy",
-            "error": str(e)
+            "error": str(e),
         }
 
     # Check if any components are unhealthy
     unhealthy_components = [
-        comp for comp, data in health_data["components"].items()
+        comp
+        for comp, data in health_data["components"].items()
         if data.get("status") == "unhealthy"
     ]
 

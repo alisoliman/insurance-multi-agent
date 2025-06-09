@@ -235,5 +235,7 @@ Once a task has been broken down into subtasks using `expand_task` or similar me
       `rg "export (async function|function|const) \w+"` or similar patterns.
     - Can help compare functions between files during migrations or identify potential naming conflicts.
 
+- DO NOT RUN THE BACKEND OR FRONTEND, I have them on autoreload
+
 ---
 *This workflow provides a general guideline. Adapt it based on your specific project needs and team practices.*

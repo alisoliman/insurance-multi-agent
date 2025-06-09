@@ -41,29 +41,75 @@ const data = {
   },
   navMain: [
     {
-      title: "Dashboard",
+      title: "Live Dashboard",
       url: "/",
       icon: IconDashboard,
     },
     {
-      title: "Tasks",
-      url: "/tasks",
-      icon: IconListDetails,
-    },
-    {
-      title: "Analytics",
-      url: "#",
-      icon: IconChartBar,
-    },
-    {
-      title: "Projects",
-      url: "#",
-      icon: IconFolder,
-    },
-    {
-      title: "Team",
+      title: "Agent Demos",
       url: "#",
       icon: IconUsers,
+      items: [
+        {
+          title: "Assessment Agent",
+          url: "/agents/assessment",
+        },
+        {
+          title: "Communication Agent",
+          url: "/agents/communication",
+        },
+        {
+          title: "Orchestrator Agent",
+          url: "/agents/orchestrator",
+        },
+        {
+          title: "Explainability Demo",
+          url: "/agents/explainability",
+        },
+      ],
+    },
+    {
+      title: "Workflow Monitor",
+      url: "#",
+      icon: IconListDetails,
+      items: [
+        {
+          title: "Active Claims",
+          url: "#",
+        },
+        {
+          title: "Processing Queue",
+          url: "#",
+        },
+        {
+          title: "Completed Claims",
+          url: "#",
+        },
+      ],
+    },
+    {
+      title: "System Health",
+      url: "#",
+      icon: IconChartBar,
+      items: [
+        {
+          title: "Performance Metrics",
+          url: "#",
+        },
+        {
+          title: "API Status",
+          url: "#",
+        },
+        {
+          title: "Error Logs",
+          url: "#",
+        },
+      ],
+    },
+    {
+      title: "Tasks",
+      url: "/tasks",
+      icon: IconFolder,
     },
   ],
   navClouds: [
@@ -162,7 +208,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <a href="#">
                 <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">Acme Inc.</span>
+                <span className="text-base font-semibold">Insurance AI Demo</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>

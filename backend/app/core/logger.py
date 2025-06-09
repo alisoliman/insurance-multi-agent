@@ -11,14 +11,12 @@ log_format = "%(asctime)s - %(levelname)s - %(message)s"
 def setup_logging() -> None:
     """Configure logging for the application."""
     log_level = getattr(logging, settings.LOG_LEVEL)
-    
+
     # Configure root logger
     logging.basicConfig(
-        level=log_level,
-        format=log_format,
-        handlers=[logging.StreamHandler(sys.stdout)]
+        level=log_level, format=log_format, handlers=[logging.StreamHandler(sys.stdout)]
     )
-    
+
     # Set log levels for other libraries
     logging.getLogger("uvicorn").setLevel(log_level)
     logging.getLogger("uvicorn.access").setLevel(log_level)

@@ -13,19 +13,15 @@ __all__ = [
     # Agent schemas
     "AgentTestRequest",
     "AgentTestResponse",
-
     # Claim schemas
     "ClaimData",
     "CustomerInquiry",
-
     # Communication schemas
     "CommunicationRequest",
     "AssessmentBasedCommunicationRequest",
-
     # Workflow schemas
     "WorkflowRequest",
     "WorkflowStatusResponse",
-
     # Assessment schemas
     "EnhancedAssessmentRequest",
     "EnhancedAssessmentResponse",

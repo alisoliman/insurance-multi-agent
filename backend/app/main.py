@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router as api_router
 from app.core.config import settings
@@ -31,6 +32,9 @@ app.add_middleware(CORSMiddleware, **cors_kwargs)
 
 # Include API router
 app.include_router(api_router, prefix=settings.API_PREFIX)
+
+# Mount static files for WebSocket demo
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
 @app.get("/")

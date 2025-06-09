@@ -6,14 +6,17 @@ This demonstrates the advanced reasoning capabilities of the new LLM-based
 complexity assessor compared to the rule-based approach.
 """
 
-from app.agents.llm_complexity_assessor import LLMComplexityAssessor, ComplexityAssessment
+from app.agents.llm_complexity_assessor import (
+    LLMComplexityAssessor,
+    ComplexityAssessment,
+)
 import sys
 import asyncio
 import json
 from typing import Dict, Any
 
 # Add the app directory to the path for imports
-sys.path.append('/Users/ali/Dev/ip/simple-insurance-multi-agent/backend')
+sys.path.append("/Users/ali/Dev/ip/simple-insurance-multi-agent/backend")
 
 
 async def test_llm_complexity_assessment():
@@ -35,8 +38,8 @@ async def test_llm_complexity_assessment():
                 "description": "Small scratch on passenger door from shopping cart in grocery store parking lot. No other vehicles involved.",
                 "amount": 500,
                 "incident_report": True,
-                "photos": True
-            }
+                "photos": True,
+            },
         },
         {
             "name": "Multi-Vehicle Highway Accident",
@@ -48,8 +51,8 @@ async def test_llm_complexity_assessment():
                 "amount": 45000,
                 "incident_report": True,
                 "photos": True,
-                "police_report": True
-            }
+                "police_report": True,
+            },
         },
         {
             "name": "Suspicious Fire Claim",
@@ -61,8 +64,8 @@ async def test_llm_complexity_assessment():
                 "amount": 350000,
                 "incident_report": True,
                 "photos": False,
-                "police_report": False
-            }
+                "police_report": False,
+            },
         },
         {
             "name": "Medical Complexity Case",
@@ -74,8 +77,8 @@ async def test_llm_complexity_assessment():
                 "amount": 125000,
                 "incident_report": True,
                 "photos": True,
-                "police_report": False
-            }
+                "police_report": False,
+            },
         },
         {
             "name": "Weather-Related Damage",
@@ -87,9 +90,9 @@ async def test_llm_complexity_assessment():
                 "amount": 8500,
                 "incident_report": True,
                 "photos": True,
-                "police_report": False
-            }
-        }
+                "police_report": False,
+            },
+        },
     ]
 
     results = []
@@ -100,37 +103,39 @@ async def test_llm_complexity_assessment():
 
         try:
             # Get LLM assessment
-            assessment = await assessor.assess_claim_complexity(scenario['claim'])
+            assessment = await assessor.assess_claim_complexity(scenario["claim"])
 
             # Generate explanation
-            explanation = await assessor.explain_decision(scenario['claim'], assessment)
+            explanation = await assessor.explain_decision(scenario["claim"], assessment)
 
             print(f"✅ Assessment Complete")
             print(f"   Complexity: {assessment.complexity.value.upper()}")
             print(f"   Confidence: {assessment.confidence_score:.1%}")
             print(
-                f"   Escalation: {'Yes' if assessment.escalation_recommended else 'No'}")
+                f"   Escalation: {'Yes' if assessment.escalation_recommended else 'No'}"
+            )
+            print(f"   Processing Time: {assessment.estimated_processing_time}")
             print(
-                f"   Processing Time: {assessment.estimated_processing_time}")
-            print(
-                f"   Risk Factors: {', '.join(assessment.risk_factors[:3])}{'...' if len(assessment.risk_factors) > 3 else ''}")
+                f"   Risk Factors: {', '.join(assessment.risk_factors[:3])}{'...' if len(assessment.risk_factors) > 3 else ''}"
+            )
 
             # Store result for summary
-            results.append({
-                "scenario": scenario['name'],
-                "complexity": assessment.complexity.value,
-                "confidence": assessment.confidence_score,
-                "escalation": assessment.escalation_recommended,
-                "reasoning": assessment.reasoning[:100] + "..." if len(assessment.reasoning) > 100 else assessment.reasoning,
-                "risk_factors": assessment.risk_factors
-            })
+            results.append(
+                {
+                    "scenario": scenario["name"],
+                    "complexity": assessment.complexity.value,
+                    "confidence": assessment.confidence_score,
+                    "escalation": assessment.escalation_recommended,
+                    "reasoning": assessment.reasoning[:100] + "..."
+                    if len(assessment.reasoning) > 100
+                    else assessment.reasoning,
+                    "risk_factors": assessment.risk_factors,
+                }
+            )
 
         except Exception as e:
             print(f"❌ Assessment Failed: {str(e)}")
-            results.append({
-                "scenario": scenario['name'],
-                "error": str(e)
-            })
+            results.append({"scenario": scenario["name"], "error": str(e)})
 
     # Print summary
     print("\n" + "=" * 60)
@@ -171,7 +176,7 @@ async def compare_approaches():
         "amount": 15000,  # Moderate amount
         "incident_report": True,
         "photos": True,
-        "police_report": False
+        "police_report": False,
     }
 
     print("\nTest Claim: Professional athlete minor collision with major injury claims")
@@ -186,8 +191,7 @@ async def compare_approaches():
     # LLM-based assessment
     try:
         llm_assessment = await assessor.assess_claim_complexity(complex_claim)
-        print(
-            f"\n🧠 LLM-Based Assessment: {llm_assessment.complexity.value.upper()}")
+        print(f"\n🧠 LLM-Based Assessment: {llm_assessment.complexity.value.upper()}")
         print(f"   Confidence: {llm_assessment.confidence_score:.1%}")
         print(f"   Reasoning: {llm_assessment.reasoning[:150]}...")
         print(f"   Risk Factors: {', '.join(llm_assessment.risk_factors)}")
@@ -196,7 +200,7 @@ async def compare_approaches():
             "rule_based": rule_complexity.value,
             "llm_based": llm_assessment.complexity.value,
             "llm_reasoning": llm_assessment.reasoning,
-            "llm_confidence": llm_assessment.confidence_score
+            "llm_confidence": llm_assessment.confidence_score,
         }
 
     except Exception as e:
@@ -220,7 +224,8 @@ async def main():
 
     if "error" not in comparison:
         print(
-            f"Comparison shows: Rule-based = {comparison['rule_based']}, LLM-based = {comparison['llm_based']}")
+            f"Comparison shows: Rule-based = {comparison['rule_based']}, LLM-based = {comparison['llm_based']}"
+        )
 
 
 if __name__ == "__main__":

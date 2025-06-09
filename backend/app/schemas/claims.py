@@ -8,6 +8,7 @@ from typing import Dict, Any, Optional, List
 
 class ClaimData(BaseModel):
     """Model for insurance claim data."""
+
     claim_id: Optional[str] = None
     policy_number: str
     incident_date: str
@@ -18,6 +19,7 @@ class ClaimData(BaseModel):
 
 class CustomerInquiry(BaseModel):
     """Model for customer inquiry data."""
+
     inquiry: str
     customer_id: Optional[str] = None
     claim_status: Optional[str] = None
@@ -26,12 +28,14 @@ class CustomerInquiry(BaseModel):
 
 class WorkflowRequest(BaseModel):
     """Request model for workflow processing."""
+
     claim_data: ClaimData
     use_graphflow: bool = False
 
 
 class WorkflowStatusResponse(BaseModel):
     """Response model for workflow status."""
+
     success: bool
     workflow_state: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
@@ -39,12 +43,14 @@ class WorkflowStatusResponse(BaseModel):
 
 class EnhancedAssessmentRequest(BaseModel):
     """Request model for enhanced claim assessment."""
+
     claim_data: ClaimData
     policy_data: Optional[Dict[str, Any]] = None
 
 
 class EnhancedAssessmentResponse(BaseModel):
     """Response model for enhanced claim assessment."""
+
     success: bool
     assessment_result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None

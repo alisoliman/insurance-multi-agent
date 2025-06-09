@@ -7,12 +7,16 @@ from typing import Dict, Any, Optional, List
 
 from app.agents.base import ClaimAssessmentAgent, CustomerCommunicationAgent
 from app.agents.orchestrator import OrchestratorAgent, WorkflowStage, ClaimComplexity
-from app.agents.assessment import EnhancedAssessmentAgent, AssessmentDecision, ConfidenceLevel
+from app.agents.assessment import (
+    EnhancedAssessmentAgent,
+    AssessmentDecision,
+    ConfidenceLevel,
+)
 from app.agents.communication import (
     EnhancedCommunicationAgent,
     CommunicationType,
     CommunicationContext,
-    Language
+    Language,
 )
 from app.schemas.agents import AgentTestRequest, AgentTestResponse
 from app.schemas.claims import (
@@ -21,11 +25,11 @@ from app.schemas.claims import (
     WorkflowRequest,
     WorkflowStatusResponse,
     EnhancedAssessmentRequest,
-    EnhancedAssessmentResponse
+    EnhancedAssessmentResponse,
 )
 from app.schemas.communication import (
     CommunicationRequest,
-    AssessmentBasedCommunicationRequest
+    AssessmentBasedCommunicationRequest,
 )
 
 router = APIRouter()
@@ -50,7 +54,9 @@ async def process_agent_message(request: AgentTestRequest):
             agent = CustomerCommunicationAgent()
         else:
             raise HTTPException(
-                status_code=400, detail="Invalid agent type. Use 'assessment' or 'communication'")
+                status_code=400,
+                detail="Invalid agent type. Use 'assessment' or 'communication'",
+            )
 
         # Process the message
         response = await agent.process_message(request.message)
@@ -59,7 +65,7 @@ async def process_agent_message(request: AgentTestRequest):
             success=True,
             agent_name=agent.name,
             message=request.message,
-            response=response
+            response=response,
         )
 
     except Exception as e:
@@ -68,7 +74,7 @@ async def process_agent_message(request: AgentTestRequest):
             agent_name="Unknown",
             message=request.message,
             response="",
-            error=str(e)
+            error=str(e),
         )
 
 
@@ -96,15 +102,11 @@ async def process_insurance_claim(claim_data: ClaimData):
         return {
             "success": True,
             "assessment": assessment,
-            "agent_info": agent.get_agent_info()
+            "agent_info": agent.get_agent_info(),
         }
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "claim_id": claim_data.claim_id
-        }
+        return {"success": False, "error": str(e), "claim_id": claim_data.claim_id}
 
 
 @router.post("/draft-response")
@@ -128,7 +130,7 @@ async def draft_customer_response(inquiry: CustomerInquiry):
             context = {
                 "customer_id": inquiry.customer_id,
                 "claim_status": inquiry.claim_status,
-                "policy_type": inquiry.policy_type
+                "policy_type": inquiry.policy_type,
             }
 
         # Use the specialized customer response method
@@ -137,14 +139,11 @@ async def draft_customer_response(inquiry: CustomerInquiry):
         return {
             "success": True,
             "response": response,
-            "agent_info": agent.get_agent_info()
+            "agent_info": agent.get_agent_info(),
         }
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 @router.get("/agent-info/{agent_type}")
@@ -166,29 +165,25 @@ async def get_agent_info(agent_type: str):
             agent = CustomerCommunicationAgent()
         else:
             raise HTTPException(
-                status_code=400, detail="Invalid agent type. Use 'assessment' or 'communication'")
+                status_code=400,
+                detail="Invalid agent type. Use 'assessment' or 'communication'",
+            )
 
         info = agent.get_agent_info()
 
         # Add AutoGen compatibility demonstration
         autogen_methods = []
         for method_name in dir(agent):
-            if not method_name.startswith('_') and hasattr(agent.agent, method_name):
+            if not method_name.startswith("_") and hasattr(agent.agent, method_name):
                 autogen_methods.append(method_name)
 
         info["autogen_delegated_methods"] = autogen_methods[:10]  # Show first 10
         info["total_autogen_methods"] = len(autogen_methods)
 
-        return {
-            "success": True,
-            "agent_info": info
-        }
+        return {"success": True, "agent_info": info}
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 @router.get("/validate-context/{message}")
@@ -212,14 +207,11 @@ async def validate_insurance_context(message: str):
             "success": True,
             "message": message,
             "is_insurance_related": is_valid,
-            "validated_by": agent.name
+            "validated_by": agent.name,
         }
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 @router.get("/test-autogen-compatibility")
@@ -241,41 +233,47 @@ async def test_autogen_compatibility():
         try:
             delegated_name = agent.name  # This should work through our property
             compatibility_tests["name_access"] = {
-                "success": True, "value": delegated_name}
+                "success": True,
+                "value": delegated_name,
+            }
         except Exception as e:
-            compatibility_tests["name_access"] = {
-                "success": False, "error": str(e)}
+            compatibility_tests["name_access"] = {"success": False, "error": str(e)}
 
         # Test 2: Check if we can access model_client
         try:
             model_client_type = type(agent.model_client).__name__
             compatibility_tests["model_client_access"] = {
-                "success": True, "type": model_client_type}
+                "success": True,
+                "type": model_client_type,
+            }
         except Exception as e:
             compatibility_tests["model_client_access"] = {
-                "success": False, "error": str(e)}
+                "success": False,
+                "error": str(e),
+            }
 
         # Test 3: Check AutoGen agent properties
         try:
             autogen_name = agent.agent.name
             compatibility_tests["autogen_agent_access"] = {
-                "success": True, "name": autogen_name}
+                "success": True,
+                "name": autogen_name,
+            }
         except Exception as e:
             compatibility_tests["autogen_agent_access"] = {
-                "success": False, "error": str(e)}
+                "success": False,
+                "error": str(e),
+            }
 
         return {
             "success": True,
             "compatibility_tests": compatibility_tests,
             "agent_type": type(agent).__name__,
-            "hybrid_approach": "working"
+            "hybrid_approach": "working",
         }
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 @router.get("/test-azure-openai")
@@ -295,7 +293,7 @@ async def test_azure_openai_connection():
             "azure_openai_api_key_set": bool(settings.AZURE_OPENAI_API_KEY),
             "azure_openai_endpoint_set": bool(settings.AZURE_OPENAI_ENDPOINT),
             "azure_openai_deployment_name": settings.AZURE_OPENAI_DEPLOYMENT_NAME,
-            "azure_openai_api_version": settings.AZURE_OPENAI_API_VERSION
+            "azure_openai_api_version": settings.AZURE_OPENAI_API_VERSION,
         }
 
         # Try to create a model client
@@ -304,12 +302,14 @@ async def test_azure_openai_connection():
             return {
                 "success": False,
                 "error": "Could not create Azure OpenAI model client",
-                "config": config_status
+                "config": config_status,
             }
 
         # Try to create an agent and test a simple interaction
         agent = ClaimAssessmentAgent()
-        test_response = await agent.process_message("Please respond with 'Azure OpenAI is working' to confirm the connection.")
+        test_response = await agent.process_message(
+            "Please respond with 'Azure OpenAI is working' to confirm the connection."
+        )
 
         return {
             "success": True,
@@ -317,15 +317,11 @@ async def test_azure_openai_connection():
             "model_client_type": str(type(model_client).__name__),
             "test_response": test_response,
             "agent_name": agent.name,
-            "hybrid_features": agent.get_agent_info()
+            "hybrid_features": agent.get_agent_info(),
         }
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "error_type": type(e).__name__
-        }
+        return {"success": False, "error": str(e), "error_type": type(e).__name__}
 
 
 @router.get("/health")
@@ -351,13 +347,14 @@ async def agent_health_check():
                 "claim_processing": True,
                 "context_validation": True,
                 "structured_assessment": True,
-                "customer_communication": True
+                "customer_communication": True,
             },
-            "autogen_compatibility": True
+            "autogen_compatibility": True,
         }
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Agents module unhealthy: {str(e)}")
+            status_code=500, detail=f"Agents module unhealthy: {str(e)}"
+        )
 
 
 # Orchestrator Agent Endpoints
@@ -389,10 +386,10 @@ async def process_claim_workflow(request: WorkflowRequest):
             # Use AutoGen GraphFlow for structured workflow
             result = await orchestrator.run_graphflow_workflow(claim_dict)
             return {
-                "success": result.get('success', False),
+                "success": result.get("success", False),
                 "workflow_type": "graphflow",
                 "result": result,
-                "orchestrator_info": orchestrator.get_agent_info()
+                "orchestrator_info": orchestrator.get_agent_info(),
             }
         else:
             # Use custom workflow orchestration
@@ -401,15 +398,11 @@ async def process_claim_workflow(request: WorkflowRequest):
                 "success": True,
                 "workflow_type": "custom",
                 "workflow_state": workflow_state.to_dict(),
-                "orchestrator_info": orchestrator.get_agent_info()
+                "orchestrator_info": orchestrator.get_agent_info(),
             }
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "workflow_type": "failed"
-        }
+        return {"success": False, "error": str(e), "workflow_type": "failed"}
 
 
 @router.get("/orchestrator/workflow-status/{claim_id}")
@@ -431,19 +424,16 @@ async def get_workflow_status(claim_id: str):
             return {
                 "success": True,
                 "claim_id": claim_id,
-                "workflow_status": workflow_status
+                "workflow_status": workflow_status,
             }
         else:
             return {
                 "success": False,
-                "error": f"No workflow found for claim ID: {claim_id}"
+                "error": f"No workflow found for claim ID: {claim_id}",
             }
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 @router.get("/orchestrator/active-workflows")
@@ -461,14 +451,11 @@ async def get_active_workflows():
         return {
             "success": True,
             "active_workflows": active_workflows,
-            "total_count": len(active_workflows)
+            "total_count": len(active_workflows),
         }
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 @router.post("/orchestrator/assess-complexity")
@@ -497,16 +484,17 @@ async def assess_claim_complexity(claim_data: ClaimData):
             "escalation_criteria": orchestrator.escalation_criteria,
             "routing_recommendation": {
                 "workflow_path": "human_review" if should_escalate else "automated",
-                "estimated_processing_time": "immediate" if complexity == ClaimComplexity.LOW else "extended",
-                "required_agents": ["assessment", "communication"] if not should_escalate else ["assessment", "human_reviewer"]
-            }
+                "estimated_processing_time": "immediate"
+                if complexity == ClaimComplexity.LOW
+                else "extended",
+                "required_agents": ["assessment", "communication"]
+                if not should_escalate
+                else ["assessment", "human_reviewer"],
+            },
         }
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 @router.get("/orchestrator/info")
@@ -527,19 +515,16 @@ async def get_orchestrator_info():
                     "complexity_assessment",
                     "agent_routing",
                     "human_escalation",
-                    "graphflow_support"
+                    "graphflow_support",
                 ],
                 "workflow_stages": [stage.value for stage in WorkflowStage],
                 "complexity_levels": [level.value for level in ClaimComplexity],
                 "escalation_criteria": orchestrator.escalation_criteria,
-                "active_workflows": len(orchestrator.active_workflows)
-            }
+                "active_workflows": len(orchestrator.active_workflows),
+            },
         }
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 # Enhanced Assessment Agent Endpoints
@@ -565,15 +550,11 @@ async def enhanced_assess_claim(request: EnhancedAssessmentRequest):
         result = await agent.assess_claim(claim_dict, request.policy_data)
 
         return EnhancedAssessmentResponse(
-            success=True,
-            assessment_result=result.to_dict()
+            success=True, assessment_result=result.to_dict()
         )
 
     except Exception as e:
-        return EnhancedAssessmentResponse(
-            success=False,
-            error=str(e)
-        )
+        return EnhancedAssessmentResponse(success=False, error=str(e))
 
 
 @router.post("/enhanced-assessment/assess-claim-legacy")
@@ -599,15 +580,12 @@ async def enhanced_assess_claim_legacy(request: EnhancedAssessmentRequest):
             "agent_info": {
                 "name": agent.name,
                 "type": "EnhancedAssessmentAgent",
-                "enhanced_features": True
-            }
+                "enhanced_features": True,
+            },
         }
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 @router.get("/enhanced-assessment/capabilities")
@@ -625,14 +603,11 @@ async def get_enhanced_assessment_capabilities():
             "decision_types": [d.value for d in AssessmentDecision],
             "confidence_levels": [c.value for c in ConfidenceLevel],
             "confidence_thresholds": agent.confidence_thresholds,
-            "risk_weights": agent.risk_weights
+            "risk_weights": agent.risk_weights,
         }
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 @router.post("/enhanced-assessment/batch-assess")
@@ -652,25 +627,28 @@ async def batch_assess_claims(claims: List[EnhancedAssessmentRequest]):
                 claim_dict = request.claim_data.model_dump()
                 result = await agent.assess_claim(claim_dict, request.policy_data)
 
-                results.append({
-                    "index": i,
-                    "claim_id": claim_dict.get('claim_id', f'batch_{i}'),
-                    "success": True,
-                    "assessment": result.to_dict()
-                })
+                results.append(
+                    {
+                        "index": i,
+                        "claim_id": claim_dict.get("claim_id", f"batch_{i}"),
+                        "success": True,
+                        "assessment": result.to_dict(),
+                    }
+                )
 
             except Exception as e:
-                results.append({
-                    "index": i,
-                    "claim_id": request.claim_data.claim_id or f'batch_{i}',
-                    "success": False,
-                    "error": str(e)
-                })
+                results.append(
+                    {
+                        "index": i,
+                        "claim_id": request.claim_data.claim_id or f"batch_{i}",
+                        "success": False,
+                        "error": str(e),
+                    }
+                )
 
         # Calculate batch statistics
-        successful_assessments = [r for r in results if r['success']]
-        success_rate = len(successful_assessments) / \
-            len(results) if results else 0
+        successful_assessments = [r for r in results if r["success"]]
+        success_rate = len(successful_assessments) / len(results) if results else 0
 
         return {
             "success": True,
@@ -679,16 +657,12 @@ async def batch_assess_claims(claims: List[EnhancedAssessmentRequest]):
                 "total_claims": len(results),
                 "successful_assessments": len(successful_assessments),
                 "success_rate": success_rate,
-                "failed_assessments": len(results) - len(successful_assessments)
-            }
+                "failed_assessments": len(results) - len(successful_assessments),
+            },
         }
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "batch_results": []
-        }
+        return {"success": False, "error": str(e), "batch_results": []}
 
 
 @router.get("/enhanced-assessment/test-integration")
@@ -713,8 +687,8 @@ async def test_enhanced_assessment_integration():
                     "description": "Minor fender bender in parking lot. Small dent on rear bumper.",
                     "amount": 1500,
                     "incident_report": True,
-                    "photos": True
-                }
+                    "photos": True,
+                },
             },
             {
                 "name": "High-Value Claim",
@@ -726,8 +700,8 @@ async def test_enhanced_assessment_integration():
                     "amount": 75000,
                     "incident_report": True,
                     "photos": True,
-                    "police_report": True
-                }
+                    "police_report": True,
+                },
             },
             {
                 "name": "Suspicious Claim",
@@ -739,9 +713,9 @@ async def test_enhanced_assessment_integration():
                     "amount": 45000,
                     "incident_report": False,
                     "photos": False,
-                    "police_report": True
-                }
-            }
+                    "police_report": True,
+                },
+            },
         ]
 
         test_results = []
@@ -749,22 +723,24 @@ async def test_enhanced_assessment_integration():
         for scenario in test_scenarios:
             try:
                 result = await agent.assess_claim(scenario["claim_data"])
-                test_results.append({
-                    "scenario": scenario["name"],
-                    "success": True,
-                    "decision": result.decision.value,
-                    "confidence": result.confidence_score,
-                    "confidence_level": result.confidence_level.value,
-                    "processing_time": result.processing_time_seconds,
-                    "risk_factors_count": len(result.risk_factors),
-                    "reasoning_preview": result.reasoning[:100] + "..." if len(result.reasoning) > 100 else result.reasoning
-                })
+                test_results.append(
+                    {
+                        "scenario": scenario["name"],
+                        "success": True,
+                        "decision": result.decision.value,
+                        "confidence": result.confidence_score,
+                        "confidence_level": result.confidence_level.value,
+                        "processing_time": result.processing_time_seconds,
+                        "risk_factors_count": len(result.risk_factors),
+                        "reasoning_preview": result.reasoning[:100] + "..."
+                        if len(result.reasoning) > 100
+                        else result.reasoning,
+                    }
+                )
             except Exception as e:
-                test_results.append({
-                    "scenario": scenario["name"],
-                    "success": False,
-                    "error": str(e)
-                })
+                test_results.append(
+                    {"scenario": scenario["name"], "success": False, "error": str(e)}
+                )
 
         return {
             "success": True,
@@ -772,19 +748,22 @@ async def test_enhanced_assessment_integration():
             "agent_info": agent.get_assessment_capabilities(),
             "test_summary": {
                 "total_scenarios": len(test_scenarios),
-                "successful_tests": len([r for r in test_results if r['success']]),
-                "average_processing_time": sum([r.get('processing_time', 0) for r in test_results if r['success']]) / len([r for r in test_results if r['success']]) if any(r['success'] for r in test_results) else 0
-            }
+                "successful_tests": len([r for r in test_results if r["success"]]),
+                "average_processing_time": sum(
+                    [r.get("processing_time", 0) for r in test_results if r["success"]]
+                )
+                / len([r for r in test_results if r["success"]])
+                if any(r["success"] for r in test_results)
+                else 0,
+            },
         }
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 # Enhanced Communication Agent Endpoints
+
 
 @router.get("/enhanced-communication/capabilities")
 async def get_enhanced_communication_capabilities():
@@ -798,11 +777,12 @@ async def get_enhanced_communication_capabilities():
         return {
             "success": True,
             "capabilities": capabilities,
-            "agent_status": "operational"
+            "agent_status": "operational",
         }
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to get capabilities: {str(e)}")
+            status_code=500, detail=f"Failed to get capabilities: {str(e)}"
+        )
 
 
 # Communication models imported from schemas
@@ -826,7 +806,7 @@ async def generate_communication(request: CommunicationRequest):
             policy_details=request.policy_details,
             preferred_language=Language(request.preferred_language),
             special_instructions=request.special_instructions,
-            urgency_level=request.urgency_level
+            urgency_level=request.urgency_level,
         )
 
         # Generate communication
@@ -835,22 +815,24 @@ async def generate_communication(request: CommunicationRequest):
         return {
             "success": True,
             "communication_result": result.to_dict(),
-            "processing_time": result.processing_time_seconds
+            "processing_time": result.processing_time_seconds,
         }
 
     except ValueError as e:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid request: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid request: {str(e)}")
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Communication generation failed: {str(e)}")
+            status_code=500, detail=f"Communication generation failed: {str(e)}"
+        )
 
 
 # Assessment-based communication models imported from schemas
 
 
 @router.post("/enhanced-communication/from-assessment")
-async def generate_communication_from_assessment(request: AssessmentBasedCommunicationRequest):
+async def generate_communication_from_assessment(
+    request: AssessmentBasedCommunicationRequest,
+):
     """
     Generate communication based on assessment result (for orchestrator integration).
     """
@@ -858,19 +840,19 @@ async def generate_communication_from_assessment(request: AssessmentBasedCommuni
         agent = EnhancedCommunicationAgent()
 
         result = await agent.generate_communication_from_assessment(
-            request.assessment_result,
-            request.customer_data
+            request.assessment_result, request.customer_data
         )
 
         return {
             "success": True,
             "communication_result": result.to_dict(),
-            "processing_time": result.processing_time_seconds
+            "processing_time": result.processing_time_seconds,
         }
 
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Communication generation failed: {str(e)}")
+            status_code=500, detail=f"Communication generation failed: {str(e)}"
+        )
 
 
 @router.get("/enhanced-communication/test-integration")
@@ -893,14 +875,14 @@ async def test_enhanced_communication_integration():
                     assessment_result={
                         "decision": "approve",
                         "confidence_score": 0.92,
-                        "reasoning": "All documentation provided, clear liability, within policy limits"
+                        "reasoning": "All documentation provided, clear liability, within policy limits",
                     },
                     policy_details={
                         "policy_type": "Auto Insurance",
                         "coverage_limits": "$50,000",
-                        "deductible": "$500"
-                    }
-                )
+                        "deductible": "$500",
+                    },
+                ),
             },
             {
                 "name": "Information Request",
@@ -910,35 +892,40 @@ async def test_enhanced_communication_integration():
                     policy_number="POL_67890",
                     communication_type=CommunicationType.INFORMATION_REQUEST,
                     preferred_language=Language.SPANISH,
-                    special_instructions="Request police report and additional photos"
-                )
-            }
+                    special_instructions="Request police report and additional photos",
+                ),
+            },
         ]
 
         results = []
         for scenario in test_scenarios:
             result = await agent.generate_communication(scenario["context"])
-            results.append({
-                "scenario": scenario["name"],
-                "subject": result.subject,
-                "content_preview": result.content[:200] + "..." if len(result.content) > 200 else result.content,
-                "personalization_score": result.personalization_score,
-                "compliance_verified": result.compliance_verified,
-                "processing_time": result.processing_time_seconds,
-                "language": result.language.value,
-                "tone": result.tone.value
-            })
+            results.append(
+                {
+                    "scenario": scenario["name"],
+                    "subject": result.subject,
+                    "content_preview": result.content[:200] + "..."
+                    if len(result.content) > 200
+                    else result.content,
+                    "personalization_score": result.personalization_score,
+                    "compliance_verified": result.compliance_verified,
+                    "processing_time": result.processing_time_seconds,
+                    "language": result.language.value,
+                    "tone": result.tone.value,
+                }
+            )
 
         return {
             "success": True,
             "test_results": results,
             "agent_status": "operational",
-            "llm_integration": "verified"
+            "llm_integration": "verified",
         }
 
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Integration test failed: {str(e)}")
+            status_code=500, detail=f"Integration test failed: {str(e)}"
+        )
 
 
 @router.get("/enhanced-communication/supported-languages")
@@ -955,12 +942,13 @@ async def get_supported_languages():
                 {"code": lang.value, "name": lang.name.title()}
                 for lang in agent.supported_languages
             ],
-            "default_language": "en"
+            "default_language": "en",
         }
 
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to get languages: {str(e)}")
+            status_code=500, detail=f"Failed to get languages: {str(e)}"
+        )
 
 
 @router.get("/enhanced-communication/communication-types")
@@ -974,13 +962,14 @@ async def get_communication_types():
             "communication_types": [
                 {
                     "type": ct.value,
-                    "name": ct.name.replace('_', ' ').title(),
-                    "description": f"Communication for {ct.value.replace('_', ' ')}"
+                    "name": ct.name.replace("_", " ").title(),
+                    "description": f"Communication for {ct.value.replace('_', ' ')}",
                 }
                 for ct in CommunicationType
-            ]
+            ],
         }
 
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to get communication types: {str(e)}")
+            status_code=500, detail=f"Failed to get communication types: {str(e)}"
+        )

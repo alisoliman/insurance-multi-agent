@@ -17,20 +17,29 @@ from dataclasses import dataclass, asdict
 try:
     from autogen_agentchat.agents import AssistantAgent
     from autogen_agentchat.teams import RoundRobinGroupChat, GraphFlow
-    from autogen_agentchat.conditions import MaxMessageTermination, TextMentionTermination
+    from autogen_agentchat.conditions import (
+        MaxMessageTermination,
+        TextMentionTermination,
+    )
     from autogen_agentchat.messages import TextMessage
     from autogen_agentchat.teams import DiGraphBuilder
+
     AUTOGEN_AVAILABLE = True
 except ImportError as e:
     AUTOGEN_AVAILABLE = False
     AUTOGEN_IMPORT_ERROR = str(e)
 
-from app.agents.base import BaseInsuranceAgent, ClaimAssessmentAgent, CustomerCommunicationAgent
+from app.agents.base import (
+    BaseInsuranceAgent,
+    ClaimAssessmentAgent,
+    CustomerCommunicationAgent,
+)
 from app.core.config import settings
 
 
 class WorkflowStage(Enum):
     """Enumeration of workflow stages."""
+
     INTAKE = "intake"
     ASSESSMENT = "assessment"
     COMMUNICATION = "communication"
@@ -41,6 +50,7 @@ class WorkflowStage(Enum):
 
 class ClaimComplexity(Enum):
     """Enumeration of claim complexity levels."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -49,6 +59,7 @@ class ClaimComplexity(Enum):
 @dataclass
 class ClaimWorkflowState:
     """State tracking for claim workflow processing."""
+
     claim_id: str
     current_stage: WorkflowStage
     complexity: ClaimComplexity
@@ -66,16 +77,17 @@ class ClaimWorkflowState:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         data = asdict(self)
-        data['current_stage'] = self.current_stage.value
-        data['complexity'] = self.complexity.value
-        data['started_at'] = self.started_at.isoformat()
-        data['updated_at'] = self.updated_at.isoformat()
+        data["current_stage"] = self.current_stage.value
+        data["complexity"] = self.complexity.value
+        data["started_at"] = self.started_at.isoformat()
+        data["updated_at"] = self.updated_at.isoformat()
         return data
 
 
 @dataclass
 class AgentDecision:
     """Structure for storing agent decisions."""
+
     agent_name: str
     decision: str
     confidence_score: float
@@ -86,7 +98,7 @@ class AgentDecision:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         data = asdict(self)
-        data['timestamp'] = self.timestamp.isoformat()
+        data["timestamp"] = self.timestamp.isoformat()
         return data
 
 
@@ -134,9 +146,9 @@ Always provide structured responses with clear reasoning and next steps."""
 
         # Escalation criteria
         self.escalation_criteria = {
-            'high_amount_threshold': 50000,  # Claims over $50k
-            'complex_keywords': ['fraud', 'litigation', 'death', 'catastrophic'],
-            'low_confidence_threshold': 0.7,  # Confidence below 70%
+            "high_amount_threshold": 50000,  # Claims over $50k
+            "complex_keywords": ["fraud", "litigation", "death", "catastrophic"],
+            "low_confidence_threshold": 0.7,  # Confidence below 70%
         }
 
     async def initialize_agents(self):
@@ -162,7 +174,7 @@ Always provide structured responses with clear reasoning and next steps."""
         complexity_score = 0
 
         # Check claim amount
-        amount = self._parse_amount(claim_data.get('amount', 0))
+        amount = self._parse_amount(claim_data.get("amount", 0))
 
         # Amount-based complexity scoring
         if amount > 50000:
@@ -171,16 +183,15 @@ Always provide structured responses with clear reasoning and next steps."""
             complexity_score += 1
 
         # Check for complex keywords
-        description = claim_data.get('description', '').lower()
-        for keyword in self.escalation_criteria['complex_keywords']:
+        description = claim_data.get("description", "").lower()
+        for keyword in self.escalation_criteria["complex_keywords"]:
             if keyword in description:
                 complexity_score += 2
                 break
 
                 # Check for missing documentation - but be more lenient for low-amount claims
-        required_docs = ['incident_report', 'photos', 'police_report']
-        missing_docs = [
-            doc for doc in required_docs if not claim_data.get(doc)]
+        required_docs = ["incident_report", "photos", "police_report"]
+        missing_docs = [doc for doc in required_docs if not claim_data.get(doc)]
 
         # Only add complexity for missing docs if amount is significant
         # For very low amounts (< $1000), don't penalize for missing docs
@@ -200,8 +211,9 @@ Always provide structured responses with clear reasoning and next steps."""
         else:
             return ClaimComplexity.LOW
 
-    def should_escalate_to_human(self, claim_data: Dict[str, Any],
-                                 agent_decisions: List[AgentDecision]) -> bool:
+    def should_escalate_to_human(
+        self, claim_data: Dict[str, Any], agent_decisions: List[AgentDecision]
+    ) -> bool:
         """
         Determine if a claim should be escalated to human review.
 
@@ -213,19 +225,22 @@ Always provide structured responses with clear reasoning and next steps."""
             Boolean indicating if human review is required
         """
         # Check amount threshold
-        amount = self._parse_amount(claim_data.get('amount', 0))
+        amount = self._parse_amount(claim_data.get("amount", 0))
 
-        if amount > self.escalation_criteria['high_amount_threshold']:
+        if amount > self.escalation_criteria["high_amount_threshold"]:
             return True
 
         # Check confidence scores
         for decision in agent_decisions:
-            if decision.confidence_score < self.escalation_criteria['low_confidence_threshold']:
+            if (
+                decision.confidence_score
+                < self.escalation_criteria["low_confidence_threshold"]
+            ):
                 return True
 
         # Check for complex keywords
-        description = claim_data.get('description', '').lower()
-        for keyword in self.escalation_criteria['complex_keywords']:
+        description = claim_data.get("description", "").lower()
+        for keyword in self.escalation_criteria["complex_keywords"]:
             if keyword in description:
                 return True
 
@@ -245,13 +260,15 @@ Always provide structured responses with clear reasoning and next steps."""
             return float(amount)
         elif isinstance(amount, str):
             try:
-                return float(amount.replace('$', '').replace(',', ''))
+                return float(amount.replace("$", "").replace(",", ""))
             except ValueError:
                 return 0.0
         else:
             return 0.0
 
-    async def process_claim_workflow(self, claim_data: Dict[str, Any]) -> ClaimWorkflowState:
+    async def process_claim_workflow(
+        self, claim_data: Dict[str, Any]
+    ) -> ClaimWorkflowState:
         """
         Main orchestration method for processing a claim through the workflow.
 
@@ -261,7 +278,7 @@ Always provide structured responses with clear reasoning and next steps."""
         Returns:
             ClaimWorkflowState with final workflow status
         """
-        claim_id = claim_data.get('claim_id', str(uuid.uuid4()))
+        claim_id = claim_data.get("claim_id", str(uuid.uuid4()))
 
         # Initialize workflow state
         workflow_state = ClaimWorkflowState(
@@ -270,7 +287,7 @@ Always provide structured responses with clear reasoning and next steps."""
             complexity=self.assess_claim_complexity(claim_data),
             started_at=datetime.now(),
             updated_at=datetime.now(),
-            agent_decisions=[]
+            agent_decisions=[],
         )
 
         self.active_workflows[claim_id] = workflow_state
@@ -281,9 +298,9 @@ Always provide structured responses with clear reasoning and next steps."""
             workflow_state.updated_at = datetime.now()
 
             intake_result = await self._validate_claim_intake(claim_data)
-            if not intake_result['valid']:
+            if not intake_result["valid"]:
                 workflow_state.current_stage = WorkflowStage.FAILED
-                workflow_state.error_message = intake_result['error']
+                workflow_state.error_message = intake_result["error"]
                 return workflow_state
 
             # Stage 2: Assessment
@@ -294,7 +311,9 @@ Always provide structured responses with clear reasoning and next steps."""
             workflow_state.agent_decisions.append(assessment_result)
 
             # Check if human review is needed
-            if self.should_escalate_to_human(claim_data, workflow_state.agent_decisions):
+            if self.should_escalate_to_human(
+                claim_data, workflow_state.agent_decisions
+            ):
                 workflow_state.current_stage = WorkflowStage.HUMAN_REVIEW
                 workflow_state.requires_human_review = True
                 workflow_state.updated_at = datetime.now()
@@ -304,7 +323,9 @@ Always provide structured responses with clear reasoning and next steps."""
             workflow_state.current_stage = WorkflowStage.COMMUNICATION
             workflow_state.updated_at = datetime.now()
 
-            communication_result = await self._process_communication(claim_data, assessment_result)
+            communication_result = await self._process_communication(
+                claim_data, assessment_result
+            )
             workflow_state.agent_decisions.append(communication_result)
 
             # Complete workflow
@@ -318,50 +339,52 @@ Always provide structured responses with clear reasoning and next steps."""
 
         return workflow_state
 
-    async def _validate_claim_intake(self, claim_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _validate_claim_intake(
+        self, claim_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Validate claim data during intake stage."""
-        required_fields = ['policy_number', 'incident_date', 'description']
+        required_fields = ["policy_number", "incident_date", "description"]
         missing_fields = [
-            field for field in required_fields if not claim_data.get(field)]
+            field for field in required_fields if not claim_data.get(field)
+        ]
 
         if missing_fields:
             return {
-                'valid': False,
-                'error': f"Missing required fields: {', '.join(missing_fields)}"
+                "valid": False,
+                "error": f"Missing required fields: {', '.join(missing_fields)}",
             }
 
         # Validate amount format if provided
-        if 'amount' in claim_data:
-            amount = claim_data.get('amount')
+        if "amount" in claim_data:
+            amount = claim_data.get("amount")
             if amount is not None:
                 try:
                     if isinstance(amount, str):
                         # Try to parse string amounts
-                        parsed_amount = float(
-                            amount.replace('$', '').replace(',', ''))
+                        parsed_amount = float(amount.replace("$", "").replace(",", ""))
                         if parsed_amount < 0:
                             return {
-                                'valid': False,
-                                'error': "Claim amount cannot be negative"
+                                "valid": False,
+                                "error": "Claim amount cannot be negative",
                             }
                     elif isinstance(amount, (int, float)):
                         if amount < 0:
                             return {
-                                'valid': False,
-                                'error': "Claim amount cannot be negative"
+                                "valid": False,
+                                "error": "Claim amount cannot be negative",
                             }
                     else:
                         return {
-                            'valid': False,
-                            'error': f"Invalid amount format: {amount}. Expected number or string."
+                            "valid": False,
+                            "error": f"Invalid amount format: {amount}. Expected number or string.",
                         }
                 except (ValueError, TypeError):
                     return {
-                        'valid': False,
-                        'error': f"Invalid amount format: {amount}. Cannot parse as number."
+                        "valid": False,
+                        "error": f"Invalid amount format: {amount}. Cannot parse as number.",
                     }
 
-        return {'valid': True}
+        return {"valid": True}
 
     async def _process_assessment(self, claim_data: Dict[str, Any]) -> AgentDecision:
         """Process claim through assessment agent."""
@@ -369,17 +392,17 @@ Always provide structured responses with clear reasoning and next steps."""
             await self.initialize_agents()
 
         try:
-            assessment_result = await self.assessment_agent.assess_claim_validity(claim_data)
+            assessment_result = await self.assessment_agent.assess_claim_validity(
+                claim_data
+            )
 
             return AgentDecision(
                 agent_name="assessment",
-                decision=assessment_result.get('decision', 'unknown'),
-                confidence_score=assessment_result.get(
-                    'confidence_score', 0.0),
-                reasoning=assessment_result.get(
-                    'reasoning', 'No reasoning provided'),
+                decision=assessment_result.get("decision", "unknown"),
+                confidence_score=assessment_result.get("confidence_score", 0.0),
+                reasoning=assessment_result.get("reasoning", "No reasoning provided"),
                 timestamp=datetime.now(),
-                metadata=assessment_result
+                metadata=assessment_result,
             )
         except Exception as e:
             return AgentDecision(
@@ -388,11 +411,12 @@ Always provide structured responses with clear reasoning and next steps."""
                 confidence_score=0.0,
                 reasoning=f"Assessment failed: {str(e)}",
                 timestamp=datetime.now(),
-                metadata={'error': str(e)}
+                metadata={"error": str(e)},
             )
 
-    async def _process_communication(self, claim_data: Dict[str, Any],
-                                     assessment_decision: AgentDecision) -> AgentDecision:
+    async def _process_communication(
+        self, claim_data: Dict[str, Any], assessment_decision: AgentDecision
+    ) -> AgentDecision:
         """Process communication through communication agent."""
         if not self.communication_agent:
             await self.initialize_agents()
@@ -400,25 +424,25 @@ Always provide structured responses with clear reasoning and next steps."""
         try:
             # Prepare context for communication
             context = {
-                'assessment_decision': assessment_decision.decision,
-                'confidence_score': assessment_decision.confidence_score,
-                'claim_data': claim_data
+                "assessment_decision": assessment_decision.decision,
+                "confidence_score": assessment_decision.confidence_score,
+                "claim_data": claim_data,
             }
 
             communication_result = await self.communication_agent.draft_customer_response(
                 customer_inquiry=f"Claim status update for {claim_data.get('claim_id')}",
-                context=context
+                context=context,
             )
 
             return AgentDecision(
                 agent_name="communication",
                 decision="communication_drafted",
-                confidence_score=communication_result.get(
-                    'confidence_score', 0.8),
+                confidence_score=communication_result.get("confidence_score", 0.8),
                 reasoning=communication_result.get(
-                    'reasoning', 'Communication drafted successfully'),
+                    "reasoning", "Communication drafted successfully"
+                ),
                 timestamp=datetime.now(),
-                metadata=communication_result
+                metadata=communication_result,
             )
         except Exception as e:
             return AgentDecision(
@@ -427,7 +451,7 @@ Always provide structured responses with clear reasoning and next steps."""
                 confidence_score=0.0,
                 reasoning=f"Communication failed: {str(e)}",
                 timestamp=datetime.now(),
-                metadata={'error': str(e)}
+                metadata={"error": str(e)},
             )
 
     def get_workflow_status(self, claim_id: str) -> Optional[Dict[str, Any]]:
@@ -452,7 +476,9 @@ Always provide structured responses with clear reasoning and next steps."""
             for claim_id, workflow_state in self.active_workflows.items()
         }
 
-    async def create_graphflow_workflow(self, claim_data: Dict[str, Any]) -> Optional[Any]:
+    async def create_graphflow_workflow(
+        self, claim_data: Dict[str, Any]
+    ) -> Optional[Any]:
         """
         Create a GraphFlow workflow for structured claim processing.
 
@@ -481,14 +507,17 @@ Always provide structured responses with clear reasoning and next steps."""
             builder.add_node(self.communication_agent.agent)
 
             # Add edges (workflow connections)
-            builder.add_edge(self.assessment_agent.agent,
-                             self.communication_agent.agent)
+            builder.add_edge(
+                self.assessment_agent.agent, self.communication_agent.agent
+            )
 
             # Create GraphFlow
             graph_flow = GraphFlow(
-                participants=[self.assessment_agent.agent,
-                              self.communication_agent.agent],
-                graph=builder.build()
+                participants=[
+                    self.assessment_agent.agent,
+                    self.communication_agent.agent,
+                ],
+                graph=builder.build(),
             )
 
             return graph_flow
@@ -497,7 +526,9 @@ Always provide structured responses with clear reasoning and next steps."""
             print(f"Error creating GraphFlow workflow: {str(e)}")
             return None
 
-    async def run_graphflow_workflow(self, claim_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def run_graphflow_workflow(
+        self, claim_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Run a claim through the GraphFlow workflow.
 
@@ -510,17 +541,17 @@ Always provide structured responses with clear reasoning and next steps."""
         try:
             graph_flow = await self.create_graphflow_workflow(claim_data)
             if not graph_flow:
-                return {'error': 'Failed to create GraphFlow workflow'}
+                return {"error": "Failed to create GraphFlow workflow"}
 
             # Prepare task message
             task_message = f"""
             Process this insurance claim:
             
-            Claim ID: {claim_data.get('claim_id')}
-            Policy Number: {claim_data.get('policy_number')}
-            Incident Date: {claim_data.get('incident_date')}
-            Description: {claim_data.get('description')}
-            Amount: {claim_data.get('amount', 'Not specified')}
+            Claim ID: {claim_data.get("claim_id")}
+            Policy Number: {claim_data.get("policy_number")}
+            Incident Date: {claim_data.get("incident_date")}
+            Description: {claim_data.get("description")}
+            Amount: {claim_data.get("amount", "Not specified")}
             
             Please assess the claim and draft appropriate customer communication.
             """
@@ -529,14 +560,12 @@ Always provide structured responses with clear reasoning and next steps."""
             result = await graph_flow.run(task=task_message)
 
             return {
-                'success': True,
-                'messages': [msg.content for msg in result.messages] if result.messages else [],
-                'workflow_completed': True
+                "success": True,
+                "messages": [msg.content for msg in result.messages]
+                if result.messages
+                else [],
+                "workflow_completed": True,
             }
 
         except Exception as e:
-            return {
-                'success': False,
-                'error': str(e),
-                'workflow_completed': False
-            }
+            return {"success": False, "error": str(e), "workflow_completed": False}
