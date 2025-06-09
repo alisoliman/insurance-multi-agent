@@ -336,7 +336,7 @@ interface OrchestratorResult {
     confidence_score: number
     reasoning: string
     timestamp: string
-    metadata: any
+    metadata: Record<string, unknown>
   }>
   requires_human_review: boolean
   error_message?: string
@@ -358,10 +358,10 @@ export function transformOrchestratorToExplainability(
   claimData: OrchestratorClaimData
 ): ExplainabilityData {
   // Generate decision tree based on orchestrator workflow
-  const decisionTree: DecisionNode[] = generateOrchestratorDecisionTree(orchestratorResult, claimData)
+  const decisionTree: DecisionNode[] = generateOrchestratorDecisionTree(orchestratorResult)
   
   // Generate source documents based on workflow
-  const sources: SourceDocument[] = generateOrchestratorSourceDocuments(orchestratorResult, claimData)
+  const sources: SourceDocument[] = generateOrchestratorSourceDocuments(orchestratorResult)
   
   // Transform agent decisions to communications
   const agentCommunications: AgentCommunication[] = generateOrchestratorCommunications(orchestratorResult)
@@ -402,8 +402,8 @@ export function transformOrchestratorToExplainability(
   }
 }
 
-function generateOrchestratorDecisionTree(orchestratorResult: OrchestratorResult, claimData: OrchestratorClaimData): DecisionNode[] {
-  const claimAmount = parseFloat(claimData.amount)
+function generateOrchestratorDecisionTree(orchestratorResult: OrchestratorResult): DecisionNode[] {
+  // const claimAmount = parseFloat(claimData.amount) // Commented out as not currently used
   
   return [
     {
@@ -441,7 +441,7 @@ function generateOrchestratorDecisionTree(orchestratorResult: OrchestratorResult
   ]
 }
 
-function generateOrchestratorSourceDocuments(orchestratorResult: OrchestratorResult, claimData: OrchestratorClaimData): SourceDocument[] {
+function generateOrchestratorSourceDocuments(orchestratorResult: OrchestratorResult): SourceDocument[] {
   const sources: SourceDocument[] = []
   
   // Workflow orchestration policy
@@ -476,7 +476,7 @@ function generateOrchestratorSourceDocuments(orchestratorResult: OrchestratorRes
 
 function generateOrchestratorCommunications(orchestratorResult: OrchestratorResult): AgentCommunication[] {
   const communications: AgentCommunication[] = []
-  const baseTime = new Date(orchestratorResult.started_at)
+  // const baseTime = new Date(orchestratorResult.started_at) // Commented out as not currently used
   
   // Initial orchestration request
   communications.push({

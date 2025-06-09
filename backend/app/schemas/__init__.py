@@ -15,7 +15,12 @@ __all__ = [
     "AgentTestResponse",
     # Claim schemas
     "ClaimData",
+    "ClaimDataWithImages",
     "CustomerInquiry",
+    # Image analysis schemas
+    "ImageAnalysisResult",
+    "MultiImageAssessmentResult",
+    "ClaimFormData",
     # Communication schemas
     "CommunicationRequest",
     "AssessmentBasedCommunicationRequest",
@@ -25,4 +30,6 @@ __all__ = [
     # Assessment schemas
     "EnhancedAssessmentRequest",
     "EnhancedAssessmentResponse",
+    "EnhancedAssessmentWithImagesRequest",
+    "EnhancedAssessmentWithImagesResponse",
 ]

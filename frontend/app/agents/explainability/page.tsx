@@ -265,16 +265,9 @@ export default function ExplainabilityDemo() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Explainability Demo</h1>
-          <p className="text-muted-foreground mt-2">
-            Comprehensive AI decision transparency and human oversight interface
-          </p>
-        </div>
-        
+      <div className="flex items-center justify-end">
         <div className="flex items-center space-x-2">
           <Button
             variant="outline"

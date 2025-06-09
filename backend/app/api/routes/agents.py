@@ -2,8 +2,9 @@
 API routes for AutoGen agent testing and interaction.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, File, UploadFile, Form
 from typing import Dict, Any, Optional, List
+import os
 
 from app.agents.base import ClaimAssessmentAgent, CustomerCommunicationAgent
 from app.agents.orchestrator import OrchestratorAgent, WorkflowStage, ClaimComplexity
@@ -26,6 +27,8 @@ from app.schemas.claims import (
     WorkflowStatusResponse,
     EnhancedAssessmentRequest,
     EnhancedAssessmentResponse,
+    ClaimFormData,
+    EnhancedAssessmentWithImagesResponse,
 )
 from app.schemas.communication import (
     CommunicationRequest,
@@ -237,7 +240,8 @@ async def test_autogen_compatibility():
                 "value": delegated_name,
             }
         except Exception as e:
-            compatibility_tests["name_access"] = {"success": False, "error": str(e)}
+            compatibility_tests["name_access"] = {
+                "success": False, "error": str(e)}
 
         # Test 2: Check if we can access model_client
         try:
@@ -399,6 +403,126 @@ async def process_claim_workflow(request: WorkflowRequest):
                 "workflow_type": "custom",
                 "workflow_state": workflow_state.to_dict(),
                 "orchestrator_info": orchestrator.get_agent_info(),
+            }
+
+    except Exception as e:
+        return {"success": False, "error": str(e), "workflow_type": "failed"}
+
+
+@router.post("/orchestrator/process-workflow-with-images")
+async def process_claim_workflow_with_images(
+    policy_number: str = Form(...),
+    incident_date: str = Form(...),
+    description: str = Form(...),
+    amount: Optional[str] = Form(None),
+    claim_id: Optional[str] = Form(None),
+    documentation: Optional[str] = Form(None),
+    policy_data: Optional[str] = Form(None),
+    use_graphflow: bool = Form(False),
+    image_files: List[UploadFile] = File(default=[])
+):
+    """
+    Process a claim through the orchestrator agent workflow with image support.
+
+    This endpoint handles multipart/form-data requests containing both claim data
+    and image files, routing them through the enhanced workflow with image processing.
+
+    Args:
+        policy_number: Insurance policy number (required)
+        incident_date: Date of the incident (required)
+        description: Description of the claim (required)
+        amount: Claim amount (optional)
+        claim_id: Unique claim identifier (optional)
+        documentation: Additional documentation notes (optional)
+        policy_data: Additional policy data as JSON string (optional)
+        use_graphflow: Whether to use GraphFlow workflow (optional)
+        image_files: List of image files to process (optional)
+
+    Returns:
+        Complete workflow state and results including image analysis
+    """
+    try:
+        orchestrator = OrchestratorAgent()
+
+        # Validate and process image files
+        processed_images = []
+        if image_files:
+            # Supported image formats
+            supported_formats = {'.jpg', '.jpeg',
+                                 '.png', '.tiff', '.tif', '.bmp', '.webp'}
+            max_file_size = 10 * 1024 * 1024  # 10MB
+
+            for image_file in image_files:
+                if not image_file.filename:
+                    continue
+
+                # Check file extension
+                file_ext = os.path.splitext(image_file.filename.lower())[1]
+                if file_ext not in supported_formats:
+                    return {
+                        "success": False,
+                        "error": f"Unsupported file format: {file_ext}. Supported formats: {', '.join(supported_formats)}"
+                    }
+
+                # Check file size
+                content = await image_file.read()
+                if len(content) > max_file_size:
+                    return {
+                        "success": False,
+                        "error": f"File {image_file.filename} exceeds maximum size of 10MB"
+                    }
+
+                # Reset file pointer and add to processed list
+                await image_file.seek(0)
+                processed_images.append(image_file)
+
+        # Prepare claim data
+        claim_data = {
+            "policy_number": policy_number,
+            "incident_date": incident_date,
+            "description": description,
+        }
+
+        if amount:
+            try:
+                claim_data["amount"] = float(amount)
+            except ValueError:
+                return {"success": False, "error": f"Invalid amount format: {amount}"}
+
+        if claim_id:
+            claim_data["claim_id"] = claim_id
+
+        if documentation:
+            claim_data["documentation"] = [doc.strip()
+                                           for doc in documentation.split(",") if doc.strip()]
+
+        if policy_data:
+            try:
+                import json
+                claim_data["policy_data"] = json.loads(policy_data)
+            except json.JSONDecodeError:
+                return {"success": False, "error": "Invalid JSON format in policy_data"}
+
+        if use_graphflow:
+            # Note: GraphFlow doesn't currently support image processing in this implementation
+            # This would need to be extended to pass images through the GraphFlow
+            result = await orchestrator.run_graphflow_workflow(claim_data)
+            return {
+                "success": result.get("success", False),
+                "workflow_type": "graphflow",
+                "result": result,
+                "orchestrator_info": orchestrator.get_agent_info(),
+                "note": "GraphFlow workflow does not currently process images"
+            }
+        else:
+            # Use custom workflow orchestration with image support
+            workflow_state = await orchestrator.process_claim_workflow(claim_data, processed_images)
+            return {
+                "success": True,
+                "workflow_type": "custom_with_images",
+                "workflow_state": workflow_state.to_dict(),
+                "orchestrator_info": orchestrator.get_agent_info(),
+                "images_processed": len(processed_images)
             }
 
     except Exception as e:
@@ -648,7 +772,8 @@ async def batch_assess_claims(claims: List[EnhancedAssessmentRequest]):
 
         # Calculate batch statistics
         successful_assessments = [r for r in results if r["success"]]
-        success_rate = len(successful_assessments) / len(results) if results else 0
+        success_rate = len(successful_assessments) / \
+            len(results) if results else 0
 
         return {
             "success": True,
@@ -739,7 +864,8 @@ async def test_enhanced_assessment_integration():
                 )
             except Exception as e:
                 test_results.append(
-                    {"scenario": scenario["name"], "success": False, "error": str(e)}
+                    {"scenario": scenario["name"],
+                        "success": False, "error": str(e)}
                 )
 
         return {
@@ -750,7 +876,8 @@ async def test_enhanced_assessment_integration():
                 "total_scenarios": len(test_scenarios),
                 "successful_tests": len([r for r in test_results if r["success"]]),
                 "average_processing_time": sum(
-                    [r.get("processing_time", 0) for r in test_results if r["success"]]
+                    [r.get("processing_time", 0)
+                     for r in test_results if r["success"]]
                 )
                 / len([r for r in test_results if r["success"]])
                 if any(r["success"] for r in test_results)
@@ -760,6 +887,100 @@ async def test_enhanced_assessment_integration():
 
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+@router.post("/enhanced-assessment/assess-claim-with-images")
+async def enhanced_assess_claim_with_images(
+    policy_number: str = Form(...),
+    incident_date: str = Form(...),
+    description: str = Form(...),
+    amount: Optional[float] = Form(None),
+    claim_id: Optional[str] = Form(None),
+    documentation: Optional[str] = Form(None),
+    image_files: List[UploadFile] = File(default=[]),
+    policy_data: Optional[str] = Form(None)  # JSON string
+):
+    """
+    Perform comprehensive claim assessment with image analysis using the Enhanced Assessment Agent.
+
+    This endpoint accepts multipart/form-data with image files and performs both
+    traditional claim assessment and advanced image analysis using LLM vision capabilities.
+
+    Supports multiple image formats: JPEG, PNG, TIFF, BMP, WebP
+    """
+    try:
+        agent = EnhancedAssessmentAgent()
+
+        # Validate image files
+        if image_files:
+            for image_file in image_files:
+                if not image_file.filename:
+                    continue
+
+                # Check file extension
+                file_ext = '.' + image_file.filename.split('.')[-1].lower()
+                if file_ext not in agent.supported_image_formats:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Unsupported image format: {file_ext}. Supported formats: {', '.join(agent.supported_image_formats)}"
+                    )
+
+                # Check file size (10MB limit)
+                if hasattr(image_file, 'size') and image_file.size > 10 * 1024 * 1024:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Image file {image_file.filename} is too large. Maximum size is 10MB."
+                    )
+
+        # Build claim data
+        claim_dict = {
+            "policy_number": policy_number,
+            "incident_date": incident_date,
+            "description": description,
+        }
+
+        if claim_id:
+            claim_dict["claim_id"] = claim_id
+        if amount is not None:
+            claim_dict["amount"] = amount
+        if documentation:
+            claim_dict["documentation"] = documentation.split(
+                ",") if documentation else []
+
+        # Parse policy data if provided
+        parsed_policy_data = None
+        if policy_data:
+            try:
+                import json
+                parsed_policy_data = json.loads(policy_data)
+            except json.JSONDecodeError:
+                raise HTTPException(
+                    status_code=400, detail="Invalid policy_data JSON format")
+
+        # Filter out empty image files
+        valid_image_files = [
+            img for img in image_files if img.filename and img.filename.strip()]
+
+        # Perform enhanced assessment with images
+        assessment_result, image_analysis_result = await agent.assess_claim_with_images(
+            claim_dict,
+            valid_image_files if valid_image_files else None,
+            parsed_policy_data
+        )
+
+        return EnhancedAssessmentWithImagesResponse(
+            success=True,
+            assessment_result=assessment_result.to_dict(),
+            image_analysis_result=image_analysis_result
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        return EnhancedAssessmentWithImagesResponse(
+            success=False,
+            error=str(e)
+        )
 
 
 # Enhanced Communication Agent Endpoints
@@ -819,7 +1040,8 @@ async def generate_communication(request: CommunicationRequest):
         }
 
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid request: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid request: {str(e)}")
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Communication generation failed: {str(e)}"

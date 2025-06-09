@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 
 export interface WebSocketMessage {
   type: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface WebSocketHookOptions {
@@ -24,7 +24,7 @@ export interface WebSocketHookReturn {
   lastMessage: WebSocketMessage | null;
   readyState: number;
   sendMessage: (message: WebSocketMessage) => void;
-  sendJsonMessage: (message: any) => void;
+  sendJsonMessage: (message: unknown) => void;
   connect: () => void;
   disconnect: () => void;
   isConnected: boolean;
@@ -34,7 +34,7 @@ export interface WebSocketHookReturn {
 
 const READY_STATE_CONNECTING = 0;
 const READY_STATE_OPEN = 1;
-const READY_STATE_CLOSING = 2;
+// const READY_STATE_CLOSING = 2; // Commented out as not used
 const READY_STATE_CLOSED = 3;
 
 export const useWebSocket = (
@@ -143,7 +143,7 @@ export const useWebSocket = (
     }
   }, []);
 
-  const sendJsonMessage = useCallback((message: any) => {
+  const sendJsonMessage = useCallback((message: unknown) => {
     if (socketRef.current?.readyState === READY_STATE_OPEN) {
       socketRef.current.send(JSON.stringify(message));
     } else {
@@ -158,7 +158,7 @@ export const useWebSocket = (
     return () => {
       disconnect();
     };
-  }, []);
+  }, [connect, disconnect]);
 
   // Cleanup on unmount
   useEffect(() => {

@@ -34,6 +34,7 @@ from app.agents.base import (
     ClaimAssessmentAgent,
     CustomerCommunicationAgent,
 )
+from app.agents.assessment import EnhancedAssessmentAgent
 from app.core.config import settings
 
 
@@ -42,6 +43,7 @@ class WorkflowStage(Enum):
 
     INTAKE = "intake"
     ASSESSMENT = "assessment"
+    IMAGE_PROCESSING = "image_processing"  # New stage for image processing
     COMMUNICATION = "communication"
     HUMAN_REVIEW = "human_review"
     COMPLETED = "completed"
@@ -69,6 +71,9 @@ class ClaimWorkflowState:
     requires_human_review: bool = False
     error_message: Optional[str] = None
     workflow_id: str = None
+    has_images: bool = False  # New field to track if workflow includes images
+    # Store image analysis results
+    image_analysis_result: Optional[Dict[str, Any]] = None
 
     def __post_init__(self):
         if self.workflow_id is None:
@@ -108,7 +113,7 @@ class OrchestratorAgent(BaseInsuranceAgent):
 
     This agent manages the overall claim processing workflow using AutoGen's
     GraphFlow capabilities, coordinating between Assessment, Communication,
-    and other specialized agents.
+    and other specialized agents. Now supports image processing workflows.
     """
 
     def __init__(self):
@@ -121,14 +126,16 @@ Your responsibilities:
 1. Coordinate workflow between specialized agents (Assessment, Communication, etc.)
 2. Route claims based on complexity and risk assessment
 3. Manage handoffs between agents and ensure proper workflow execution
-4. Identify when human intervention is required
-5. Maintain workflow state and provide status updates
-6. Ensure all decisions are explainable and auditable
+4. Handle image processing workflows for claims with supporting documents
+5. Identify when human intervention is required
+6. Maintain workflow state and provide status updates
+7. Ensure all decisions are explainable and auditable
 
 You should:
 - Analyze claim data to determine processing complexity
-- Route claims through appropriate workflow paths
+- Route claims through appropriate workflow paths (with or without image processing)
 - Coordinate agent handoffs with clear instructions
+- Process image analysis results and integrate them into assessments
 - Escalate to human review when necessary
 - Provide clear status updates and reasoning for all decisions
 - Maintain audit trails for compliance
@@ -139,34 +146,42 @@ Always provide structured responses with clear reasoning and next steps."""
 
         # Initialize specialized agents
         self.assessment_agent = None
+        # New enhanced agent with image capabilities
+        self.enhanced_assessment_agent = None
         self.communication_agent = None
 
         # Workflow state tracking
         self.active_workflows: Dict[str, ClaimWorkflowState] = {}
 
-        # Escalation criteria
+        # Escalation criteria (updated for image processing)
         self.escalation_criteria = {
             "high_amount_threshold": 50000,  # Claims over $50k
             "complex_keywords": ["fraud", "litigation", "death", "catastrophic"],
             "low_confidence_threshold": 0.7,  # Confidence below 70%
+            "image_analysis_threshold": 0.6,  # Image relevance below 60%
+            # Damage levels requiring review
+            "damage_severity_escalation": ["severe", "total_loss"],
         }
 
     async def initialize_agents(self):
         """Initialize specialized agents for workflow coordination."""
         try:
             self.assessment_agent = ClaimAssessmentAgent()
+            # Initialize enhanced agent
+            self.enhanced_assessment_agent = EnhancedAssessmentAgent()
             self.communication_agent = CustomerCommunicationAgent()
             return True
         except Exception as e:
             print(f"Error initializing agents: {str(e)}")
             return False
 
-    def assess_claim_complexity(self, claim_data: Dict[str, Any]) -> ClaimComplexity:
+    def assess_claim_complexity(self, claim_data: Dict[str, Any], has_images: bool = False) -> ClaimComplexity:
         """
         Assess the complexity of a claim to determine processing path.
 
         Args:
             claim_data: Dictionary containing claim information
+            has_images: Whether the claim includes image files
 
         Returns:
             ClaimComplexity enum value
@@ -189,9 +204,14 @@ Always provide structured responses with clear reasoning and next steps."""
                 complexity_score += 2
                 break
 
-                # Check for missing documentation - but be more lenient for low-amount claims
+        # Image processing adds complexity
+        if has_images:
+            complexity_score += 1
+
+        # Check for missing documentation - but be more lenient for low-amount claims
         required_docs = ["incident_report", "photos", "police_report"]
-        missing_docs = [doc for doc in required_docs if not claim_data.get(doc)]
+        missing_docs = [
+            doc for doc in required_docs if not claim_data.get(doc)]
 
         # Only add complexity for missing docs if amount is significant
         # For very low amounts (< $1000), don't penalize for missing docs
@@ -199,9 +219,8 @@ Always provide structured responses with clear reasoning and next steps."""
         # For higher amounts (> $5000), penalize if more than 1 doc missing
         if amount > 5000 and len(missing_docs) > 1:
             complexity_score += 1
-        elif amount >= 1000 and len(missing_docs) >= 3:
+        elif amount > 1000 and len(missing_docs) == len(required_docs):
             complexity_score += 1
-        # For amounts < $1000, no documentation penalty
 
         # Determine complexity level
         if complexity_score >= 3:
@@ -212,37 +231,48 @@ Always provide structured responses with clear reasoning and next steps."""
             return ClaimComplexity.LOW
 
     def should_escalate_to_human(
-        self, claim_data: Dict[str, Any], agent_decisions: List[AgentDecision]
+        self, claim_data: Dict[str, Any], agent_decisions: List[AgentDecision], image_analysis: Optional[Dict[str, Any]] = None
     ) -> bool:
         """
         Determine if a claim should be escalated to human review.
 
         Args:
             claim_data: Dictionary containing claim information
-            agent_decisions: List of agent decisions made so far
+            agent_decisions: List of decisions made by agents
+            image_analysis: Optional image analysis results
 
         Returns:
-            Boolean indicating if human review is required
+            Boolean indicating if escalation is needed
         """
         # Check amount threshold
         amount = self._parse_amount(claim_data.get("amount", 0))
-
         if amount > self.escalation_criteria["high_amount_threshold"]:
             return True
-
-        # Check confidence scores
-        for decision in agent_decisions:
-            if (
-                decision.confidence_score
-                < self.escalation_criteria["low_confidence_threshold"]
-            ):
-                return True
 
         # Check for complex keywords
         description = claim_data.get("description", "").lower()
         for keyword in self.escalation_criteria["complex_keywords"]:
             if keyword in description:
                 return True
+
+        # Check agent confidence levels
+        for decision in agent_decisions:
+            if decision.confidence_score < self.escalation_criteria["low_confidence_threshold"]:
+                return True
+
+        # Check image analysis results if available
+        if image_analysis:
+            # Check overall relevance score
+            overall_relevance = image_analysis.get(
+                "overall_relevance_score", 1.0)
+            if overall_relevance < self.escalation_criteria["image_analysis_threshold"]:
+                return True
+
+            # Check for severe damage assessments
+            for analysis in image_analysis.get("image_analyses", []):
+                damage_assessment = analysis.get("damage_assessment", {})
+                if damage_assessment.get("severity") in self.escalation_criteria["damage_severity_escalation"]:
+                    return True
 
         return False
 
@@ -267,27 +297,30 @@ Always provide structured responses with clear reasoning and next steps."""
             return 0.0
 
     async def process_claim_workflow(
-        self, claim_data: Dict[str, Any]
+        self, claim_data: Dict[str, Any], image_files: Optional[List] = None
     ) -> ClaimWorkflowState:
         """
         Main orchestration method for processing a claim through the workflow.
 
         Args:
             claim_data: Dictionary containing claim information
+            image_files: Optional list of image files for processing
 
         Returns:
             ClaimWorkflowState with final workflow status
         """
         claim_id = claim_data.get("claim_id", str(uuid.uuid4()))
+        has_images = image_files is not None and len(image_files) > 0
 
         # Initialize workflow state
         workflow_state = ClaimWorkflowState(
             claim_id=claim_id,
             current_stage=WorkflowStage.INTAKE,
-            complexity=self.assess_claim_complexity(claim_data),
+            complexity=self.assess_claim_complexity(claim_data, has_images),
             started_at=datetime.now(),
             updated_at=datetime.now(),
             agent_decisions=[],
+            has_images=has_images,
         )
 
         self.active_workflows[claim_id] = workflow_state
@@ -303,16 +336,23 @@ Always provide structured responses with clear reasoning and next steps."""
                 workflow_state.error_message = intake_result["error"]
                 return workflow_state
 
-            # Stage 2: Assessment
-            workflow_state.current_stage = WorkflowStage.ASSESSMENT
-            workflow_state.updated_at = datetime.now()
+            # Stage 2: Assessment (with or without images)
+            if has_images:
+                workflow_state.current_stage = WorkflowStage.IMAGE_PROCESSING
+                workflow_state.updated_at = datetime.now()
 
-            assessment_result = await self._process_assessment(claim_data)
+                assessment_result = await self._process_assessment_with_images(claim_data, image_files)
+            else:
+                workflow_state.current_stage = WorkflowStage.ASSESSMENT
+                workflow_state.updated_at = datetime.now()
+
+                assessment_result = await self._process_assessment(claim_data)
+
             workflow_state.agent_decisions.append(assessment_result)
 
-            # Check if human review is needed
+            # Check if human review is needed (including image analysis)
             if self.should_escalate_to_human(
-                claim_data, workflow_state.agent_decisions
+                claim_data, workflow_state.agent_decisions, workflow_state.image_analysis_result
             ):
                 workflow_state.current_stage = WorkflowStage.HUMAN_REVIEW
                 workflow_state.requires_human_review = True
@@ -344,50 +384,55 @@ Always provide structured responses with clear reasoning and next steps."""
     ) -> Dict[str, Any]:
         """Validate claim data during intake stage."""
         required_fields = ["policy_number", "incident_date", "description"]
-        missing_fields = [
-            field for field in required_fields if not claim_data.get(field)
-        ]
 
-        if missing_fields:
-            return {
-                "valid": False,
-                "error": f"Missing required fields: {', '.join(missing_fields)}",
-            }
+        for field in required_fields:
+            if not claim_data.get(field):
+                return {"valid": False, "error": f"Missing required field: {field}"}
 
-        # Validate amount format if provided
-        if "amount" in claim_data:
-            amount = claim_data.get("amount")
-            if amount is not None:
+        # Validate incident date format
+        incident_date = claim_data.get("incident_date")
+        if incident_date:
+            try:
+                datetime.fromisoformat(incident_date.replace("Z", "+00:00"))
+            except ValueError:
+                return {
+                    "valid": False,
+                    "error": f"Invalid incident_date format: {incident_date}. Expected ISO format.",
+                }
+
+        # Validate amount if provided
+        amount = claim_data.get("amount")
+        if amount is not None:
+            if isinstance(amount, str):
                 try:
-                    if isinstance(amount, str):
-                        # Try to parse string amounts
-                        parsed_amount = float(amount.replace("$", "").replace(",", ""))
-                        if parsed_amount < 0:
-                            return {
-                                "valid": False,
-                                "error": "Claim amount cannot be negative",
-                            }
-                    elif isinstance(amount, (int, float)):
-                        if amount < 0:
-                            return {
-                                "valid": False,
-                                "error": "Claim amount cannot be negative",
-                            }
-                    else:
+                    parsed_amount = float(
+                        amount.replace("$", "").replace(",", ""))
+                    if parsed_amount < 0:
                         return {
                             "valid": False,
-                            "error": f"Invalid amount format: {amount}. Expected number or string.",
+                            "error": "Claim amount cannot be negative",
                         }
-                except (ValueError, TypeError):
+                except ValueError:
                     return {
                         "valid": False,
-                        "error": f"Invalid amount format: {amount}. Cannot parse as number.",
+                        "error": f"Invalid amount format: {amount}. Expected number or string.",
                     }
+            elif isinstance(amount, (int, float)):
+                if amount < 0:
+                    return {
+                        "valid": False,
+                        "error": "Claim amount cannot be negative",
+                    }
+            else:
+                return {
+                    "valid": False,
+                    "error": f"Invalid amount format: {amount}. Expected number or string.",
+                }
 
         return {"valid": True}
 
     async def _process_assessment(self, claim_data: Dict[str, Any]) -> AgentDecision:
-        """Process claim through assessment agent."""
+        """Process claim through assessment agent (without images)."""
         if not self.assessment_agent:
             await self.initialize_agents()
 
@@ -399,8 +444,10 @@ Always provide structured responses with clear reasoning and next steps."""
             return AgentDecision(
                 agent_name="assessment",
                 decision=assessment_result.get("decision", "unknown"),
-                confidence_score=assessment_result.get("confidence_score", 0.0),
-                reasoning=assessment_result.get("reasoning", "No reasoning provided"),
+                confidence_score=assessment_result.get(
+                    "confidence_score", 0.0),
+                reasoning=assessment_result.get(
+                    "reasoning", "No reasoning provided"),
                 timestamp=datetime.now(),
                 metadata=assessment_result,
             )
@@ -410,6 +457,43 @@ Always provide structured responses with clear reasoning and next steps."""
                 decision="error",
                 confidence_score=0.0,
                 reasoning=f"Assessment failed: {str(e)}",
+                timestamp=datetime.now(),
+                metadata={"error": str(e)},
+            )
+
+    async def _process_assessment_with_images(self, claim_data: Dict[str, Any], image_files: List) -> AgentDecision:
+        """Process claim through enhanced assessment agent with image support."""
+        if not self.enhanced_assessment_agent:
+            await self.initialize_agents()
+
+        try:
+            # Use the enhanced assessment agent for image processing
+            assessment_result = await self.enhanced_assessment_agent.assess_claim_with_images(
+                claim_data, image_files
+            )
+
+            # Store image analysis results in workflow state
+            workflow_state = self.active_workflows.get(
+                claim_data.get("claim_id"))
+            if workflow_state and "image_analysis_result" in assessment_result:
+                workflow_state.image_analysis_result = assessment_result["image_analysis_result"]
+
+            return AgentDecision(
+                agent_name="enhanced_assessment",
+                decision=assessment_result.get("decision", "unknown"),
+                confidence_score=assessment_result.get(
+                    "confidence_score", 0.0),
+                reasoning=assessment_result.get(
+                    "reasoning", "No reasoning provided"),
+                timestamp=datetime.now(),
+                metadata=assessment_result,
+            )
+        except Exception as e:
+            return AgentDecision(
+                agent_name="enhanced_assessment",
+                decision="error",
+                confidence_score=0.0,
+                reasoning=f"Enhanced assessment with images failed: {str(e)}",
                 timestamp=datetime.now(),
                 metadata={"error": str(e)},
             )
@@ -429,6 +513,12 @@ Always provide structured responses with clear reasoning and next steps."""
                 "claim_data": claim_data,
             }
 
+            # Include image analysis context if available
+            workflow_state = self.active_workflows.get(
+                claim_data.get("claim_id"))
+            if workflow_state and workflow_state.image_analysis_result:
+                context["image_analysis"] = workflow_state.image_analysis_result
+
             communication_result = await self.communication_agent.draft_customer_response(
                 customer_inquiry=f"Claim status update for {claim_data.get('claim_id')}",
                 context=context,
@@ -437,7 +527,8 @@ Always provide structured responses with clear reasoning and next steps."""
             return AgentDecision(
                 agent_name="communication",
                 decision="communication_drafted",
-                confidence_score=communication_result.get("confidence_score", 0.8),
+                confidence_score=communication_result.get(
+                    "confidence_score", 0.8),
                 reasoning=communication_result.get(
                     "reasoning", "Communication drafted successfully"
                 ),
@@ -496,25 +587,25 @@ Always provide structured responses with clear reasoning and next steps."""
 
         try:
             # Initialize agents if not already done
-            if not self.assessment_agent:
+            if not self.enhanced_assessment_agent:
                 await self.initialize_agents()
 
             # Create graph builder
             builder = DiGraphBuilder()
 
-            # Add nodes (agents)
-            builder.add_node(self.assessment_agent.agent)
+            # Add nodes (agents) - use enhanced assessment agent for image support
+            builder.add_node(self.enhanced_assessment_agent.agent)
             builder.add_node(self.communication_agent.agent)
 
             # Add edges (workflow connections)
             builder.add_edge(
-                self.assessment_agent.agent, self.communication_agent.agent
+                self.enhanced_assessment_agent.agent, self.communication_agent.agent
             )
 
             # Create GraphFlow
             graph_flow = GraphFlow(
                 participants=[
-                    self.assessment_agent.agent,
+                    self.enhanced_assessment_agent.agent,
                     self.communication_agent.agent,
                 ],
                 graph=builder.build(),

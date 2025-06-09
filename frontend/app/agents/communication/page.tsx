@@ -216,111 +216,132 @@ export default function CommunicationAgentDemo() {
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Communication Agent Demo</h1>
-        <p className="text-muted-foreground">
-          Generate personalized, multi-language customer communications with AI-powered tone and compliance optimization.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Input Form */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <MessageSquare className="h-5 w-5" />
-              <span>Communication Generator</span>
-            </CardTitle>
-            <CardDescription>
-              Configure communication parameters or use sample scenarios to test the agent.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Sample Scenarios */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium">Quick Test with Sample Scenarios:</h4>
-              <div className="grid grid-cols-2 gap-2">
-                {sampleScenarios.map((sample, index) => (
-                  <Button
-                    key={index}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => loadSampleScenario(sample.data)}
-                    className="text-xs justify-start"
-                  >
-                    {sample.name}
-                  </Button>
-                ))}
-              </div>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Input Form */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <MessageSquare className="h-5 w-5" />
+            <span>Communication Generator</span>
+          </CardTitle>
+          <CardDescription>
+            Configure communication parameters or use sample scenarios to test the agent.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Sample Scenarios */}
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium">Quick Test with Sample Scenarios:</h4>
+            <div className="grid grid-cols-2 gap-2">
+              {sampleScenarios.map((sample, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => loadSampleScenario(sample.data)}
+                  className="text-xs justify-start"
+                >
+                  {sample.name}
+                </Button>
+              ))}
             </div>
+          </div>
 
-            <Separator />
+          <Separator />
 
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="customerName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Customer Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="John Doe" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="claimId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Claim ID</FormLabel>
-                        <FormControl>
-                          <Input placeholder="CLM-2024-001" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="policyNumber"
+                  name="customerName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Policy Number</FormLabel>
+                      <FormLabel>Customer Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="POL-2024-001" {...field} />
+                        <Input placeholder="John Doe" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-
                 <FormField
                   control={form.control}
-                  name="communicationType"
+                  name="claimId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Communication Type</FormLabel>
+                      <FormLabel>Claim ID</FormLabel>
+                      <FormControl>
+                        <Input placeholder="CLM-2024-001" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="policyNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Policy Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="POL-2024-001" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="communicationType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Communication Type</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select communication type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {communicationTypes.map((type) => (
+                          <SelectItem key={type.value} value={type.value}>
+                            <div>
+                              <div className="font-medium">{type.label}</div>
+                              <div className="text-xs text-muted-foreground">{type.description}</div>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="preferredLanguage"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center space-x-1">
+                        <Globe className="h-4 w-4" />
+                        <span>Language</span>
+                      </FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select communication type" />
+                            <SelectValue placeholder="Select language" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {communicationTypes.map((type) => (
-                            <SelectItem key={type.value} value={type.value}>
-                              <div>
-                                <div className="font-medium">{type.label}</div>
-                                <div className="text-xs text-muted-foreground">{type.description}</div>
-                              </div>
+                          {languages.map((lang) => (
+                            <SelectItem key={lang.code} value={lang.code}>
+                              {lang.flag} {lang.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -329,233 +350,203 @@ export default function CommunicationAgentDemo() {
                     </FormItem>
                   )}
                 />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="preferredLanguage"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center space-x-1">
-                          <Globe className="h-4 w-4" />
-                          <span>Language</span>
-                        </FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select language" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {languages.map((lang) => (
-                              <SelectItem key={lang.code} value={lang.code}>
-                                {lang.flag} {lang.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="urgencyLevel"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Urgency Level</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select urgency" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="low">Low</SelectItem>
-                            <SelectItem value="normal">Normal</SelectItem>
-                            <SelectItem value="high">High</SelectItem>
-                            <SelectItem value="urgent">Urgent</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
                 <FormField
                   control={form.control}
-                  name="specialInstructions"
+                  name="urgencyLevel"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Special Instructions</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Any special considerations for this communication..."
-                          className="min-h-[80px]"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Optional context to personalize the communication.
-                      </FormDescription>
+                      <FormLabel>Urgency Level</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select urgency" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="normal">Normal</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                          <SelectItem value="urgent">Urgent</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+              </div>
 
-                <Button type="submit" disabled={isLoading} className="w-full">
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Generating Communication...
-                    </>
-                  ) : (
-                    "Generate Communication"
-                  )}
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
+              <FormField
+                control={form.control}
+                name="specialInstructions"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Special Instructions</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Any special considerations for this communication..."
+                        className="min-h-[80px]"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Optional context to personalize the communication.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-        {/* Results */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Generated Communication</CardTitle>
-            <CardDescription>
-              AI-generated, personalized customer communication.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {error && (
-              <Alert className="mb-4">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+              <Button type="submit" disabled={isLoading} className="w-full">
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating Communication...
+                  </>
+                ) : (
+                  "Generate Communication"
+                )}
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
 
-            {isLoading && (
-              <div className="space-y-4">
+      {/* Results */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Generated Communication</CardTitle>
+          <CardDescription>
+            AI-generated, personalized customer communication.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {error && (
+            <Alert className="mb-4">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {isLoading && (
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-sm">Generating personalized communication...</span>
+              </div>
+            </div>
+          )}
+
+          {communicationResult && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm">Generating personalized communication...</span>
+                  <Badge variant="outline">
+                    {getLanguageDisplay(form.getValues('preferredLanguage'))}
+                  </Badge>
+                  <Badge variant="outline">
+                    {getCommunicationTypeDisplay(form.getValues('communicationType'))}
+                  </Badge>
+                </div>
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => copyToClipboard(`${communicationResult.subject}\n\n${communicationResult.content}`)}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={downloadCommunication}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
-            )}
 
-            {communicationResult && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="outline">
-                      {getLanguageDisplay(form.getValues('preferredLanguage'))}
-                    </Badge>
-                    <Badge variant="outline">
-                      {getCommunicationTypeDisplay(form.getValues('communicationType'))}
-                    </Badge>
+              <Tabs defaultValue="content" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="content">Content</TabsTrigger>
+                  <TabsTrigger value="analysis">Analysis</TabsTrigger>
+                  <TabsTrigger value="compliance">Compliance</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="content" className="space-y-4">
+                  <div>
+                    <h4 className="font-medium mb-2">Subject Line</h4>
+                    <div className="bg-muted p-3 rounded text-sm font-medium">
+                      {communicationResult.subject}
+                    </div>
                   </div>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => copyToClipboard(`${communicationResult.subject}\n\n${communicationResult.content}`)}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={downloadCommunication}
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
+                  
+                  <div>
+                    <h4 className="font-medium mb-2">Message Content</h4>
+                    <div className="bg-muted p-4 rounded text-sm whitespace-pre-wrap">
+                      {communicationResult.content}
+                    </div>
                   </div>
-                </div>
-
-                <Tabs defaultValue="content" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="content">Content</TabsTrigger>
-                    <TabsTrigger value="analysis">Analysis</TabsTrigger>
-                    <TabsTrigger value="compliance">Compliance</TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="content" className="space-y-4">
+                </TabsContent>
+                
+                <TabsContent value="analysis" className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <h4 className="font-medium mb-2">Subject Line</h4>
-                      <div className="bg-muted p-3 rounded text-sm font-medium">
-                        {communicationResult.subject}
-                      </div>
+                      <h4 className="font-medium mb-2">Tone</h4>
+                      <Badge variant="outline">{communicationResult.tone}</Badge>
                     </div>
-                    
                     <div>
-                      <h4 className="font-medium mb-2">Message Content</h4>
-                      <div className="bg-muted p-4 rounded text-sm whitespace-pre-wrap">
-                        {communicationResult.content}
+                      <h4 className="font-medium mb-2">Reading Time</h4>
+                      <span className="text-sm text-muted-foreground">
+                        {communicationResult.estimatedReadingTime}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {communicationResult.personalizedElements && communicationResult.personalizedElements.length > 0 && (
+                    <div>
+                      <h4 className="font-medium mb-2">Personalized Elements</h4>
+                      <div className="space-y-1">
+                        {communicationResult.personalizedElements.map((element, index) => (
+                          <div key={index} className="flex items-center space-x-2 text-sm">
+                            <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                            <span>{element}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="analysis" className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <h4 className="font-medium mb-2">Tone</h4>
-                        <Badge variant="outline">{communicationResult.tone}</Badge>
-                      </div>
-                      <div>
-                        <h4 className="font-medium mb-2">Reading Time</h4>
-                        <span className="text-sm text-muted-foreground">
-                          {communicationResult.estimatedReadingTime}
-                        </span>
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="compliance" className="space-y-4">
+                  {communicationResult.complianceNotes && communicationResult.complianceNotes.length > 0 ? (
+                    <div>
+                      <h4 className="font-medium mb-2">Compliance Notes</h4>
+                      <div className="space-y-2">
+                        {communicationResult.complianceNotes.map((note, index) => (
+                          <div key={index} className="flex items-start space-x-2 text-sm">
+                            <div className="w-2 h-2 bg-green-500 rounded-full mt-1.5" />
+                            <span>{note}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                    
-                    {communicationResult.personalizedElements && communicationResult.personalizedElements.length > 0 && (
-                      <div>
-                        <h4 className="font-medium mb-2">Personalized Elements</h4>
-                        <div className="space-y-1">
-                          {communicationResult.personalizedElements.map((element, index) => (
-                            <div key={index} className="flex items-center space-x-2 text-sm">
-                              <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                              <span>{element}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </TabsContent>
-                  
-                  <TabsContent value="compliance" className="space-y-4">
-                    {communicationResult.complianceNotes && communicationResult.complianceNotes.length > 0 ? (
-                      <div>
-                        <h4 className="font-medium mb-2">Compliance Notes</h4>
-                        <div className="space-y-2">
-                          {communicationResult.complianceNotes.map((note, index) => (
-                            <div key={index} className="flex items-start space-x-2 text-sm">
-                              <div className="w-2 h-2 bg-green-500 rounded-full mt-1.5" />
-                              <span>{note}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-4 text-muted-foreground">
-                        <p>No specific compliance notes for this communication type.</p>
-                      </div>
-                    )}
-                  </TabsContent>
-                </Tabs>
-              </div>
-            )}
+                  ) : (
+                    <div className="text-center py-4 text-muted-foreground">
+                      <p>No specific compliance notes for this communication type.</p>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
 
-            {!communicationResult && !isLoading && !error && (
-              <div className="text-center py-8 text-muted-foreground">
-                <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Configure and generate a communication to see the results</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          {!communicationResult && !isLoading && !error && (
+            <div className="text-center py-8 text-muted-foreground">
+              <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Configure and generate a communication to see the results</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 } 

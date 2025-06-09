@@ -68,7 +68,7 @@ const defaultData: AgentStatusData = {
   }
 }
 
-function getStatusBadge(status: string, value?: number) {
+function getStatusBadge(status: string) {
   switch (status) {
     case 'active':
     case 'healthy':

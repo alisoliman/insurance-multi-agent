@@ -144,7 +144,7 @@ export function useBackendHealth(refreshInterval: number = 60000) {
       const healthy = await checkBackendHealth()
       setIsHealthy(healthy)
       setLastChecked(new Date())
-    } catch (err) {
+    } catch {
       setIsHealthy(false)
       setLastChecked(new Date())
     } finally {

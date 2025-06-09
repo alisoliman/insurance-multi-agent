@@ -137,7 +137,14 @@ export async function fetchActiveWorkflows(): Promise<WorkflowStage[]> {
     const data = await response.json()
     
     // Transform the backend response to match our interface
-    return data.workflows?.map((workflow: any) => ({
+    return data.workflows?.map((workflow: {
+      id: string;
+      name: string;
+      status: string;
+      count?: number;
+      avg_time: string;
+      description: string;
+    }) => ({
       id: workflow.id,
       name: workflow.name,
       status: workflow.status,

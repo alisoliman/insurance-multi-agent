@@ -343,6 +343,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
     return () => {
       disconnect();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Ping every 30 seconds to keep connection alive

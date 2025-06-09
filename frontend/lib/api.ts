@@ -1,6 +1,6 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean
   data?: T
   error?: string
@@ -16,7 +16,7 @@ export interface AssessmentRequest {
     amount?: number
     documentation?: string[]
   }
-  policy_data?: any
+  policy_data?: Record<string, unknown>
 }
 
 export interface AssessmentResponse {
@@ -42,8 +42,8 @@ export interface CommunicationRequest {
   claim_id: string
   policy_number: string
   communication_type: string
-  assessment_result?: any
-  policy_details?: any
+  assessment_result?: Record<string, unknown>
+  policy_details?: Record<string, unknown>
   preferred_language?: string
   special_instructions?: string
   urgency_level?: string
@@ -68,7 +68,7 @@ export interface WorkflowRequest {
   initial_data: {
     claim_description?: string
     policy_number?: string
-    customer_info?: any
+    customer_info?: Record<string, unknown>
   }
   custom_instructions?: string
 }
@@ -200,7 +200,7 @@ export const generateMockWorkflowResponse = (request: WorkflowRequest): Workflow
   workflow_id: `WF-${Date.now()}`,
   status: 'in_progress',
   current_step: 'assessment',
-  estimated_completion: '2-3 business days',
+  estimated_completion: request.priority === 'high' ? '1-2 business days' : '2-3 business days',
   agent_assignments: [
     {
       agent_type: 'assessment',

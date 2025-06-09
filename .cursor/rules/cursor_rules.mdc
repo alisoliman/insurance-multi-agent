@@ -14,6 +14,7 @@ alwaysApply: true
 
   - **Main Points in Bold**
     - DONOT RERUN THE BACKEND NOR THE FRONTEND
+    - NEVER RUN npm run build
     - Sub-points with details
     - Examples and explanations
   ```
