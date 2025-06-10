@@ -1,30 +1,28 @@
 "use client"
 
 import { useState } from "react"
-import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
 import { toast } from "sonner"
-import { Loader2, MessageSquare, Globe, Copy, Download } from "lucide-react"
+import { MessageSquare, Copy, Download } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const communicationFormSchema = z.object({
   customerName: z.string().min(1, "Customer name is required"),
   claimId: z.string().min(1, "Claim ID is required"),
   policyNumber: z.string().min(1, "Policy number is required"),
   communicationType: z.string().min(1, "Communication type is required"),
-  preferredLanguage: z.string().min(1, "Language is required"),
-  urgencyLevel: z.string().min(1, "Urgency level is required"),
+  preferredLanguage: z.string().default("en"),
+  urgencyLevel: z.string().default("normal"),
   specialInstructions: z.string().optional(),
 })
 
@@ -42,61 +40,10 @@ interface CommunicationResult {
   generated_at: string
   processing_time_seconds: number
   metadata?: {
-  
+    generation_method?: string
     error?: string
   }
 }
-
-const sampleScenarios = [
-  {
-    name: "Claim Approval",
-    data: {
-      customerName: "Sarah Johnson",
-      claimId: "CLM-2024-001",
-      policyNumber: "HOME-2024-002",
-      communicationType: "approval_notification",
-      preferredLanguage: "en",
-      urgencyLevel: "normal",
-      specialInstructions: "Customer prefers email communication and has expressed concern about timeline."
-    }
-  },
-  {
-    name: "Claim Rejection",
-    data: {
-      customerName: "Mike Wilson",
-      claimId: "CLM-2024-003",
-      policyNumber: "AUTO-2024-003",
-      communicationType: "rejection_notification",
-      preferredLanguage: "en",
-      urgencyLevel: "high",
-      specialInstructions: "Sensitive case - customer has been with company for 15 years."
-    }
-  },
-  {
-    name: "Spanish Information Request",
-    data: {
-      customerName: "Carlos Rodriguez",
-      claimId: "CLM-2024-004",
-      policyNumber: "AUTO-2024-004",
-      communicationType: "information_request",
-      preferredLanguage: "es",
-      urgencyLevel: "normal",
-      specialInstructions: "Customer needs additional documentation explained in Spanish."
-    }
-  },
-  {
-    name: "Investigation Notice",
-    data: {
-      customerName: "Jennifer Chen",
-      claimId: "CLM-2024-005",
-      policyNumber: "HOME-2024-005",
-      communicationType: "investigation_update",
-      preferredLanguage: "en",
-      urgencyLevel: "high",
-      specialInstructions: "Requires careful explanation of investigation process to maintain customer relationship."
-    }
-  }
-]
 
 const languages = [
   { code: "en", name: "English", flag: "🇺🇸" },
@@ -108,19 +55,65 @@ const languages = [
 ]
 
 const communicationTypes = [
-  { value: "claim_status_update", label: "Claim Status Update", description: "Provide claim processing update" },
-  { value: "approval_notification", label: "Approval Notification", description: "Notify customer of approved claim" },
-  { value: "rejection_notification", label: "Rejection Notification", description: "Explain claim denial with reasons" },
-  { value: "information_request", label: "Information Request", description: "Request additional documentation" },
-  { value: "human_review_notification", label: "Human Review Notification", description: "Escalation to human reviewer" },
-  { value: "investigation_update", label: "Investigation Update", description: "Inform about claim investigation" },
-  { value: "general_inquiry_response", label: "General Inquiry Response", description: "Response to customer questions" },
+  { value: "claim_status_update", label: "Claim Status Update" },
+  { value: "approval_notification", label: "Approval Notification" },
+  { value: "rejection_notification", label: "Rejection Notification" },
+  { value: "information_request", label: "Information Request" },
+  { value: "human_review_notification", label: "Human Review Notification" },
+  { value: "investigation_update", label: "Investigation Update" },
+  { value: "general_inquiry_response", label: "General Inquiry Response" },
+]
+
+const urgencyLevels = [
+  { value: "low", label: "Low" },
+  { value: "normal", label: "Normal" },
+  { value: "high", label: "High" },
+  { value: "urgent", label: "Urgent" },
+]
+
+const sampleScenarios = [
+  {
+    name: "Claim Approval",
+    data: {
+      customerName: "John Doe",
+      claimId: "CLM-2024-001",
+      policyNumber: "POL-123456",
+      communicationType: "approval_notification",
+      preferredLanguage: "en",
+      urgencyLevel: "normal",
+      specialInstructions: "Customer has been waiting for 2 weeks",
+    }
+  },
+  {
+    name: "Information Request",
+    data: {
+      customerName: "Jane Smith",
+      claimId: "CLM-2024-002",
+      policyNumber: "POL-789012",
+      communicationType: "information_request",
+      preferredLanguage: "en",
+      urgencyLevel: "high",
+      specialInstructions: "Need medical records and police report",
+    }
+  },
+  {
+    name: "Claim Rejection",
+    data: {
+      customerName: "Carlos Rodriguez",
+      claimId: "CLM-2024-003",
+      policyNumber: "POL-345678",
+      communicationType: "rejection_notification",
+      preferredLanguage: "es",
+      urgencyLevel: "normal",
+      specialInstructions: "Policy exclusion applies",
+    }
+  },
 ]
 
 export default function CommunicationAgentDemo() {
   const [isLoading, setIsLoading] = useState(false)
-  const [communicationResult, setCommunicationResult] = useState<CommunicationResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [communicationResult, setCommunicationResult] = useState<CommunicationResult | null>(null)
 
   const form = useForm<CommunicationFormData>({
     resolver: zodResolver(communicationFormSchema),
@@ -136,18 +129,17 @@ export default function CommunicationAgentDemo() {
   })
 
   const loadSampleScenario = (sampleData: CommunicationFormData) => {
-    form.reset(sampleData)
-    setCommunicationResult(null)
-    setError(null)
+    Object.entries(sampleData).forEach(([key, value]) => {
+      form.setValue(key as keyof CommunicationFormData, value)
+    })
+    toast.success("Sample scenario loaded!")
   }
 
-  const onSubmit = async (data: CommunicationFormData) => {
-    setIsLoading(true)
-    setError(null)
-    setCommunicationResult(null)
+  const handleGeneration = async (data: CommunicationFormData) => {
+    const endpoint = "http://localhost:8000/api/agents/enhanced-communication/generate"
 
     try {
-      const response = await fetch("http://localhost:8000/api/agents/enhanced-communication/generate", {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -179,6 +171,16 @@ export default function CommunicationAgentDemo() {
       const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred"
       setError(errorMessage)
       toast.error("Communication generation failed: " + errorMessage)
+    }
+  }
+
+  const onSubmit = async (data: CommunicationFormData) => {
+    setIsLoading(true)
+    setError(null)
+    setCommunicationResult(null)
+
+    try {
+      await handleGeneration(data)
     } finally {
       setIsLoading(false)
     }
@@ -193,6 +195,7 @@ export default function CommunicationAgentDemo() {
     if (!communicationResult) return
     
     const content = `Subject: ${communicationResult.subject}\n\n${communicationResult.content}`
+    
     const blob = new Blob([content], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -223,32 +226,32 @@ export default function CommunicationAgentDemo() {
           <CardTitle className="flex items-center space-x-2">
             <MessageSquare className="h-5 w-5" />
             <span>Communication Generator</span>
+            <Badge variant="secondary" className="ml-2">AutoGen</Badge>
           </CardTitle>
           <CardDescription>
-            Configure communication parameters or use sample scenarios to test the agent.
+            Generate personalized insurance communications using AutoGen framework with Azure OpenAI.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Sample Scenarios */}
           <div className="space-y-2">
-            <h4 className="text-sm font-medium">Quick Test with Sample Scenarios:</h4>
-            <div className="grid grid-cols-2 gap-2">
-              {sampleScenarios.map((sample, index) => (
+            <Label className="text-sm font-medium">Quick Start Scenarios</Label>
+            <div className="grid grid-cols-1 gap-2">
+              {sampleScenarios.map((scenario) => (
                 <Button
-                  key={index}
+                  key={scenario.name}
                   variant="outline"
                   size="sm"
-                  onClick={() => loadSampleScenario(sample.data)}
-                  className="text-xs justify-start"
+                  onClick={() => loadSampleScenario(scenario.data)}
+                  className="justify-start"
                 >
-                  {sample.name}
+                  {scenario.name}
                 </Button>
               ))}
             </div>
           </div>
 
-          <Separator />
-
+          {/* Form */}
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -265,6 +268,7 @@ export default function CommunicationAgentDemo() {
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   control={form.control}
                   name="claimId"
@@ -287,7 +291,7 @@ export default function CommunicationAgentDemo() {
                   <FormItem>
                     <FormLabel>Policy Number</FormLabel>
                     <FormControl>
-                      <Input placeholder="POL-2024-001" {...field} />
+                      <Input placeholder="POL-123456" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -300,7 +304,7 @@ export default function CommunicationAgentDemo() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Communication Type</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select communication type" />
@@ -309,10 +313,7 @@ export default function CommunicationAgentDemo() {
                       <SelectContent>
                         {communicationTypes.map((type) => (
                           <SelectItem key={type.value} value={type.value}>
-                            <div>
-                              <div className="font-medium">{type.label}</div>
-                              <div className="text-xs text-muted-foreground">{type.description}</div>
-                            </div>
+                            {type.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -328,11 +329,8 @@ export default function CommunicationAgentDemo() {
                   name="preferredLanguage"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center space-x-1">
-                        <Globe className="h-4 w-4" />
-                        <span>Language</span>
-                      </FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <FormLabel>Language</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select language" />
@@ -350,23 +348,25 @@ export default function CommunicationAgentDemo() {
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   control={form.control}
                   name="urgencyLevel"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Urgency Level</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select urgency" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="normal">Normal</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                          <SelectItem value="urgent">Urgent</SelectItem>
+                          {urgencyLevels.map((level) => (
+                            <SelectItem key={level.value} value={level.value}>
+                              {level.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -383,13 +383,13 @@ export default function CommunicationAgentDemo() {
                     <FormLabel>Special Instructions</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="Any special considerations for this communication..."
-                        className="min-h-[80px]"
+                        placeholder="Any special instructions or context..."
+                        className="resize-none"
                         {...field}
                       />
                     </FormControl>
                     <FormDescription>
-                      Optional context to personalize the communication.
+                      Optional instructions to customize the communication
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -397,118 +397,110 @@ export default function CommunicationAgentDemo() {
               />
 
               <Button type="submit" disabled={isLoading} className="w-full">
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating Communication...
-                  </>
-                ) : (
-                  "Generate Communication"
-                )}
+                {isLoading ? "Generating..." : "Generate Communication"}
               </Button>
             </form>
           </Form>
+
+          {error && (
+            <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+              {error}
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Results */}
       <Card>
         <CardHeader>
-          <CardTitle>Generated Communication</CardTitle>
+          <CardTitle className="flex items-center justify-between">
+            <span>Generated Communication</span>
+            {communicationResult && (
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => copyToClipboard(communicationResult.content)}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadCommunication}
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </CardTitle>
           <CardDescription>
-            AI-generated, personalized customer communication.
+            AI-generated communication using AutoGen framework with structured output
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {error && (
-            <Alert className="mb-4">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          {isLoading && (
+          {communicationResult ? (
             <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm">Generating personalized communication...</span>
+              {/* Communication Metadata */}
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground">Type</Label>
+                  <div className="text-sm">{getCommunicationTypeDisplay(communicationResult.communication_type)}</div>
+                </div>
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground">Language</Label>
+                  <div className="text-sm">{getLanguageDisplay(communicationResult.language)}</div>
+                </div>
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground">Tone</Label>
+                  <div className="text-sm capitalize">{communicationResult.tone}</div>
+                </div>
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground">Processing Time</Label>
+                  <div className="text-sm">{communicationResult.processing_time_seconds.toFixed(2)}s</div>
+                </div>
               </div>
-            </div>
-          )}
 
-          {communicationResult && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              {/* Quality Metrics */}
+              <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center space-x-2">
-                  <Badge variant="outline">
-                    {getLanguageDisplay(form.getValues('preferredLanguage'))}
-                  </Badge>
-                  <Badge variant="outline">
-                    {getCommunicationTypeDisplay(form.getValues('communicationType'))}
+                  <Badge variant={communicationResult.personalization_score > 0.7 ? "default" : "secondary"}>
+                    Personalization: {(communicationResult.personalization_score * 100).toFixed(0)}%
                   </Badge>
                 </div>
-                <div className="flex space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => copyToClipboard(`${communicationResult.subject}\n\n${communicationResult.content}`)}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={downloadCommunication}
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
+                <div className="flex items-center space-x-2">
+                  <Badge variant={communicationResult.compliance_verified ? "default" : "destructive"}>
+                    {communicationResult.compliance_verified ? "✅ Compliant" : "❌ Non-compliant"}
+                  </Badge>
                 </div>
               </div>
 
-              <Tabs defaultValue="content" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="content">Content</TabsTrigger>
-                  <TabsTrigger value="analysis">Analysis</TabsTrigger>
-                  <TabsTrigger value="compliance">Compliance</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="content" className="space-y-4">
-                  <div>
-                    <h4 className="font-medium mb-2">Subject Line</h4>
-                    <div className="bg-muted p-3 rounded text-sm font-medium">
-                      {communicationResult.subject}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h4 className="font-medium mb-2">Message Content</h4>
-                    <div className="bg-muted p-4 rounded text-sm whitespace-pre-wrap">
-                      {communicationResult.content}
-                    </div>
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="analysis" className="space-y-4">
-                  <div className="grid grid-cols-1 gap-4">
-                    <div>
-                      <h4 className="font-medium mb-2">Tone</h4>
-                      <Badge variant="outline">{communicationResult.tone}</Badge>
-                    </div>
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="compliance" className="space-y-4">
-                  <div className="text-center py-4 text-muted-foreground">
-                    <p>No specific compliance notes for this communication type.</p>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </div>
-          )}
+              {/* Subject */}
+              <div>
+                <Label className="text-sm font-medium">Subject</Label>
+                <div className="mt-1 p-3 bg-muted rounded-md">
+                  <div className="text-sm font-medium">{communicationResult.subject}</div>
+                </div>
+              </div>
 
-          {!communicationResult && !isLoading && !error && (
+              {/* Content */}
+              <div>
+                <Label className="text-sm font-medium">Content</Label>
+                <div className="mt-1 p-4 bg-muted rounded-md">
+                  <div className="text-sm whitespace-pre-wrap">{communicationResult.content}</div>
+                </div>
+              </div>
+
+              {/* Communication ID */}
+              <div className="text-xs text-muted-foreground">
+                Communication ID: {communicationResult.communication_id}
+              </div>
+            </div>
+          ) : (
             <div className="text-center py-8 text-muted-foreground">
               <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Configure and generate a communication to see the results</p>
+              <p>No communication generated yet</p>
+              <p className="text-sm">Fill out the form and click "Generate Communication" to get started</p>
             </div>
           )}
         </CardContent>

@@ -20,13 +20,8 @@ from .assessment import (
     RiskFactor,
     AssessmentResult,
 )
-from .communication import (
-    EnhancedCommunicationAgent,
-    CommunicationType,
-    CommunicationTone,
-    Language,
-    CommunicationContext,
-    CommunicationResult,
+from .autogen_communication import (
+    AutoGenCommunicationAgent,
 )
 
 __all__ = [
@@ -44,10 +39,5 @@ __all__ = [
     "ConfidenceLevel",
     "RiskFactor",
     "AssessmentResult",
-    "EnhancedCommunicationAgent",
-    "CommunicationType",
-    "CommunicationTone",
-    "Language",
-    "CommunicationContext",
-    "CommunicationResult",
+    "AutoGenCommunicationAgent",
 ]
