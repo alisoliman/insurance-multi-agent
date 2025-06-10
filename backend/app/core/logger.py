@@ -4,7 +4,8 @@ import sys
 from .config import settings
 
 # Configure logging
-log_format = "%(asctime)s - %(levelname)s - %(message)s"
+LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
+
 
 def setup_logging() -> None:
     """Configure logging for the application."""
@@ -12,7 +13,7 @@ def setup_logging() -> None:
 
     # Configure root logger
     logging.basicConfig(
-        level=log_level, format=log_format, handlers=[
+        level=log_level, format=LOG_FORMAT, handlers=[
             logging.StreamHandler(sys.stdout)]
     )
 
@@ -21,8 +22,10 @@ def setup_logging() -> None:
     logging.getLogger("uvicorn.access").setLevel(log_level)
     logging.getLogger("fastapi").setLevel(log_level)
 
+
 # Create a logger instance
 logger = logging.getLogger("app")
+
 
 def get_logger(name: str | None = None) -> logging.Logger:
     """Get a logger instance with the given name."""

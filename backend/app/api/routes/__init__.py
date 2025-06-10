@@ -7,6 +7,7 @@ from .enhanced_communication import router as enhanced_communication_router
 from .health import router as health_router
 from .websocket import router as websocket_router
 from .websocket_management import router as websocket_management_router
+from .feedback import router as feedback_router
 
 # Create the main API router
 router = APIRouter()
@@ -24,3 +25,4 @@ router.include_router(websocket_router, prefix="/ws", tags=["websocket"])
 router.include_router(
     websocket_management_router, prefix="/websocket", tags=["websocket-management"]
 )
+router.include_router(feedback_router, prefix="/feedback", tags=["feedback"])

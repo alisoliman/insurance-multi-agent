@@ -11,6 +11,7 @@ from enum import Enum
 from typing import Any
 import uuid
 
+
 class ClaimStatus(Enum):
     """Enumeration of claim statuses."""
     SUBMITTED = "submitted"
@@ -20,6 +21,7 @@ class ClaimStatus(Enum):
     PENDING_INFORMATION = "pending_information"
     CLOSED = "closed"
 
+
 class PolicyType(Enum):
     """Enumeration of policy types."""
     AUTO = "auto"
@@ -28,6 +30,7 @@ class PolicyType(Enum):
     LIFE = "life"
     BUSINESS = "business"
     TRAVEL = "travel"
+
 
 class DocumentType(Enum):
     """Enumeration of document types."""
@@ -39,6 +42,22 @@ class DocumentType(Enum):
     RECEIPTS = "receipts"
     WITNESS_STATEMENT = "witness_statement"
     OTHER = "other"
+
+
+class FeedbackType(Enum):
+    """Enumeration of feedback types."""
+    IMMEDIATE_AGENT = "immediate_agent"
+    WORKFLOW_COMPLETION = "workflow_completion"
+
+
+class FeedbackCategory(Enum):
+    """Enumeration of feedback categories."""
+    ACCURACY = "accuracy"
+    SPEED = "speed"
+    CLARITY = "clarity"
+    HELPFULNESS = "helpfulness"
+    OVERALL_EXPERIENCE = "overall_experience"
+
 
 @dataclass
 class Customer:
@@ -70,6 +89,7 @@ class Customer:
             "date_of_birth": self.date_of_birth.isoformat() if self.date_of_birth else None,
             "created_at": self.created_at.isoformat(),
         }
+
 
 @dataclass
 class Policy:
@@ -115,6 +135,7 @@ class Policy:
             "created_at": self.created_at.isoformat(),
         }
 
+
 @dataclass
 class Document:
     """Document domain model."""
@@ -141,6 +162,7 @@ class Document:
             "uploaded_by": self.uploaded_by,
             "description": self.description,
         }
+
 
 @dataclass
 class Claim:
@@ -220,6 +242,7 @@ class Claim:
             "updated_at": self.updated_at.isoformat(),
         }
 
+
 @dataclass
 class AgentActivity:
     """Agent activity tracking domain model."""
@@ -243,4 +266,140 @@ class AgentActivity:
             "timestamp": self.timestamp.isoformat(),
             "duration_seconds": self.duration_seconds,
             "metadata": self.metadata,
+        }
+
+
+@dataclass
+class FeedbackRating:
+    """Individual feedback rating for a specific category."""
+    category: FeedbackCategory
+    rating: int  # 1-5 scale
+    comment: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "category": self.category.value,
+            "rating": self.rating,
+            "comment": self.comment,
+        }
+
+
+@dataclass
+class Feedback:
+    """Feedback domain model for collecting user feedback on agent interactions."""
+    feedback_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    feedback_type: FeedbackType = FeedbackType.IMMEDIATE_AGENT
+    session_id: str | None = None
+    claim_id: str | None = None
+    agent_name: str | None = None
+    interaction_id: str | None = None
+
+    # Rating data
+    ratings: list[FeedbackRating] = field(default_factory=list)
+    overall_rating: int | None = None  # 1-5 scale
+
+    # Text feedback
+    positive_feedback: str | None = None
+    improvement_suggestions: str | None = None
+    additional_comments: str | None = None
+
+    # Metadata
+    user_id: str | None = None
+    submitted_at: datetime = field(default_factory=datetime.now)
+    ip_address: str | None = None
+    user_agent: str | None = None
+
+    # Processing flags
+    is_processed: bool = False
+    processed_at: datetime | None = None
+
+    def add_rating(self, category: FeedbackCategory, rating: int, comment: str | None = None) -> None:
+        """Add a rating for a specific category."""
+        # Validate rating range
+        if not 1 <= rating <= 5:
+            raise ValueError("Rating must be between 1 and 5")
+
+        # Remove existing rating for this category if it exists
+        self.ratings = [r for r in self.ratings if r.category != category]
+
+        # Add new rating
+        feedback_rating = FeedbackRating(
+            category=category, rating=rating, comment=comment)
+        self.ratings.append(feedback_rating)
+
+    def get_rating(self, category: FeedbackCategory) -> FeedbackRating | None:
+        """Get rating for a specific category."""
+        for rating in self.ratings:
+            if rating.category == category:
+                return rating
+        return None
+
+    def calculate_average_rating(self) -> float:
+        """Calculate average rating across all categories."""
+        if not self.ratings:
+            return 0.0
+        return sum(rating.rating for rating in self.ratings) / len(self.ratings)
+
+    @property
+    def has_text_feedback(self) -> bool:
+        """Check if feedback contains any text comments."""
+        return bool(
+            self.positive_feedback or
+            self.improvement_suggestions or
+            self.additional_comments or
+            any(rating.comment for rating in self.ratings)
+        )
+
+    def mark_processed(self) -> None:
+        """Mark feedback as processed."""
+        self.is_processed = True
+        self.processed_at = datetime.now()
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "feedback_id": self.feedback_id,
+            "feedback_type": self.feedback_type.value,
+            "session_id": self.session_id,
+            "claim_id": self.claim_id,
+            "agent_name": self.agent_name,
+            "interaction_id": self.interaction_id,
+            "ratings": [rating.to_dict() for rating in self.ratings],
+            "overall_rating": self.overall_rating,
+            "positive_feedback": self.positive_feedback,
+            "improvement_suggestions": self.improvement_suggestions,
+            "additional_comments": self.additional_comments,
+            "user_id": self.user_id,
+            "submitted_at": self.submitted_at.isoformat(),
+            "ip_address": self.ip_address,
+            "user_agent": self.user_agent,
+            "is_processed": self.is_processed,
+            "processed_at": self.processed_at.isoformat() if self.processed_at else None,
+            "average_rating": self.calculate_average_rating(),
+            "has_text_feedback": self.has_text_feedback,
+        }
+
+
+@dataclass
+class FeedbackSummary:
+    """Summary statistics for feedback analysis."""
+    total_feedback_count: int = 0
+    average_overall_rating: float = 0.0
+    category_averages: dict[str, float] = field(default_factory=dict)
+    feedback_by_type: dict[str, int] = field(default_factory=dict)
+    feedback_by_agent: dict[str, int] = field(default_factory=dict)
+    recent_feedback_count: int = 0  # Last 30 days
+    processed_feedback_count: int = 0
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "total_feedback_count": self.total_feedback_count,
+            "average_overall_rating": self.average_overall_rating,
+            "category_averages": self.category_averages,
+            "feedback_by_type": self.feedback_by_type,
+            "feedback_by_agent": self.feedback_by_agent,
+            "recent_feedback_count": self.recent_feedback_count,
+            "processed_feedback_count": self.processed_feedback_count,
         }

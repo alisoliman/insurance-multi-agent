@@ -8,6 +8,7 @@ and data validation across the application.
 from .agents import *
 from .claims import *
 from .communication import *
+from .feedback import *
 
 __all__ = [
     # Agent schemas
@@ -32,4 +33,14 @@ __all__ = [
     "EnhancedAssessmentResponse",
     "EnhancedAssessmentWithImagesRequest",
     "EnhancedAssessmentWithImagesResponse",
+    # Feedback schemas
+    "FeedbackRatingRequest",
+    "ImmediateAgentFeedbackRequest",
+    "WorkflowCompletionFeedbackRequest",
+    "FeedbackRatingResponse",
+    "FeedbackResponse",
+    "FeedbackSubmissionResponse",
+    "FeedbackListResponse",
+    "FeedbackSummaryResponse",
+    "FeedbackQueryParams",
 ]

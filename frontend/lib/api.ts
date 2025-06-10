@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
 export interface ApiResponse<T = unknown> {
   success: boolean
@@ -90,6 +90,103 @@ export interface WorkflowResponse {
   }
 }
 
+// Feedback API interfaces
+export interface FeedbackRatingRequest {
+  category: string
+  rating: number
+  comment?: string
+}
+
+export interface ImmediateAgentFeedbackRequest {
+  session_id?: string
+  claim_id?: string
+  agent_name?: string
+  interaction_id?: string
+  ratings: FeedbackRatingRequest[]
+  overall_rating?: number
+  positive_feedback?: string
+  improvement_suggestions?: string
+  additional_comments?: string
+  user_id?: string
+}
+
+export interface WorkflowCompletionFeedbackRequest {
+  session_id?: string
+  claim_id?: string
+  workflow_type?: string
+  ratings: FeedbackRatingRequest[]
+  overall_rating?: number
+  positive_feedback?: string
+  improvement_suggestions?: string
+  additional_comments?: string
+  completion_time_seconds?: number
+  steps_completed?: number
+  encountered_issues?: boolean
+  user_id?: string
+}
+
+export interface FeedbackSubmissionResponse {
+  success: boolean
+  feedback_id?: string
+  message: string
+  error?: string
+}
+
+export interface FeedbackResponse {
+  feedback_id: string
+  feedback_type: string
+  session_id?: string
+  claim_id?: string
+  agent_name?: string
+  interaction_id?: string
+  ratings: Array<{
+    category: string
+    rating: number
+    comment?: string
+  }>
+  overall_rating?: number
+  average_rating: number
+  positive_feedback?: string
+  improvement_suggestions?: string
+  additional_comments?: string
+  user_id?: string
+  submitted_at: string
+  is_processed: boolean
+  processed_at?: string
+  has_text_feedback: boolean
+}
+
+export interface FeedbackListResponse {
+  success: boolean
+  feedback: FeedbackResponse[]
+  total_count: number
+  page: number
+  page_size: number
+  error?: string
+}
+
+export interface FeedbackSummaryResponse {
+  success: boolean
+  summary?: Record<string, unknown>
+  error?: string
+}
+
+export interface FeedbackQueryParams {
+  feedback_type?: string
+  agent_name?: string
+  claim_id?: string
+  session_id?: string
+  user_id?: string
+  start_date?: string
+  end_date?: string
+  min_rating?: number
+  max_rating?: number
+  is_processed?: boolean
+  has_text_feedback?: boolean
+  page?: number
+  page_size?: number
+}
+
 class ApiClient {
   private baseUrl: string
 
@@ -160,6 +257,58 @@ class ApiClient {
 
   async getWorkflowStatus(workflowId: string): Promise<ApiResponse<WorkflowResponse>> {
     return this.request(`/api/agents/orchestrator/workflow-status/${workflowId}`)
+  }
+
+  // Feedback API methods
+  async submitImmediateAgentFeedback(request: ImmediateAgentFeedbackRequest): Promise<ApiResponse<FeedbackSubmissionResponse>> {
+    return this.request('/api/feedback/immediate-agent', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    })
+  }
+
+  async submitWorkflowCompletionFeedback(request: WorkflowCompletionFeedbackRequest): Promise<ApiResponse<FeedbackSubmissionResponse>> {
+    return this.request('/api/feedback/workflow-completion', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    })
+  }
+
+  async getFeedbackList(params?: FeedbackQueryParams): Promise<ApiResponse<FeedbackListResponse>> {
+    const queryParams = new URLSearchParams()
+    
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value))
+        }
+      })
+    }
+
+    const queryString = queryParams.toString()
+    const endpoint = queryString ? `/api/feedback/list?${queryString}` : '/api/feedback/list'
+    
+    return this.request(endpoint)
+  }
+
+  async getFeedbackById(feedbackId: string): Promise<ApiResponse<FeedbackResponse>> {
+    return this.request(`/api/feedback/${feedbackId}`)
+  }
+
+  async getFeedbackSummary(): Promise<ApiResponse<FeedbackSummaryResponse>> {
+    return this.request('/api/feedback/summary')
+  }
+
+  async markFeedbackProcessed(feedbackId: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return this.request(`/api/feedback/${feedbackId}/processed`, {
+      method: 'PATCH',
+    })
+  }
+
+  async deleteFeedback(feedbackId: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return this.request(`/api/feedback/${feedbackId}`, {
+      method: 'DELETE',
+    })
   }
 }
 

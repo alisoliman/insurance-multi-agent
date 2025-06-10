@@ -6,6 +6,7 @@ functionality that can be reused across the application.
 """
 
 from .validation import (
+    # Functions
     parse_amount,
     validate_claim_data,
     validate_email,
@@ -13,6 +14,11 @@ from .validation import (
     sanitize_text_input,
     extract_keywords,
     validate_file_extension,
+    # Exceptions
+    ValidationError,
+    AmountValidationError,
+    DateValidationError,
+    ClaimDataValidationError,
 )
 
 from .datetime_utils import (
@@ -36,6 +42,11 @@ __all__ = [
     "sanitize_text_input",
     "extract_keywords",
     "validate_file_extension",
+    # Validation exceptions
+    "ValidationError",
+    "AmountValidationError",
+    "DateValidationError",
+    "ClaimDataValidationError",
     # DateTime utilities
     "parse_date_string",
     "format_datetime_for_display",
