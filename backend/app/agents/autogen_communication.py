@@ -20,13 +20,9 @@ from app.core.config import settings
 from app.schemas.communication import (
     CommunicationRequest,
     CommunicationResponse,
-    CommunicationStep,
     CommunicationType,
     CommunicationTone,
     Language,
-    StreamingCommunicationChunk,
-    CommunicationCapabilities,
-    CommunicationError,
 )
 
 
@@ -122,13 +118,13 @@ Always ensure accuracy and consistency with provided assessment results and main
         communication_id = str(uuid.uuid4())
 
         # Prepare task for the agent
-        task = f"""Generate a {request.communication_type.value} communication for:
+        task = f"""Generate a {request.communication_type} communication for:
         
 Customer: {request.customer_name}
 Claim ID: {request.claim_id}
 Policy: {request.policy_number}
-Language: {request.preferred_language.value}
-Urgency: {request.urgency_level.value}
+Language: {request.preferred_language}
+Urgency: {request.urgency_level}
 
 Special Instructions: {request.special_instructions or 'None'}
 

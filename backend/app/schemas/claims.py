@@ -2,8 +2,10 @@
 Claim-related schemas for API requests and responses.
 """
 
-from typing import Any
+from typing import Any, Optional, List
 from pydantic import BaseModel, Field
+from enum import Enum
+from datetime import datetime
 
 from fastapi import UploadFile, File, Form
 
@@ -208,3 +210,124 @@ class ClaimFormData:
             return json.loads(self.policy_data)
         except json.JSONDecodeError:
             return None
+
+
+# ============================================================================
+# AutoGen Assessment Models - Modern Structured Output
+# ============================================================================
+
+class ClaimType(str, Enum):
+    """Enumeration of claim types."""
+    AUTO = "auto"
+    HOME = "home"
+    HEALTH = "health"
+    LIFE = "life"
+    PROPERTY = "property"
+    LIABILITY = "liability"
+    TRAVEL = "travel"
+    OTHER = "other"
+
+
+class UrgencyLevel(str, Enum):
+    """Enumeration of urgency levels."""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class PolicyStatus(str, Enum):
+    """Enumeration of policy statuses."""
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    SUSPENDED = "suspended"
+    CANCELLED = "cancelled"
+
+
+class AssessmentDecision(str, Enum):
+    """Enumeration of assessment decisions."""
+    APPROVED = "APPROVED"
+    DENIED = "DENIED"
+    INVESTIGATION = "INVESTIGATION"
+    ERROR = "ERROR"
+
+
+class ClaimAssessmentRequest(BaseModel):
+    """
+    Request model for AutoGen claim assessment with structured input.
+
+    This model defines all the data needed for the AutoGen assessment agent
+    to make an informed decision about an insurance claim.
+    """
+
+    # Core claim information
+    claim_id: str = Field(..., description="Unique identifier for the claim")
+    policy_number: str = Field(..., description="Insurance policy number")
+    claim_type: ClaimType = Field(..., description="Type of insurance claim")
+    claim_amount: float = Field(..., ge=0,
+                                description="Requested claim amount in dollars")
+    date_of_incident: str = Field(...,
+                                  description="Date when the incident occurred (YYYY-MM-DD)")
+    description: str = Field(..., min_length=10,
+                             description="Detailed description of the incident")
+
+    # Policy information
+    policy_coverage_limit: float = Field(..., ge=0,
+                                         description="Maximum coverage limit for this policy")
+    deductible: float = Field(..., ge=0,
+                              description="Policy deductible amount")
+    policy_status: PolicyStatus = Field(...,
+                                        description="Current status of the policy")
+
+    # Assessment context
+    urgency_level: UrgencyLevel = Field(
+        default=UrgencyLevel.MEDIUM, description="Urgency level for processing")
+    prior_claims: List[str] = Field(
+        default=[], description="List of prior claim IDs for this policy")
+    supporting_documents: List[str] = Field(
+        default=[], description="List of supporting document names")
+
+    # Optional additional data
+    claimant_name: Optional[str] = Field(
+        None, description="Name of the person filing the claim")
+    contact_information: Optional[str] = Field(
+        None, description="Contact information for the claimant")
+    special_circumstances: Optional[str] = Field(
+        None, description="Any special circumstances to consider")
+
+
+class ClaimAssessmentResponse(BaseModel):
+    """
+    Response model for AutoGen claim assessment with structured output.
+
+    This model ensures the AutoGen agent returns consistent, structured
+    assessment results that can be reliably processed by the system.
+    """
+
+    # Core decision
+    decision: AssessmentDecision = Field(...,
+                                         description="Primary assessment decision")
+    confidence_score: float = Field(..., ge=0.0, le=1.0,
+                                    description="Confidence in the decision (0.0 to 1.0)")
+    reasoning: str = Field(..., min_length=20,
+                           description="Detailed explanation of the assessment decision")
+
+    # Risk analysis
+    risk_factors: List[str] = Field(
+        default=[], description="List of identified risk factors")
+
+    # Recommendations
+    recommended_actions: List[str] = Field(
+        ..., min_items=1, description="Specific actions recommended for processing")
+
+    # Financial assessment
+    estimated_amount: float = Field(..., ge=0,
+                                    description="Estimated settlement amount if approved")
+
+    # Processing information
+    processing_notes: str = Field(
+        ..., description="Additional notes for the claims processing team")
+
+    # Metadata (simplified for Azure OpenAI compatibility)
+    metadata: Optional[dict[str, str]] = Field(
+        default=None, description="Additional metadata as string key-value pairs")

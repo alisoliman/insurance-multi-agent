@@ -6,12 +6,8 @@ import asyncio
 from app.agents.llm_complexity_assessor import LLMComplexityAssessor
 from app.agents.orchestrator import OrchestratorAgent, AssessmentMode
 from app.agents.assessment import EnhancedAssessmentAgent
-from app.agents.communication import (
-    EnhancedCommunicationAgent,
-    CommunicationContext,
-    CommunicationType,
-    Language,
-)
+from app.agents.autogen_communication import AutoGenCommunicationAgent
+from app.schemas.communication import CommunicationRequest
 from app.core.config import settings
 
 
@@ -100,31 +96,32 @@ async def test_azure_consistency():
         print(f"❌ Enhanced Assessment Agent failed: {str(e)}")
         results["enhanced_assessment"] = False
 
-    # Test 4: Enhanced Communication Agent
-    print("\n💬 Testing Enhanced Communication Agent...")
+    # Test 4: AutoGen Communication Agent
+    print("\n💬 Testing AutoGen Communication Agent...")
     try:
-        communication_agent = EnhancedCommunicationAgent()
-        print(f"✅ Communication Agent initialized")
+        communication_agent = AutoGenCommunicationAgent()
+        print(f"✅ AutoGen Communication Agent initialized")
 
-        # Create communication context
-        context = CommunicationContext(
+        # Create communication request
+        request = CommunicationRequest(
             customer_name="John Doe",
             claim_id=test_claim["claim_id"],
             policy_number=test_claim["policy_number"],
-            communication_type=CommunicationType.CLAIM_STATUS_UPDATE,
-            preferred_language=Language.ENGLISH,
+            communication_type="claim_status_update",
+            preferred_language="en",
+            urgency_level="normal",
+            special_instructions="Test communication for Azure consistency",
         )
 
-        comm_result = await communication_agent.generate_communication(context)
-        print(
-            f"✅ Communication generated: {comm_result.communication_type.value}")
-        print(f"✅ Language: {comm_result.language.value}")
+        comm_result = await communication_agent.generate_communication(request)
+        print(f"✅ Communication generated: {comm_result.communication_type}")
+        print(f"✅ Language: {comm_result.language}")
         print(f"✅ Processing Time: {comm_result.processing_time_seconds:.4f}s")
-        results["enhanced_communication"] = True
+        results["autogen_communication"] = True
 
     except Exception as e:
-        print(f"❌ Enhanced Communication Agent failed: {str(e)}")
-        results["enhanced_communication"] = False
+        print(f"❌ AutoGen Communication Agent failed: {str(e)}")
+        results["autogen_communication"] = False
 
     # Summary
     print("\n📈 Test Results Summary:")

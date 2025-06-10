@@ -1,3 +1,8 @@
+"""
+FastAPI application factory and configuration.
+"""
+
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -9,32 +14,42 @@ from app.core.logger import setup_logging
 # Setup logging
 setup_logging()
 
-# Create FastAPI app
-app = FastAPI(
-    title=settings.PROJECT_NAME,
-    version=settings.VERSION,
-    description=settings.DESCRIPTION,
-)
+# Simple fix: Disable AutoGen's problematic loggers that cause JSON serialization errors
+logging.getLogger("autogen_core.logging").disabled = True
+logging.getLogger("autogen_ext.models.openai").setLevel(logging.ERROR)
 
-# Configure CORS
-cors_kwargs = {
-    "allow_origins": settings.cors_origins,
-    "allow_credentials": True,
-    "allow_methods": ["*"],
-    "allow_headers": ["*"],
-}
 
-# Add regex pattern for production environments
-if settings.cors_origin_regex:
-    cors_kwargs["allow_origin_regex"] = settings.cors_origin_regex
+def create_app() -> FastAPI:
+    """Create and configure the FastAPI application."""
 
-app.add_middleware(CORSMiddleware, **cors_kwargs)
+    app = FastAPI(
+        title=settings.PROJECT_NAME,
+        version=settings.VERSION,
+        description=settings.DESCRIPTION,
+        openapi_url=f"{settings.API_PREFIX}/openapi.json",
+        docs_url=f"{settings.API_PREFIX}/docs",
+        redoc_url=f"{settings.API_PREFIX}/redoc",
+    )
 
-# Include API router
-app.include_router(api_router, prefix=settings.API_PREFIX)
+    # Add CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
-# Mount static files for WebSocket demo
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+    # Include API routes
+    app.include_router(api_router, prefix=settings.API_PREFIX)
+
+    # Serve static files
+    app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+    return app
+
+
+app = create_app()
 
 
 @app.get("/")

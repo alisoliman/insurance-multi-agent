@@ -1,219 +1,322 @@
 "use client"
 
 import { useState } from "react"
-import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
 import { toast } from "sonner"
-import { Loader2, FileText, AlertCircle, CheckCircle, Clock, Eye, Image, FileImage } from "lucide-react"
+import { Shield, Copy, Download, CheckCircle, AlertCircle, Clock, FileText, Upload, X, Eye, FileImage, Code } from "lucide-react"
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Progress } from "@/components/ui/progress"
-import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { FileUpload } from "@/components/ui/file-upload"
-import { ExplainabilityPanel } from "@/components/explainability/ExplainabilityPanel"
-import { transformAssessmentToExplainability } from "@/lib/explainability-utils"
 
 const assessmentFormSchema = z.object({
   policyNumber: z.string().min(1, "Policy number is required"),
-  incidentDate: z.string().min(1, "Incident date is required"),
+  claimAmount: z.string().min(1, "Claim amount is required"),
+  dateOfIncident: z.string().min(1, "Incident date is required"),
   description: z.string().min(10, "Description must be at least 10 characters"),
-  amount: z.string().min(1, "Claim amount is required"),
   claimType: z.string().min(1, "Claim type is required"),
-  customerName: z.string().min(1, "Customer name is required"),
+  claimantName: z.string().min(1, "Claimant name is required"),
+  contactInformation: z.string().optional(),
+  specialCircumstances: z.string().optional(),
 })
 
 type AssessmentFormData = z.infer<typeof assessmentFormSchema>
 
-interface ImageAnalysisResult {
-  filename: string
-  file_size: number
-  image_type: string
-  classification: string
-  confidence_score: number
-  relevance_score: number
-  extracted_text?: string
-  extracted_data?: {
-    document_type?: string
-    vendor_name?: string
-    amounts?: (string | { label?: string; amount?: string })[]
-    dates?: string[]
-    names?: string[]
-    invoice_number?: string
-    line_items?: (string | { description?: string; quantity?: string; part?: string; amount?: string })[]
-    tax_amount?: string
-    total_amount?: string
-    payment_terms?: string
-    key_details?: string[]
-    error?: string
-    error_type?: string
-  }
-  damage_assessment?: {
-    severity: string
-    estimated_cost?: string
-    description?: string
-    affected_areas?: string[]
-  }
-  fraud_indicators?: {
-    suspicious_elements?: string[]
-    authenticity_score?: number
-    concerns?: string[]
-  }
-  processing_time_seconds: number
-}
-
-interface MultiImageAssessmentResult {
-  total_images_processed: number
-  processing_time_seconds: number
-  image_analyses: ImageAnalysisResult[]
-  overall_relevance_score: number
-  recommended_actions: string[]
-  summary: string
-}
-
 interface AssessmentResult {
   decision: string
   confidence_score: number
-  confidence_level: string
   reasoning: string
-  risk_factors: Array<{
-    factor_type: string
-    severity: string
-    description: string
-    confidence: number
-  }>
+  risk_factors: string[]
   recommended_actions: string[]
-  processing_time_seconds: number
-  assessment_id: string
-  fraud_risk_score: number
-  documentation_completeness: number
-  regulatory_compliance: {
-    compliant: boolean
-    requirements: string[]
-    missing_items: string[]
+  estimated_amount: number
+  processing_notes: string
+  metadata?: {
+    generation_method?: string
+    error?: string
   }
 }
 
-interface AssessmentWithImagesResult {
-  success: boolean
-  assessment_result?: AssessmentResult
-  image_analysis_result?: MultiImageAssessmentResult
-  error?: string
+interface ImageData {
+  filename: string
+  size: number
+  type: string
+  extractedText?: string
+  analysis?: string
+  metadata?: Record<string, any>
 }
+
+const claimTypes = [
+  { value: "auto", label: "Auto Insurance" },
+  { value: "home", label: "Home Insurance" },
+  { value: "health", label: "Health Insurance" },
+  { value: "life", label: "Life Insurance" },
+  { value: "property", label: "Property Insurance" },
+  { value: "liability", label: "Liability Insurance" },
+  { value: "travel", label: "Travel Insurance" },
+  { value: "other", label: "Other" },
+]
 
 const sampleClaims = [
   {
     name: "Minor Auto Accident",
     data: {
       policyNumber: "AUTO-2024-001",
-      incidentDate: "2024-01-15",
+      claimAmount: "2500",
+      dateOfIncident: "2024-01-15",
       description: "Minor fender bender in parking lot. No injuries reported. Damage to rear bumper and taillight.",
-      amount: "2500",
       claimType: "auto",
-      customerName: "John Smith"
+      claimantName: "John Smith",
+      contactInformation: "john.smith@email.com",
+      specialCircumstances: "First claim on policy",
     }
   },
   {
     name: "Home Water Damage",
     data: {
       policyNumber: "HOME-2024-002",
-      incidentDate: "2024-01-10",
+      claimAmount: "15000",
+      dateOfIncident: "2024-01-10",
       description: "Burst pipe in basement caused flooding. Damage to flooring, drywall, and personal belongings.",
-      amount: "15000",
       claimType: "home",
-      customerName: "Sarah Johnson"
+      claimantName: "Sarah Johnson",
+      contactInformation: "sarah.j@email.com",
+      specialCircumstances: "Emergency repairs already started",
     }
   },
   {
     name: "Complex Fraud Case",
     data: {
       policyNumber: "AUTO-2024-003",
-      incidentDate: "2024-01-05",
+      claimAmount: "45000",
+      dateOfIncident: "2024-01-05",
       description: "Total loss vehicle fire. Suspicious circumstances. Multiple previous claims. Inconsistent witness statements.",
-      amount: "45000",
       claimType: "auto",
-      customerName: "Mike Wilson"
+      claimantName: "Mike Wilson",
+      contactInformation: "m.wilson@email.com",
+      specialCircumstances: "Third claim this year, requires investigation",
     }
   }
 ]
 
 export default function AssessmentAgentDemo() {
   const [isLoading, setIsLoading] = useState(false)
-  const [assessmentResult, setAssessmentResult] = useState<AssessmentResult | null>(null)
-  const [imageAnalysisResult, setImageAnalysisResult] = useState<MultiImageAssessmentResult | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [showExplainability, setShowExplainability] = useState(false)
-  const [activeTab, setActiveTab] = useState<"summary" | "images" | "explainability">("summary")
-  const [currentClaimData, setCurrentClaimData] = useState<AssessmentFormData | null>(null)
+  const [assessmentResult, setAssessmentResult] = useState<AssessmentResult | null>(null)
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
+  const [useFileUpload, setUseFileUpload] = useState(false)
+  const [imageData, setImageData] = useState<ImageData[]>([])
+  const [activeTab, setActiveTab] = useState("results")
 
   const form = useForm<AssessmentFormData>({
     resolver: zodResolver(assessmentFormSchema),
     defaultValues: {
       policyNumber: "",
-      incidentDate: "",
+      claimAmount: "",
+      dateOfIncident: "",
       description: "",
-      amount: "",
       claimType: "",
-      customerName: "",
+      claimantName: "",
+      contactInformation: "",
+      specialCircumstances: "",
     },
   })
 
   const loadSampleClaim = (sampleData: AssessmentFormData) => {
-    form.reset(sampleData)
-    setAssessmentResult(null)
-    setImageAnalysisResult(null)
-    setError(null)
-    setShowExplainability(false)
-    setCurrentClaimData(null)
-    setUploadedFiles([])
+    Object.entries(sampleData).forEach(([key, value]) => {
+      form.setValue(key as keyof AssessmentFormData, value)
+    })
+    toast.success("Sample claim loaded!")
   }
 
-  const onSubmit = async (data: AssessmentFormData) => {
-    setIsLoading(true)
-    setError(null)
-    setAssessmentResult(null)
-    setImageAnalysisResult(null)
-    setShowExplainability(false)
+  const extractImageData = async (files: File[]): Promise<ImageData[]> => {
+    const imageDataPromises = files.map(async (file): Promise<ImageData> => {
+      const imageData: ImageData = {
+        filename: file.name,
+        size: file.size,
+        type: file.type,
+        metadata: {
+          lastModified: new Date(file.lastModified).toISOString(),
+          webkitRelativePath: (file as any).webkitRelativePath || '',
+        }
+      }
 
-    try {
-      // Determine which endpoint to use based on whether images are uploaded
-      const hasImages = uploadedFiles.length > 0
-      const endpoint = hasImages 
-        ? "http://localhost:8000/api/agents/enhanced-assessment/assess-claim-with-images"
-        : "http://localhost:8000/api/agents/enhanced-assessment/assess-claim"
+      // For images, we can extract basic metadata
+      if (file.type.startsWith('image/')) {
+        try {
+          const img = new Image()
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')
+          
+          await new Promise((resolve, reject) => {
+            img.onload = () => {
+              canvas.width = img.width
+              canvas.height = img.height
+              ctx?.drawImage(img, 0, 0)
+              
+              imageData.metadata = {
+                ...imageData.metadata,
+                width: img.width,
+                height: img.height,
+                aspectRatio: (img.width / img.height).toFixed(2),
+                resolution: `${img.width}x${img.height}`,
+                estimatedQuality: img.width * img.height > 1000000 ? 'High' : img.width * img.height > 300000 ? 'Medium' : 'Low'
+              }
+              resolve(void 0)
+            }
+            img.onerror = reject
+            img.src = URL.createObjectURL(file)
+          })
+        } catch (error) {
+          console.warn('Failed to extract image metadata:', error)
+        }
+      }
 
-      let response: Response
+      // Simulate text extraction for documents
+      if (file.type === 'application/pdf' || file.type.includes('document')) {
+        imageData.extractedText = `[Simulated] Document content from ${file.name}. In a real implementation, this would contain extracted text from the document.`
+        imageData.analysis = `Document Analysis: ${file.name} appears to be a ${file.type.includes('pdf') ? 'PDF document' : 'text document'} with ${(file.size / 1024).toFixed(1)}KB of content.`
+      }
 
-      if (hasImages) {
-        // Use FormData for multipart/form-data request
+      // Simulate AI analysis for images
+      if (file.type.startsWith('image/')) {
+        imageData.analysis = `Image Analysis: ${file.name} is a ${file.type} image. Based on visual inspection, this appears to be ${file.name.toLowerCase().includes('receipt') ? 'a service receipt or document' : file.name.toLowerCase().includes('damage') ? 'damage documentation' : 'supporting documentation'}. The image quality is ${imageData.metadata?.estimatedQuality || 'unknown'} resolution.`
+      }
+
+      return imageData
+    })
+
+    return Promise.all(imageDataPromises)
+  }
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || [])
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/tiff', 'image/bmp', 'image/webp', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+    
+    const validFiles = files.filter(file => {
+      if (!allowedTypes.includes(file.type)) {
+        toast.error(`File type not supported: ${file.name}`)
+        return false
+      }
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        toast.error(`File too large: ${file.name}`)
+        return false
+      }
+      return true
+    })
+
+    if (validFiles.length > 0) {
+      setUploadedFiles(prev => [...prev, ...validFiles])
+      
+      // Extract image data
+      const extractedData = await extractImageData(validFiles)
+      setImageData(prev => [...prev, ...extractedData])
+      
+      toast.success(`${validFiles.length} file(s) uploaded and analyzed successfully`)
+    }
+  }
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index))
+    setImageData(prev => prev.filter((_, i) => i !== index))
+    toast.success("File removed")
+  }
+
+  const formatMarkdownAssessment = (result: AssessmentResult): string => {
+    return `# Claim Assessment Report
+
+## Decision: **${result.decision.toUpperCase()}**
+**Confidence Score:** ${Math.round(result.confidence_score * 100)}%
+
+---
+
+## Assessment Details
+
+### Reasoning
+${result.reasoning}
+
+### Risk Factors
+${result.risk_factors && result.risk_factors.length > 0 
+  ? result.risk_factors.map(factor => `- ⚠️ ${factor}`).join('\n')
+  : '- ✅ No significant risk factors identified'
+}
+
+### Recommended Actions
+${result.recommended_actions && result.recommended_actions.length > 0
+  ? result.recommended_actions.map(action => `- 📋 ${action}`).join('\n')
+  : '- No specific actions required'
+}
+
+### Financial Summary
+- **Estimated Settlement:** $${result.estimated_amount.toLocaleString()}
+- **Original Claim Amount:** $${form.getValues('claimAmount') ? parseInt(form.getValues('claimAmount')).toLocaleString() : 'N/A'}
+
+### Processing Notes
+${result.processing_notes}
+
+---
+
+*Assessment completed using AutoGen framework with Azure OpenAI*`
+  }
+
+  const handleAssessment = async (data: AssessmentFormData) => {
+    if (useFileUpload && uploadedFiles.length > 0) {
+      // Use file upload endpoint
+      const endpoint = "http://localhost:8000/api/agents/enhanced-assessment/assess-claim-with-files"
+      
+      try {
         const formData = new FormData()
         formData.append("policy_number", data.policyNumber)
-        formData.append("incident_date", data.incidentDate)
+        formData.append("claim_amount", data.claimAmount)
+        formData.append("date_of_incident", data.dateOfIncident)
         formData.append("description", data.description)
-        formData.append("amount", data.amount)
-        formData.append("claim_id", `CLAIM-${Date.now()}`)
+        formData.append("claim_type", data.claimType)
+        formData.append("claimant_name", data.claimantName)
+        formData.append("contact_information", data.contactInformation || "")
+        formData.append("special_circumstances", data.specialCircumstances || "")
         
-        // Add image files
-        uploadedFiles.forEach((file) => {
-          formData.append("image_files", file)
+        // Add files
+        uploadedFiles.forEach(file => {
+          formData.append("files", file)
         })
 
-        response = await fetch(endpoint, {
+        const response = await fetch(endpoint, {
           method: "POST",
           body: formData,
         })
-      } else {
-        // Use JSON for regular request
-        response = await fetch(endpoint, {
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const result = await response.json()
+        
+        if (result.success && result.assessment_result) {
+          setAssessmentResult(result.assessment_result)
+          toast.success(`Assessment completed with ${uploadedFiles.length} file(s) processed!`)
+        } else {
+          throw new Error(result.error || "Assessment failed")
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred"
+        setError(errorMessage)
+        toast.error("Assessment failed: " + errorMessage)
+      }
+    } else {
+      // Use regular endpoint
+      const endpoint = "http://localhost:8000/api/agents/enhanced-assessment/assess-claim"
+
+      try {
+        const response = await fetch(endpoint, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -221,48 +324,74 @@ export default function AssessmentAgentDemo() {
           body: JSON.stringify({
             claim_data: {
               policy_number: data.policyNumber,
-              incident_date: data.incidentDate,
+              incident_date: data.dateOfIncident,
               description: data.description,
-              amount: parseFloat(data.amount),
+              amount: parseFloat(data.claimAmount),
             },
           }),
         })
-      }
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
 
-      const result: AssessmentWithImagesResult = await response.json()
-      
-      if (result.success) {
-        if (result.assessment_result) {
+        const result = await response.json()
+        
+        if (result.success && result.assessment_result) {
           setAssessmentResult(result.assessment_result)
+          toast.success("Assessment completed successfully!")
+        } else {
+          throw new Error(result.error || "Assessment failed")
         }
-        if (result.image_analysis_result) {
-          setImageAnalysisResult(result.image_analysis_result)
-        }
-        setCurrentClaimData(data)
-        toast.success(hasImages ? "Assessment with image analysis completed!" : "Assessment completed successfully!")
-      } else {
-        throw new Error(result.error || "Assessment failed")
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred"
+        setError(errorMessage)
+        toast.error("Assessment failed: " + errorMessage)
       }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred"
-      setError(errorMessage)
-      toast.error("Assessment failed: " + errorMessage)
+    }
+  }
+
+  const onSubmit = async (data: AssessmentFormData) => {
+    setIsLoading(true)
+    setError(null)
+    setAssessmentResult(null)
+
+    try {
+      await handleAssessment(data)
     } finally {
       setIsLoading(false)
     }
   }
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    toast.success("Copied to clipboard!")
+  }
+
+  const downloadAssessment = () => {
+    if (!assessmentResult) return
+    
+    const content = formatMarkdownAssessment(assessmentResult)
+    
+    const blob = new Blob([content], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `assessment-${form.getValues('policyNumber')}.md`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    toast.success("Assessment downloaded!")
+  }
+
   const getDecisionColor = (decision: string) => {
     switch (decision.toLowerCase()) {
-      case "approve":
+      case "approved":
         return "bg-green-100 text-green-800 border-green-200"
-      case "reject":
+      case "denied":
         return "bg-red-100 text-red-800 border-red-200"
-      case "investigate":
+      case "investigation":
         return "bg-yellow-100 text-yellow-800 border-yellow-200"
       default:
         return "bg-gray-100 text-gray-800 border-gray-200"
@@ -271,755 +400,509 @@ export default function AssessmentAgentDemo() {
 
   const getDecisionIcon = (decision: string) => {
     switch (decision.toLowerCase()) {
-      case "approve":
+      case "approved":
         return <CheckCircle className="h-4 w-4" />
-      case "reject":
+      case "denied":
         return <AlertCircle className="h-4 w-4" />
-      case "investigate":
+      case "investigation":
         return <Clock className="h-4 w-4" />
       default:
         return <FileText className="h-4 w-4" />
     }
   }
 
-  const handleIntervention = (interventionId: string, action: string) => {
-    toast.info(`Intervention ${action} for ${interventionId}`)
-    // In a real implementation, this would trigger backend actions
-  }
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  const getClaimTypeDisplay = (value: string) => {
+    const type = claimTypes.find(t => t.value === value)
+    return type ? type.label : value
   }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Input Form */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Claim Assessment Form</CardTitle>
-            <CardDescription>
-              Enter claim details, upload supporting images, or use a sample claim to test the assessment agent.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Sample Claims */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium">Quick Test with Sample Claims:</h4>
-              <div className="flex flex-wrap gap-2">
-                {sampleClaims.map((sample, index) => (
-                  <Button
-                    key={index}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => loadSampleClaim(sample.data)}
-                    className="text-xs"
-                  >
-                    {sample.name}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <Separator />
-
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="customerName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Customer Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="John Doe" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="policyNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Policy Number</FormLabel>
-                        <FormControl>
-                          <Input placeholder="POL-2024-001" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="incidentDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Incident Date</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="claimType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Claim Type</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select claim type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="auto">Auto Insurance</SelectItem>
-                            <SelectItem value="home">Home Insurance</SelectItem>
-                            <SelectItem value="health">Health Insurance</SelectItem>
-                            <SelectItem value="life">Life Insurance</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="amount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Claim Amount ($)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="5000" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Incident Description</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Describe the incident in detail..."
-                          className="min-h-[100px]"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Provide a detailed description of the incident for accurate assessment.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* File Upload Section */}
-                <div className="space-y-2">
-                  <FormLabel>Supporting Images (Optional)</FormLabel>
-                  <FileUpload
-                    onFilesChange={setUploadedFiles}
-                    accept="image/*"
-                    maxFiles={5}
-                    maxSize={10 * 1024 * 1024} // 10MB
-                    disabled={isLoading}
-                    value={uploadedFiles}
-                  />
-                  <FormDescription>
-                    Upload images related to your claim (invoices, damage photos, receipts, etc.). 
-                    Supported formats: JPEG, PNG, TIFF, BMP, WebP. Max 5 files, 10MB each.
-                  </FormDescription>
-                </div>
-
-                <Button type="submit" disabled={isLoading} className="w-full">
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {uploadedFiles.length > 0 ? "Analyzing Claim & Images..." : "Analyzing Claim..."}
-                    </>
-                  ) : (
-                    <>
-                      {uploadedFiles.length > 0 && <Image className="mr-2 h-4 w-4" aria-label="Image icon" />}
-                      Assess Claim {uploadedFiles.length > 0 && `(${uploadedFiles.length} images)`}
-                    </>
-                  )}
+      {/* Input Form */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Shield className="h-5 w-5" />
+            <span>Claim Assessment</span>
+            <Badge variant="secondary" className="ml-2">AutoGen</Badge>
+          </CardTitle>
+          <CardDescription>
+            Intelligent claim assessment using AutoGen framework with Azure OpenAI.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Sample Claims */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Quick Test with Sample Claims</Label>
+            <div className="grid grid-cols-1 gap-2">
+              {sampleClaims.map((sample) => (
+                <Button
+                  key={sample.name}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => loadSampleClaim(sample.data)}
+                  className="justify-start"
+                >
+                  {sample.name}
                 </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
+              ))}
+            </div>
+          </div>
 
-        {/* Results */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Assessment Results</CardTitle>
-                <CardDescription>
-                  Real-time AI analysis and decision-making results with image processing.
-                </CardDescription>
+          {/* Form */}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="claimantName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Claimant Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="John Doe" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="policyNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Policy Number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="POL-2024-001" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-              {assessmentResult && currentClaimData && (
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="dateOfIncident"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date of Incident</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="claimType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Claim Type</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select claim type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {claimTypes.map((type) => (
+                            <SelectItem key={type.value} value={type.value}>
+                              {type.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="claimAmount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Claim Amount ($)</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="5000" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Incident Description</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Describe the incident in detail..."
+                        className="min-h-[100px] resize-none"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Provide a detailed description of the incident for accurate assessment
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="contactInformation"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contact Information</FormLabel>
+                    <FormControl>
+                      <Input placeholder="email@example.com or phone number" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Optional contact information for follow-up
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="specialCircumstances"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Special Circumstances</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Any special circumstances or additional context..."
+                        className="resize-none"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Optional additional context to consider during assessment
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* File Upload Section */}
+              <div className="space-y-4 border-t pt-4">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="useFileUpload"
+                    checked={useFileUpload}
+                    onChange={(e) => setUseFileUpload(e.target.checked)}
+                    className="rounded"
+                    aria-label="Enable file upload for supporting documents"
+                  />
+                  <Label htmlFor="useFileUpload" className="text-sm font-medium">
+                    Include supporting documents (images, PDFs, etc.)
+                  </Label>
+                </div>
+
+                {useFileUpload && (
+                  <div className="space-y-3">
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                      <div className="text-center">
+                        <Upload className="mx-auto h-8 w-8 text-gray-400" />
+                        <div className="mt-2">
+                          <Label htmlFor="file-upload" className="cursor-pointer">
+                            <span className="text-sm font-medium text-blue-600 hover:text-blue-500">
+                              Upload files
+                            </span>
+                            <input
+                              id="file-upload"
+                              type="file"
+                              multiple
+                              accept=".pdf,.jpg,.jpeg,.png,.tiff,.bmp,.webp,.txt,.doc,.docx"
+                              onChange={handleFileUpload}
+                              className="sr-only"
+                              aria-label="Upload supporting documents"
+                              title="Upload supporting documents"
+                            />
+                          </Label>
+                          <p className="text-xs text-gray-500 mt-1">
+                            PDF, images, or documents up to 10MB each
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {uploadedFiles.length > 0 && (
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">
+                          Uploaded Files ({uploadedFiles.length})
+                        </Label>
+                        <div className="space-y-1">
+                          {uploadedFiles.map((file, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center justify-between p-2 bg-gray-50 rounded border"
+                            >
+                              <div className="flex items-center space-x-2">
+                                <FileText className="h-4 w-4 text-gray-500" />
+                                <span className="text-sm truncate">
+                                  {file.name}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  ({(file.size / 1024).toFixed(1)} KB)
+                                </span>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeFile(index)}
+                                className="h-6 w-6 p-0"
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <Button type="submit" disabled={isLoading} className="w-full">
+                {isLoading ? "Assessing Claim..." : useFileUpload && uploadedFiles.length > 0 ? `Assess Claim with ${uploadedFiles.length} File(s)` : "Assess Claim"}
+              </Button>
+            </form>
+          </Form>
+
+          {error && (
+            <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+              {error}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Results */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Assessment Results</span>
+            {assessmentResult && (
+              <div className="flex space-x-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    const newShowExplainability = !showExplainability
-                    setShowExplainability(newShowExplainability)
-                    setActiveTab(newShowExplainability ? "explainability" : "summary")
-                  }}
-                  className="flex items-center space-x-2"
+                  onClick={() => copyToClipboard(formatMarkdownAssessment(assessmentResult))}
                 >
-                  <Eye className="h-4 w-4" />
-                  <span>{showExplainability ? "Hide" : "Show"} Explainability</span>
+                  <Copy className="h-4 w-4" />
                 </Button>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            {error && (
-              <Alert className="mb-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadAssessment}
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+              </div>
             )}
+          </CardTitle>
+          <CardDescription>
+            AI-powered claim assessment using AutoGen framework with structured output
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {assessmentResult ? (
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="results" className="flex items-center space-x-2">
+                  <Eye className="h-4 w-4" />
+                  <span>Assessment</span>
+                </TabsTrigger>
+                <TabsTrigger value="markdown" className="flex items-center space-x-2">
+                  <FileText className="h-4 w-4" />
+                  <span>Markdown</span>
+                </TabsTrigger>
+                <TabsTrigger value="images" className="flex items-center space-x-2" disabled={imageData.length === 0}>
+                  <FileImage className="h-4 w-4" />
+                  <span>Image Data ({imageData.length})</span>
+                </TabsTrigger>
+              </TabsList>
 
-            {isLoading && (
-              <div className="space-y-4">
+              <TabsContent value="results" className="space-y-4 mt-4">
+                {/* Assessment Decision */}
                 <div className="flex items-center space-x-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm">
-                    {uploadedFiles.length > 0 
-                      ? `Processing claim assessment with ${uploadedFiles.length} images...`
-                      : "Processing claim assessment..."
-                    }
+                  <Badge className={`${getDecisionColor(assessmentResult.decision)} flex items-center space-x-1`}>
+                    {getDecisionIcon(assessmentResult.decision)}
+                    <span>{assessmentResult.decision.toUpperCase()}</span>
+                  </Badge>
+                  <span className="text-sm text-muted-foreground">
+                    Confidence: {Math.round(assessmentResult.confidence_score * 100)}%
                   </span>
                 </div>
-                <Progress value={33} className="w-full" />
-              </div>
-            )}
 
-            {assessmentResult && currentClaimData && (
-              <Tabs value={activeTab} onValueChange={(value) => {
-                setActiveTab(value as "summary" | "images" | "explainability")
-                setShowExplainability(value === "explainability")
-              }} className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger 
-                    value="summary" 
-                    className="flex items-center space-x-2"
-                  >
-                    <FileText className="h-4 w-4" />
-                    <span>Summary</span>
-                  </TabsTrigger>
-                  {imageAnalysisResult && (
-                    <TabsTrigger 
-                      value="images"
-                      className="flex items-center space-x-2"
-                    >
-                      <FileImage className="h-4 w-4" />
-                      <span>Images</span>
-                    </TabsTrigger>
-                  )}
-                  <TabsTrigger 
-                    value="explainability" 
-                    className="flex items-center space-x-2"
-                  >
-                    <Eye className="h-4 w-4" />
-                    <span>Explainability</span>
-                  </TabsTrigger>
-                </TabsList>
+                {/* Assessment Metadata */}
+                <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">Claim Type</Label>
+                    <div className="text-sm">{getClaimTypeDisplay(form.getValues('claimType'))}</div>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">Estimated Amount</Label>
+                    <div className="text-sm">${assessmentResult.estimated_amount.toLocaleString()}</div>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">Policy Number</Label>
+                    <div className="text-sm font-mono">{form.getValues('policyNumber')}</div>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">Confidence Score</Label>
+                    <div className="text-sm">{Math.round(assessmentResult.confidence_score * 100)}%</div>
+                  </div>
+                </div>
 
-                <TabsContent value="summary" className="mt-4">
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-2">
-                      <Badge className={`${getDecisionColor(assessmentResult.decision)} flex items-center space-x-1`}>
-                        {getDecisionIcon(assessmentResult.decision)}
-                        <span>{assessmentResult.decision.toUpperCase()}</span>
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        Confidence: {Math.round(assessmentResult.confidence_score * 100)}% ({assessmentResult.confidence_level})
-                      </span>
-                      {imageAnalysisResult && (
-                        <Badge variant="secondary" className="flex items-center space-x-1">
-                          <FileImage className="h-3 w-3" />
-                          <span>{imageAnalysisResult.total_images_processed} images analyzed</span>
-                        </Badge>
-                      )}
-                    </div>
+                {/* Reasoning */}
+                <div>
+                  <Label className="text-sm font-medium">Assessment Reasoning</Label>
+                  <div className="mt-1 p-4 bg-muted rounded-md">
+                    <div className="text-sm whitespace-pre-wrap">{assessmentResult.reasoning}</div>
+                  </div>
+                </div>
 
-                    <div className="space-y-3">
-                      <div>
-                        <h4 className="font-medium mb-2">Reasoning</h4>
-                        <p className="text-sm text-muted-foreground bg-muted p-3 rounded">
-                          {assessmentResult.reasoning}
-                        </p>
-                      </div>
-
-                      {imageAnalysisResult && (
-                        <div>
-                          <h4 className="font-medium mb-2">Image Analysis Summary</h4>
-                          <div className="bg-muted p-3 rounded space-y-2">
-                            <p className="text-sm text-muted-foreground">{imageAnalysisResult.summary}</p>
-                            <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-                              <span>Overall Relevance: {Math.round(imageAnalysisResult.overall_relevance_score * 100)}%</span>
-                              <span>Processing Time: {imageAnalysisResult.processing_time_seconds.toFixed(2)}s</span>
-                            </div>
-                          </div>
+                {/* Risk Factors */}
+                {assessmentResult.risk_factors && assessmentResult.risk_factors.length > 0 && (
+                  <div>
+                    <Label className="text-sm font-medium">Risk Factors</Label>
+                    <div className="mt-1 space-y-1">
+                      {assessmentResult.risk_factors.map((factor, index) => (
+                        <div key={index} className="flex items-center space-x-2 text-sm">
+                          <AlertCircle className="h-3 w-3 text-yellow-500" />
+                          <span>{factor}</span>
                         </div>
-                      )}
-
-                      {assessmentResult.risk_factors && assessmentResult.risk_factors.length > 0 && (
-                        <div>
-                          <h4 className="font-medium mb-2">Risk Factors</h4>
-                          <div className="space-y-2">
-                            {assessmentResult.risk_factors.map((factor, index) => (
-                              <div key={index} className="border rounded p-2 text-sm">
-                                <div className="flex items-center space-x-2 mb-1">
-                                  <AlertCircle className="h-3 w-3 text-yellow-500" />
-                                  <span className="font-medium">{factor.factor_type}</span>
-                                  <Badge variant="outline" className="text-xs">
-                                    {factor.severity}
-                                  </Badge>
-                                </div>
-                                <p className="text-muted-foreground">{factor.description}</p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Confidence: {Math.round(factor.confidence * 100)}%
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {assessmentResult.recommended_actions && assessmentResult.recommended_actions.length > 0 && (
-                        <div>
-                          <h4 className="font-medium mb-2">Recommended Actions</h4>
-                          <div className="space-y-1">
-                            {assessmentResult.recommended_actions.map((action, index) => (
-                              <div key={index} className="flex items-center space-x-2 text-sm">
-                                <CheckCircle className="h-3 w-3 text-green-500" />
-                                <span>{action}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="pt-2 border-t space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Processing Time:</span>
-                          <span className="font-medium">{assessmentResult.processing_time_seconds.toFixed(2)}s</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Assessment ID:</span>
-                          <span className="font-medium font-mono text-xs">{assessmentResult.assessment_id}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Fraud Risk Score:</span>
-                          <span className="font-medium">{Math.round(assessmentResult.fraud_risk_score * 100)}%</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Documentation Completeness:</span>
-                          <span className="font-medium">{Math.round(assessmentResult.documentation_completeness * 100)}%</span>
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   </div>
-                </TabsContent>
-
-                {imageAnalysisResult && (
-                  <TabsContent value="images" className="mt-4">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium">Image Analysis Results</h4>
-                        <Badge variant="secondary">
-                          {imageAnalysisResult.total_images_processed} images processed
-                        </Badge>
-                      </div>
-
-                      <div className="space-y-3">
-                        {imageAnalysisResult.image_analyses.map((analysis, index) => (
-                          <div key={index} className="border rounded-lg p-4 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-2">
-                                <FileImage className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-medium text-sm">{analysis.filename}</span>
-                                <Badge variant={
-                                  analysis.image_type === "error" 
-                                    ? "destructive" 
-                                    : "outline"
-                                } className="text-xs">
-                                  {analysis.image_type}
-                                </Badge>
-                                {analysis.image_type === "error" && (
-                                  <Badge variant="destructive" className="text-xs">
-                                    FAILED
-                                  </Badge>
-                                )}
-                              </div>
-                              <span className="text-xs text-muted-foreground">
-                                {formatFileSize(analysis.file_size)}
-                              </span>
-                            </div>
-
-                            {/* Error Display for Failed Images */}
-                            {analysis.image_type === "error" && (
-                              <div className="bg-red-50 border border-red-200 rounded p-3 space-y-2">
-                                <div className="flex items-center space-x-2">
-                                  <AlertCircle className="h-4 w-4 text-red-500" />
-                                  <span className="font-medium text-red-700">Image Processing Failed</span>
-                                </div>
-                                <p className="text-sm text-red-600">{analysis.classification}</p>
-                                {analysis.extracted_data?.error && (
-                                  <div className="mt-2">
-                                    <span className="text-xs font-medium text-red-700">Error Details:</span>
-                                    <p className="text-xs text-red-600 bg-red-100 p-2 rounded mt-1 font-mono">
-                                      {analysis.extracted_data.error}
-                                    </p>
-                                  </div>
-                                )}
-                                {analysis.extracted_data?.error_type && (
-                                  <div className="flex items-center space-x-2">
-                                    <span className="text-xs font-medium text-red-700">Error Type:</span>
-                                    <Badge variant="destructive" className="text-xs">
-                                      {analysis.extracted_data.error_type}
-                                    </Badge>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Normal Analysis Display for Successful Images */}
-                            {analysis.image_type !== "error" && (
-                              <>
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                  <div>
-                                    <span className="text-muted-foreground">Classification:</span>
-                                    <p className="font-medium">{analysis.classification}</p>
-                                  </div>
-                                  <div>
-                                    <span className="text-muted-foreground">Confidence:</span>
-                                    <p className="font-medium">{Math.round(analysis.confidence_score * 100)}%</p>
-                                  </div>
-                                  <div>
-                                    <span className="text-muted-foreground">Relevance:</span>
-                                    <p className="font-medium">{Math.round(analysis.relevance_score * 100)}%</p>
-                                  </div>
-                                  <div>
-                                    <span className="text-muted-foreground">Processing Time:</span>
-                                    <p className="font-medium">{analysis.processing_time_seconds.toFixed(2)}s</p>
-                                  </div>
-                                </div>
-
-                                {/* Enhanced Invoice/Financial Document Display */}
-                                {analysis.image_type === "invoice" && analysis.extracted_data && (
-                                  <div>
-                                    <span className="text-muted-foreground text-sm">Invoice Details:</span>
-                                    <div className="bg-muted p-3 rounded mt-1 space-y-2">
-                                      {analysis.extracted_data.vendor_name && (
-                                        <div className="flex items-center space-x-2">
-                                          <span className="text-sm font-medium">Vendor:</span>
-                                          <span className="text-sm">{analysis.extracted_data.vendor_name}</span>
-                                        </div>
-                                      )}
-                                      
-                                      {analysis.extracted_data.invoice_number && (
-                                        <div className="flex items-center space-x-2">
-                                          <span className="text-sm font-medium">Invoice #:</span>
-                                          <span className="text-sm font-mono">{analysis.extracted_data.invoice_number}</span>
-                                        </div>
-                                      )}
-
-                                      {analysis.extracted_data.total_amount && (
-                                        <div className="flex items-center space-x-2">
-                                          <span className="text-sm font-medium">Total Amount:</span>
-                                          <Badge variant="outline" className="font-mono">
-                                            {analysis.extracted_data.total_amount}
-                                          </Badge>
-                                        </div>
-                                      )}
-
-                                      {analysis.extracted_data.dates && analysis.extracted_data.dates.length > 0 && (
-                                        <div>
-                                          <span className="text-sm font-medium">Dates:</span>
-                                          <div className="flex flex-wrap gap-1 mt-1">
-                                            {analysis.extracted_data.dates.map((date, idx) => (
-                                              <Badge key={idx} variant="secondary" className="text-xs">
-                                                {date}
-                                              </Badge>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      )}
-
-                                      {analysis.extracted_data.amounts && analysis.extracted_data.amounts.length > 0 && (
-                                        <div>
-                                          <span className="text-muted-foreground">Amounts Found:</span>
-                                          <div className="flex flex-wrap gap-1 mt-1">
-                                            {analysis.extracted_data.amounts.slice(0, 5).map((amount, idx) => (
-                                              <Badge key={idx} variant="outline" className="text-xs font-mono">
-                                                {typeof amount === 'string' 
-                                                  ? amount 
-                                                  : `${amount.label || 'Amount'}: ${amount.amount || 'N/A'}`
-                                                }
-                                              </Badge>
-                                            ))}
-                                            {analysis.extracted_data.amounts.length > 5 && (
-                                              <Badge variant="outline" className="text-xs">
-                                                +{analysis.extracted_data.amounts.length - 5} more
-                                              </Badge>
-                                            )}
-                                          </div>
-                                        </div>
-                                      )}
-
-                                      {analysis.extracted_data.line_items && analysis.extracted_data.line_items.length > 0 && (
-                                        <div>
-                                          <span className="text-muted-foreground">Line Items:</span>
-                                          <div className="mt-1 space-y-1">
-                                            {analysis.extracted_data.line_items.slice(0, 3).map((item, idx) => (
-                                              <p key={idx} className="text-xs bg-background p-1 rounded border">
-                                                {typeof item === 'string' 
-                                                  ? item 
-                                                  : `${item.description || 'Item'} ${item.quantity ? `(Qty: ${item.quantity})` : ''} ${item.amount ? `- ${item.amount}` : ''}`
-                                                }
-                                              </p>
-                                            ))}
-                                            {analysis.extracted_data.line_items.length > 3 && (
-                                              <p className="text-xs text-muted-foreground">
-                                                +{analysis.extracted_data.line_items.length - 3} more items
-                                              </p>
-                                            )}
-                                          </div>
-                                        </div>
-                                      )}
-
-                                      {analysis.extracted_data.tax_amount && (
-                                        <div className="flex items-center space-x-2">
-                                          <span className="text-sm font-medium">Tax:</span>
-                                          <span className="text-sm font-mono">{analysis.extracted_data.tax_amount}</span>
-                                        </div>
-                                      )}
-
-                                      {analysis.extracted_data.payment_terms && (
-                                        <div className="flex items-center space-x-2">
-                                          <span className="text-sm font-medium">Payment Terms:</span>
-                                          <span className="text-sm">{analysis.extracted_data.payment_terms}</span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Extracted Text for Non-Invoice Documents */}
-                                {analysis.extracted_text && analysis.image_type !== "invoice" && (
-                                  <div>
-                                    <span className="text-muted-foreground text-sm">Extracted Text:</span>
-                                    <p className="text-sm bg-muted p-2 rounded mt-1">{analysis.extracted_text}</p>
-                                  </div>
-                                )}
-
-                                {/* General Extracted Data for Non-Invoice Documents */}
-                                {analysis.extracted_data && analysis.image_type !== "invoice" && (
-                                  <div>
-                                    <span className="text-muted-foreground text-sm">Extracted Information:</span>
-                                    <div className="bg-muted p-2 rounded mt-1 space-y-1">
-                                      {analysis.extracted_data.document_type && (
-                                        <p className="text-sm">
-                                          <span className="font-medium">Document Type:</span> {analysis.extracted_data.document_type}
-                                        </p>
-                                      )}
-                                      
-                                      {analysis.extracted_data.amounts && analysis.extracted_data.amounts.length > 0 && (
-                                        <div>
-                                          <span className="text-sm font-medium">Amounts:</span>
-                                          <div className="flex flex-wrap gap-1 mt-1">
-                                            {analysis.extracted_data.amounts.slice(0, 3).map((amount, idx) => (
-                                              <Badge key={idx} variant="outline" className="text-xs font-mono">
-                                                {typeof amount === 'string' 
-                                                  ? amount 
-                                                  : `${amount.label || 'Amount'}: ${amount.amount || 'N/A'}`
-                                                }
-                                              </Badge>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      )}
-
-                                      {analysis.extracted_data.dates && analysis.extracted_data.dates.length > 0 && (
-                                        <div>
-                                          <span className="text-sm font-medium">Dates:</span>
-                                          <div className="flex flex-wrap gap-1 mt-1">
-                                            {analysis.extracted_data.dates.slice(0, 3).map((date, idx) => (
-                                              <Badge key={idx} variant="secondary" className="text-xs">
-                                                {date}
-                                              </Badge>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      )}
-
-                                      {analysis.extracted_data.key_details && analysis.extracted_data.key_details.length > 0 && (
-                                        <div>
-                                          <span className="text-sm font-medium">Key Details:</span>
-                                          <div className="mt-1 space-y-1">
-                                            {analysis.extracted_data.key_details.slice(0, 2).map((detail, idx) => (
-                                              <p key={idx} className="text-xs bg-background p-1 rounded border">
-                                                {detail}
-                                              </p>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Fraud Indicators */}
-                                {analysis.fraud_indicators && (
-                                  <div>
-                                    <span className="text-muted-foreground text-sm">Fraud Analysis:</span>
-                                    <div className="bg-muted p-2 rounded mt-1 space-y-1">
-                                      <div className="flex items-center space-x-2">
-                                        <span className="text-sm font-medium">Authenticity Score:</span>
-                                        <Badge variant={
-                                          (analysis.fraud_indicators.authenticity_score || 0) > 0.8 
-                                            ? "default" 
-                                            : (analysis.fraud_indicators.authenticity_score || 0) > 0.6 
-                                            ? "secondary" 
-                                            : "destructive"
-                                        }>
-                                          {Math.round((analysis.fraud_indicators.authenticity_score || 0) * 100)}%
-                                        </Badge>
-                                      </div>
-                                      
-                                      {analysis.fraud_indicators.suspicious_elements && analysis.fraud_indicators.suspicious_elements.length > 0 && (
-                                        <div>
-                                          <span className="text-sm font-medium text-yellow-600">Suspicious Elements:</span>
-                                          <div className="mt-1 space-y-1">
-                                            {analysis.fraud_indicators.suspicious_elements.map((element, idx) => (
-                                              <p key={idx} className="text-xs bg-yellow-50 p-1 rounded border border-yellow-200">
-                                                {element}
-                                              </p>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      )}
-
-                                      {analysis.fraud_indicators.concerns && analysis.fraud_indicators.concerns.length > 0 && (
-                                        <div>
-                                          <span className="text-sm font-medium text-orange-600">Concerns:</span>
-                                          <div className="mt-1 space-y-1">
-                                            {analysis.fraud_indicators.concerns.map((concern, idx) => (
-                                              <p key={idx} className="text-xs bg-orange-50 p-1 rounded border border-orange-200">
-                                                {concern}
-                                              </p>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {analysis.damage_assessment && analysis.damage_assessment.severity !== "none" && (
-                                  <div>
-                                    <span className="text-muted-foreground text-sm">Damage Assessment:</span>
-                                    <div className="bg-muted p-2 rounded mt-1 space-y-1">
-                                      <div className="flex items-center space-x-2">
-                                        <span className="text-sm font-medium">Severity:</span>
-                                        <Badge variant={
-                                          analysis.damage_assessment.severity === "severe" || analysis.damage_assessment.severity === "total_loss" 
-                                            ? "destructive" 
-                                            : analysis.damage_assessment.severity === "moderate" 
-                                            ? "default" 
-                                            : "secondary"
-                                        }>
-                                          {analysis.damage_assessment.severity}
-                                        </Badge>
-                                      </div>
-                                      {analysis.damage_assessment.estimated_cost && (
-                                        <p className="text-sm">
-                                          <span className="font-medium">Estimated Cost:</span> {analysis.damage_assessment.estimated_cost}
-                                        </p>
-                                      )}
-                                      {analysis.damage_assessment.description && (
-                                        <p className="text-sm">{analysis.damage_assessment.description}</p>
-                                      )}
-                                      {analysis.damage_assessment.affected_areas && analysis.damage_assessment.affected_areas.length > 0 && (
-                                        <div>
-                                          <span className="text-sm font-medium">Affected Areas:</span>
-                                          <div className="flex flex-wrap gap-1 mt-1">
-                                            {analysis.damage_assessment.affected_areas.map((area, idx) => (
-                                              <Badge key={idx} variant="outline" className="text-xs">
-                                                {area}
-                                              </Badge>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      {imageAnalysisResult.recommended_actions.length > 0 && (
-                        <div>
-                          <h4 className="font-medium mb-2">Image-Based Recommendations</h4>
-                          <div className="space-y-1">
-                            {imageAnalysisResult.recommended_actions.map((action, index) => (
-                              <div key={index} className="flex items-center space-x-2 text-sm">
-                                <CheckCircle className="h-3 w-3 text-blue-500" />
-                                <span>{action}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </TabsContent>
                 )}
 
-                <TabsContent value="explainability" className="mt-4">
-                  <ExplainabilityPanel
-                    data={transformAssessmentToExplainability(assessmentResult, currentClaimData)}
-                    onIntervention={handleIntervention}
-                  />
-                </TabsContent>
-              </Tabs>
-            )}
+                {/* Recommended Actions */}
+                {assessmentResult.recommended_actions && assessmentResult.recommended_actions.length > 0 && (
+                  <div>
+                    <Label className="text-sm font-medium">Recommended Actions</Label>
+                    <div className="mt-1 space-y-1">
+                      {assessmentResult.recommended_actions.map((action, index) => (
+                        <div key={index} className="flex items-center space-x-2 text-sm">
+                          <CheckCircle className="h-3 w-3 text-green-500" />
+                          <span>{action}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-            {!assessmentResult && !isLoading && !error && (
-              <div className="text-center py-8 text-muted-foreground">
-                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Submit a claim to see the assessment results</p>
-                <p className="text-sm mt-2">Upload images for enhanced analysis with AI vision capabilities</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    )
-  } 
+                {/* Processing Notes */}
+                <div>
+                  <Label className="text-sm font-medium">Processing Notes</Label>
+                  <div className="mt-1 p-3 bg-muted rounded-md">
+                    <div className="text-sm">{assessmentResult.processing_notes}</div>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="markdown" className="mt-4">
+                <div className="prose prose-sm max-w-none dark:prose-invert">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {formatMarkdownAssessment(assessmentResult)}
+                  </ReactMarkdown>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="images" className="mt-4">
+                {imageData.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="text-sm text-muted-foreground">
+                      Extracted data from {imageData.length} uploaded file(s)
+                    </div>
+                    {imageData.map((data, index) => (
+                      <Card key={index} className="border-l-4 border-l-blue-500">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base flex items-center space-x-2">
+                            <FileImage className="h-4 w-4" />
+                            <span>{data.filename}</span>
+                            <Badge variant="outline" className="text-xs">
+                              {data.type}
+                            </Badge>
+                          </CardTitle>
+                          <CardDescription>
+                            Size: {(data.size / 1024).toFixed(1)} KB
+                            {data.metadata?.resolution && ` • Resolution: ${data.metadata.resolution}`}
+                            {data.metadata?.estimatedQuality && ` • Quality: ${data.metadata.estimatedQuality}`}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          {data.analysis && (
+                            <div>
+                              <Label className="text-sm font-medium">AI Analysis</Label>
+                              <div className="mt-1 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
+                                <div className="text-sm">{data.analysis}</div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {data.extractedText && (
+                            <div>
+                              <Label className="text-sm font-medium">Extracted Text</Label>
+                              <div className="mt-1 p-3 bg-gray-50 dark:bg-gray-900 rounded-md border">
+                                <div className="text-sm font-mono">{data.extractedText}</div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {data.metadata && Object.keys(data.metadata).length > 0 && (
+                            <div>
+                              <Label className="text-sm font-medium">Metadata</Label>
+                              <div className="mt-1 p-3 bg-gray-50 dark:bg-gray-900 rounded-md border">
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  {Object.entries(data.metadata).map(([key, value]) => (
+                                    <div key={key} className="flex justify-between">
+                                      <span className="font-medium text-muted-foreground">{key}:</span>
+                                      <span className="font-mono">{String(value)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileImage className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No image data available</p>
+                    <p className="text-sm">Upload files with your claim to see extracted data and analysis</p>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No assessment completed yet</p>
+              <p className="text-sm">Fill out the claim form and click "Assess Claim" to get started</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+} 

@@ -1064,6 +1064,8 @@ dependencies = [
     { name = "autogen-ext", extra = ["openai"] },
     { name = "azure-identity" },
     { name = "fastapi", extra = ["standard"] },
+    { name = "httpx" },
+    { name = "pillow" },
     { name = "pydantic-settings" },
     { name = "ruff" },
 ]
@@ -1085,7 +1087,9 @@ requires-dist = [
     { name = "autogen-ext", extras = ["openai"], specifier = ">=0.6.1" },
     { name = "azure-identity", specifier = ">=1.15.0" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.112.1" },
+    { name = "httpx", specifier = ">=0.25.0" },
     { name = "httpx", marker = "extra == 'test'", specifier = ">=0.24.0" },
+    { name = "pillow", specifier = ">=10.0.0" },
     { name = "pydantic-settings", specifier = ">=2.9.1" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0" },
     { name = "ruff", specifier = ">=0.11.13" },

@@ -90,13 +90,13 @@ async def detailed_health_check() -> dict[str, Any]:
         }
 
     try:
-        from app.agents.communication import EnhancedCommunicationAgent
+        from app.agents.autogen_communication import AutoGenCommunicationAgent
 
-        agent = EnhancedCommunicationAgent()
+        agent = AutoGenCommunicationAgent()
         health_data["components"]["communication_agent"] = {
             "status": "healthy",
-            "name": agent.name,
-            "capabilities": len(agent.supported_languages),
+            "name": "autogen_communication",
+            "type": "autogen",
         }
     except Exception as e:
         health_data["components"]["communication_agent"] = {

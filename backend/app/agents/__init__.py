@@ -23,6 +23,9 @@ from .assessment import (
 from .autogen_communication import (
     AutoGenCommunicationAgent,
 )
+from .autogen_assessment import (
+    AutoGenAssessmentAgent,
+)
 
 __all__ = [
     "BaseInsuranceAgent",
@@ -40,4 +43,5 @@ __all__ = [
     "RiskFactor",
     "AssessmentResult",
     "AutoGenCommunicationAgent",
+    "AutoGenAssessmentAgent",
 ]
