@@ -73,6 +73,9 @@ async def process_claim_workflow(request: WorkflowRequest) -> dict[str, Any]:
                     "success": True,
                     "workflow_state": workflow_data.get("data", workflow_state),
                     "workflow_completed": workflow_state.current_stage == WorkflowStage.COMPLETED,
+                    "feedback_collection_points": workflow_state.feedback_collection_points,
+                    "session_id": workflow_state.session_id,
+                    "workflow_id": workflow_state.workflow_id,
                 }
 
                 logger.info(
@@ -179,6 +182,9 @@ async def process_claim_workflow_with_images(
             "workflow_completed": workflow_state.current_stage == WorkflowStage.COMPLETED,
             "has_images": workflow_state.has_images,
             "image_analysis_available": workflow_state.image_analysis_result is not None,
+            "feedback_collection_points": workflow_state.feedback_collection_points,
+            "session_id": workflow_state.session_id,
+            "workflow_id": workflow_state.workflow_id,
         }
 
     except Exception as e:
@@ -263,6 +269,54 @@ async def assess_claim_complexity(claim_data: ClaimData) -> dict[str, Any]:
         return {"success": False, "error": str(e), "claim_id": claim_data.claim_id}
 
 
+@router.get("/feedback-points/{workflow_id}")
+async def get_workflow_feedback_points(workflow_id: str) -> dict[str, Any]:
+    """
+    Get feedback collection points for a specific workflow.
+
+    Args:
+        workflow_id: The ID of the workflow to get feedback points for
+
+    Returns:
+        Dictionary with feedback collection points
+    """
+    try:
+        orchestrator = OrchestratorAgent()
+
+        # Find workflow by workflow_id
+        workflow_state = None
+        for claim_id, state in orchestrator.active_workflows.items():
+            if state.workflow_id == workflow_id:
+                workflow_state = state
+                break
+
+        if not workflow_state:
+            raise HTTPException(
+                status_code=404, detail=f"Workflow {workflow_id} not found")
+
+        return {
+            "success": True,
+            "workflow_id": workflow_id,
+            "claim_id": workflow_state.claim_id,
+            "session_id": workflow_state.session_id,
+            "feedback_collection_points": workflow_state.feedback_collection_points,
+            "workflow_feedback_triggered": workflow_state.workflow_feedback_triggered,
+            "workflow_stage": workflow_state.current_stage.value,
+            "agent_decisions_count": len(workflow_state.agent_decisions),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Error retrieving feedback points for workflow {workflow_id}: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "workflow_id": workflow_id,
+        }
+
+
 @router.get("/info")
 async def get_orchestrator_info() -> dict[str, Any]:
     """
@@ -282,6 +336,11 @@ async def get_orchestrator_info() -> dict[str, Any]:
                 "complexity_levels": [level.value for level in ClaimComplexity],
                 "escalation_criteria": orchestrator.escalation_criteria,
                 "autogen_available": True,  # Since we can instantiate it
+                "feedback_integration": {
+                    "immediate_feedback_after_decisions": True,
+                    "workflow_completion_feedback": True,
+                    "explainability_context_included": True,
+                },
             },
         }
 

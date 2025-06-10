@@ -31,6 +31,8 @@ from app.agents.base import (
 from app.agents.assessment import EnhancedAssessmentAgent
 from app.agents.llm_complexity_assessor import LLMComplexityAssessor, ComplexityAssessment
 from app.utils.validation import parse_amount
+from app.services.feedback_service import FeedbackService
+from app.schemas.feedback import ImmediateAgentFeedbackRequest, FeedbackRatingRequest
 
 # Import enums from shared module to avoid circular imports
 from app.agents.enums import ClaimComplexity, WorkflowStage
@@ -60,10 +62,18 @@ class ClaimWorkflowState:
     has_images: bool = False  # New field to track if workflow includes images
     # Store image analysis results
     image_analysis_result: dict[str, Any] | None = None
+    # Feedback collection metadata
+    feedback_collection_points: list[dict[str, Any]] = None
+    workflow_feedback_triggered: bool = False
+    session_id: str = None
 
     def __post_init__(self) -> None:
         if self.workflow_id is None:
             self.workflow_id = str(uuid.uuid4())
+        if self.feedback_collection_points is None:
+            self.feedback_collection_points = []
+        if self.session_id is None:
+            self.session_id = str(uuid.uuid4())
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -72,6 +82,17 @@ class ClaimWorkflowState:
         data["complexity"] = self.complexity.value
         data["started_at"] = self.started_at.isoformat()
         data["updated_at"] = self.updated_at.isoformat()
+
+        # Convert agent decisions to serializable format
+        if "agent_decisions" in data:
+            serialized_decisions = []
+            for decision in self.agent_decisions:
+                if hasattr(decision, 'to_dict'):
+                    serialized_decisions.append(decision.to_dict())
+                else:
+                    serialized_decisions.append(decision)
+            data["agent_decisions"] = serialized_decisions
+
         return data
 
 
@@ -153,6 +174,9 @@ Always provide structured responses with clear reasoning and next steps."""
         self.default_assessment_mode = AssessmentMode.LLM_DRIVEN
         self.llm_assessor = LLMComplexityAssessor()
         self.logger = logging.getLogger(__name__)
+
+        # Feedback service integration
+        self.feedback_service = FeedbackService()
 
         # Workflow state tracking
         self.active_workflows: dict[str, ClaimWorkflowState] = {}
@@ -342,6 +366,11 @@ Always provide structured responses with clear reasoning and next steps."""
             if not intake_result["valid"]:
                 workflow_state.current_stage = WorkflowStage.FAILED
                 workflow_state.error_message = intake_result["error"]
+                workflow_state.updated_at = datetime.now()
+
+                # Create workflow completion feedback point for failed intake
+                await self._create_workflow_completion_feedback_point(workflow_state, claim_data)
+
                 return workflow_state
 
             # Stage 2: Assessment (with or without images)
@@ -365,6 +394,10 @@ Always provide structured responses with clear reasoning and next steps."""
                 workflow_state.current_stage = WorkflowStage.HUMAN_REVIEW
                 workflow_state.requires_human_review = True
                 workflow_state.updated_at = datetime.now()
+
+                # Create workflow completion feedback point for human review escalation
+                await self._create_workflow_completion_feedback_point(workflow_state, claim_data)
+
                 return workflow_state
 
             # Stage 3: Communication
@@ -380,10 +413,16 @@ Always provide structured responses with clear reasoning and next steps."""
             workflow_state.current_stage = WorkflowStage.COMPLETED
             workflow_state.updated_at = datetime.now()
 
+            # Create workflow completion feedback point
+            await self._create_workflow_completion_feedback_point(workflow_state, claim_data)
+
         except Exception as e:
             workflow_state.current_stage = WorkflowStage.FAILED
             workflow_state.error_message = str(e)
             workflow_state.updated_at = datetime.now()
+
+            # Create workflow completion feedback point even for failed workflows
+            await self._create_workflow_completion_feedback_point(workflow_state, claim_data)
 
         return workflow_state
 
@@ -439,6 +478,111 @@ Always provide structured responses with clear reasoning and next steps."""
 
         return {"valid": True}
 
+    async def _create_feedback_collection_point(
+        self,
+        workflow_state: ClaimWorkflowState,
+        agent_decision: AgentDecision,
+        claim_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Create a feedback collection point after an agent decision.
+
+        Args:
+            workflow_state: Current workflow state
+            agent_decision: The agent decision that was made
+            claim_data: Original claim data
+
+        Returns:
+            Feedback collection point metadata
+        """
+        feedback_point = {
+            "feedback_point_id": str(uuid.uuid4()),
+            "agent_name": agent_decision.agent_name,
+            "decision": agent_decision.decision,
+            "confidence_score": agent_decision.confidence_score,
+            "reasoning": agent_decision.reasoning,
+            "timestamp": agent_decision.timestamp.isoformat(),
+            "claim_id": workflow_state.claim_id,
+            "session_id": workflow_state.session_id,
+            "workflow_id": workflow_state.workflow_id,
+            "workflow_stage": workflow_state.current_stage.value,
+            "complexity": workflow_state.complexity.value,
+            "metadata": {
+                "claim_amount": claim_data.get("amount"),
+                "policy_number": claim_data.get("policy_number"),
+                "incident_date": claim_data.get("incident_date"),
+                "has_images": workflow_state.has_images,
+                "agent_metadata": agent_decision.metadata
+            }
+        }
+
+        # Add to workflow state
+        workflow_state.feedback_collection_points.append(feedback_point)
+
+        self.logger.info(
+            f"Created feedback collection point for {agent_decision.agent_name} "
+            f"decision in workflow {workflow_state.workflow_id}"
+        )
+
+        return feedback_point
+
+    async def _create_workflow_completion_feedback_point(
+        self,
+        workflow_state: ClaimWorkflowState,
+        claim_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Create a workflow completion feedback collection point.
+
+        Args:
+            workflow_state: Completed workflow state
+            claim_data: Original claim data
+
+        Returns:
+            Workflow completion feedback metadata
+        """
+        completion_time = (workflow_state.updated_at -
+                           workflow_state.started_at).total_seconds()
+
+        workflow_feedback = {
+            "feedback_point_id": str(uuid.uuid4()),
+            "feedback_type": "workflow_completion",
+            "claim_id": workflow_state.claim_id,
+            "session_id": workflow_state.session_id,
+            "workflow_id": workflow_state.workflow_id,
+            "workflow_type": "claim_processing",
+            "completion_time_seconds": completion_time,
+            "steps_completed": len(workflow_state.agent_decisions),
+            "final_stage": workflow_state.current_stage.value,
+            "complexity": workflow_state.complexity.value,
+            "requires_human_review": workflow_state.requires_human_review,
+            "encountered_issues": workflow_state.error_message is not None,
+            "timestamp": workflow_state.updated_at.isoformat(),
+            "agent_decisions_summary": [
+                {
+                    "agent": decision.agent_name,
+                    "decision": decision.decision,
+                    "confidence": decision.confidence_score
+                }
+                for decision in workflow_state.agent_decisions
+            ],
+            "metadata": {
+                "claim_amount": claim_data.get("amount"),
+                "policy_number": claim_data.get("policy_number"),
+                "incident_date": claim_data.get("incident_date"),
+                "has_images": workflow_state.has_images,
+                "image_analysis_available": workflow_state.image_analysis_result is not None
+            }
+        }
+
+        workflow_state.workflow_feedback_triggered = True
+
+        self.logger.info(
+            f"Created workflow completion feedback point for workflow {workflow_state.workflow_id}"
+        )
+
+        return workflow_feedback
+
     async def _process_assessment(self, claim_data: dict[str, Any]) -> AgentDecision:
         """Process claim through assessment agent (without images)."""
         if not self.assessment_agent:
@@ -449,7 +593,7 @@ Always provide structured responses with clear reasoning and next steps."""
                 claim_data
             )
 
-            return AgentDecision(
+            decision = AgentDecision(
                 agent_name="assessment",
                 decision=assessment_result.get("decision", "unknown"),
                 confidence_score=assessment_result.get(
@@ -459,8 +603,16 @@ Always provide structured responses with clear reasoning and next steps."""
                 timestamp=datetime.now(),
                 metadata=assessment_result,
             )
+
+            # Create feedback collection point for this agent decision
+            workflow_state = self.active_workflows.get(
+                claim_data.get("claim_id"))
+            if workflow_state:
+                await self._create_feedback_collection_point(workflow_state, decision, claim_data)
+
+            return decision
         except Exception as e:
-            return AgentDecision(
+            decision = AgentDecision(
                 agent_name="assessment",
                 decision="error",
                 confidence_score=0.0,
@@ -468,6 +620,14 @@ Always provide structured responses with clear reasoning and next steps."""
                 timestamp=datetime.now(),
                 metadata={"error": str(e)},
             )
+
+            # Create feedback collection point even for errors
+            workflow_state = self.active_workflows.get(
+                claim_data.get("claim_id"))
+            if workflow_state:
+                await self._create_feedback_collection_point(workflow_state, decision, claim_data)
+
+            return decision
 
     async def _process_assessment_with_images(self, claim_data: dict[str, Any], image_files: list) -> AgentDecision:
         """Process claim through enhanced assessment agent with image support."""
@@ -486,7 +646,7 @@ Always provide structured responses with clear reasoning and next steps."""
             if workflow_state and "image_analysis_result" in assessment_result:
                 workflow_state.image_analysis_result = assessment_result["image_analysis_result"]
 
-            return AgentDecision(
+            decision = AgentDecision(
                 agent_name="enhanced_assessment",
                 decision=assessment_result.get("decision", "unknown"),
                 confidence_score=assessment_result.get(
@@ -496,8 +656,14 @@ Always provide structured responses with clear reasoning and next steps."""
                 timestamp=datetime.now(),
                 metadata=assessment_result,
             )
+
+            # Create feedback collection point for this agent decision
+            if workflow_state:
+                await self._create_feedback_collection_point(workflow_state, decision, claim_data)
+
+            return decision
         except Exception as e:
-            return AgentDecision(
+            decision = AgentDecision(
                 agent_name="enhanced_assessment",
                 decision="error",
                 confidence_score=0.0,
@@ -505,6 +671,14 @@ Always provide structured responses with clear reasoning and next steps."""
                 timestamp=datetime.now(),
                 metadata={"error": str(e)},
             )
+
+            # Create feedback collection point even for errors
+            workflow_state = self.active_workflows.get(
+                claim_data.get("claim_id"))
+            if workflow_state:
+                await self._create_feedback_collection_point(workflow_state, decision, claim_data)
+
+            return decision
 
     async def _process_communication(
         self, claim_data: dict[str, Any], assessment_decision: AgentDecision
@@ -532,7 +706,7 @@ Always provide structured responses with clear reasoning and next steps."""
                 context=context,
             )
 
-            return AgentDecision(
+            decision = AgentDecision(
                 agent_name="communication",
                 decision="communication_drafted",
                 confidence_score=communication_result.get(
@@ -543,8 +717,14 @@ Always provide structured responses with clear reasoning and next steps."""
                 timestamp=datetime.now(),
                 metadata=communication_result,
             )
+
+            # Create feedback collection point for this agent decision
+            if workflow_state:
+                await self._create_feedback_collection_point(workflow_state, decision, claim_data)
+
+            return decision
         except Exception as e:
-            return AgentDecision(
+            decision = AgentDecision(
                 agent_name="communication",
                 decision="error",
                 confidence_score=0.0,
@@ -552,6 +732,14 @@ Always provide structured responses with clear reasoning and next steps."""
                 timestamp=datetime.now(),
                 metadata={"error": str(e)},
             )
+
+            # Create feedback collection point even for errors
+            workflow_state = self.active_workflows.get(
+                claim_data.get("claim_id"))
+            if workflow_state:
+                await self._create_feedback_collection_point(workflow_state, decision, claim_data)
+
+            return decision
 
     def get_workflow_status(self, claim_id: str) -> dict[str, Any] | None:
         """
