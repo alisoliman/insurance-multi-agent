@@ -19,9 +19,9 @@ import {
   IconMessageCircle,
   IconSend,
   IconAlertTriangle,
-  IconCheckCircle,
+  IconCircleCheck,
   IconClock,
-  IconZap,
+  IconBolt,
   IconTarget,
   IconHeart,
   IconBrain,
@@ -80,11 +80,11 @@ export function ImmediateAgentFeedbackFormWithAPI({
     { value: 'accurate' as FeedbackCategory, label: 'Accurate', icon: <IconTarget className="h-4 w-4" /> },
     { value: 'helpful' as FeedbackCategory, label: 'Helpful', icon: <IconHeart className="h-4 w-4" /> },
     { value: 'too_slow' as FeedbackCategory, label: 'Too Slow', icon: <IconClock className="h-4 w-4" /> },
-    { value: 'too_fast' as FeedbackCategory, label: 'Too Fast', icon: <IconZap className="h-4 w-4" /> },
+    { value: 'too_fast' as FeedbackCategory, label: 'Too Fast', icon: <IconBolt className="h-4 w-4" /> },
     { value: 'too_conservative' as FeedbackCategory, label: 'Too Conservative', icon: <IconShield className="h-4 w-4" /> },
     { value: 'too_aggressive' as FeedbackCategory, label: 'Too Aggressive', icon: <IconTrendingUp className="h-4 w-4" /> },
     { value: 'confusing' as FeedbackCategory, label: 'Confusing', icon: <IconBrain className="h-4 w-4" /> },
-    { value: 'excellent' as FeedbackCategory, label: 'Excellent', icon: <IconCheckCircle className="h-4 w-4" /> }
+    { value: 'excellent' as FeedbackCategory, label: 'Excellent', icon: <IconCircleCheck className="h-4 w-4" /> }
   ]
 
   const handleCategoryToggle = (category: FeedbackCategory) => {
@@ -180,7 +180,7 @@ export function ImmediateAgentFeedbackFormWithAPI({
         <CardContent className="p-6">
           <div className="text-center space-y-4">
             <div className="flex justify-center">
-              <IconCheckCircle className="h-12 w-12 text-green-600" />
+              <IconCircleCheck className="h-12 w-12 text-green-600" />
             </div>
             <div>
               <h3 className="text-lg font-semibold text-green-800">Feedback Submitted Successfully!</h3>
@@ -259,7 +259,7 @@ export function ImmediateAgentFeedbackFormWithAPI({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <StarRating
             label="Decision Accuracy"
-            value={accuracyRating}
+            value={accuracyRating || 0}
             onChange={(rating) => setAccuracyRating(rating as RatingScale)}
             showValue
             required
@@ -267,7 +267,7 @@ export function ImmediateAgentFeedbackFormWithAPI({
           
           <StarRating
             label="Helpfulness"
-            value={helpfulnessRating}
+            value={helpfulnessRating || 0}
             onChange={(rating) => setHelpfulnessRating(rating as RatingScale)}
             showValue
             required

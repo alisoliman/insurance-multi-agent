@@ -488,52 +488,18 @@ export default function CommunicationAgentDemo() {
                 </TabsContent>
                 
                 <TabsContent value="analysis" className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4">
                     <div>
                       <h4 className="font-medium mb-2">Tone</h4>
                       <Badge variant="outline">{communicationResult.tone}</Badge>
                     </div>
-                    <div>
-                      <h4 className="font-medium mb-2">Reading Time</h4>
-                      <span className="text-sm text-muted-foreground">
-                        {communicationResult.estimatedReadingTime}
-                      </span>
-                    </div>
                   </div>
-                  
-                  {communicationResult.personalizedElements && communicationResult.personalizedElements.length > 0 && (
-                    <div>
-                      <h4 className="font-medium mb-2">Personalized Elements</h4>
-                      <div className="space-y-1">
-                        {communicationResult.personalizedElements.map((element, index) => (
-                          <div key={index} className="flex items-center space-x-2 text-sm">
-                            <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                            <span>{element}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </TabsContent>
                 
                 <TabsContent value="compliance" className="space-y-4">
-                  {communicationResult.complianceNotes && communicationResult.complianceNotes.length > 0 ? (
-                    <div>
-                      <h4 className="font-medium mb-2">Compliance Notes</h4>
-                      <div className="space-y-2">
-                        {communicationResult.complianceNotes.map((note, index) => (
-                          <div key={index} className="flex items-start space-x-2 text-sm">
-                            <div className="w-2 h-2 bg-green-500 rounded-full mt-1.5" />
-                            <span>{note}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-4 text-muted-foreground">
-                      <p>No specific compliance notes for this communication type.</p>
-                    </div>
-                  )}
+                  <div className="text-center py-4 text-muted-foreground">
+                    <p>No specific compliance notes for this communication type.</p>
+                  </div>
                 </TabsContent>
               </Tabs>
             </div>

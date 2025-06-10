@@ -456,7 +456,7 @@ export default function AssessmentAgentDemo() {
                     </>
                   ) : (
                     <>
-                      {uploadedFiles.length > 0 && <Image className="mr-2 h-4 w-4" alt="Image icon" />}
+                      {uploadedFiles.length > 0 && <Image className="mr-2 h-4 w-4" aria-label="Image icon" />}
                       Assess Claim {uploadedFiles.length > 0 && `(${uploadedFiles.length} images)`}
                     </>
                   )}

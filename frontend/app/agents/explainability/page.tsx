@@ -335,14 +335,14 @@ export default function ExplainabilityDemo() {
             <div className="space-y-2">
               <div className="text-sm font-medium text-muted-foreground">Processing Time</div>
               <div className="text-2xl font-bold">
-                {explainabilityData.metadata.processingTime}
+                {String(explainabilityData.metadata.processingTime)}
               </div>
             </div>
             
             <div className="space-y-2">
               <div className="text-sm font-medium text-muted-foreground">Claim Amount</div>
               <div className="text-2xl font-bold">
-                ${explainabilityData.metadata.totalCost.toLocaleString()}
+                ${Number(explainabilityData.metadata.totalCost).toLocaleString()}
               </div>
             </div>
           </div>

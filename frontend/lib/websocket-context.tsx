@@ -92,7 +92,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   
   const socketRef = useRef<WebSocket | null>(null);
   const requestCounterRef = useRef(0);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleMessage = (message: WebSocketMessage) => {
     console.log('WebSocket message received:', message);

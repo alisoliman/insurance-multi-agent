@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { apiClient, ImmediateAgentFeedbackRequest, WorkflowCompletionFeedbackRequest, FeedbackSubmissionResponse } from '@/lib/api'
+import { apiClient, ImmediateAgentFeedbackRequest, WorkflowCompletionFeedbackRequest, FeedbackSubmissionResponse, FeedbackResponse } from '@/lib/api'
 
 interface UseFeedbackReturn {
   submitImmediateAgentFeedback: (request: ImmediateAgentFeedbackRequest) => Promise<FeedbackSubmissionResponse | null>
   submitWorkflowCompletionFeedback: (request: WorkflowCompletionFeedbackRequest) => Promise<FeedbackSubmissionResponse | null>
+  getFeedbackList: () => Promise<FeedbackResponse[]>
   isSubmitting: boolean
+  isLoading: boolean
   error: string | null
   lastSubmissionId: string | null
   clearError: () => void
@@ -14,6 +16,7 @@ interface UseFeedbackReturn {
 
 export function useFeedback(): UseFeedbackReturn {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastSubmissionId, setLastSubmissionId] = useState<string | null>(null)
 
@@ -73,10 +76,35 @@ export function useFeedback(): UseFeedbackReturn {
     }
   }, [])
 
+  const getFeedbackList = useCallback(async (): Promise<FeedbackResponse[]> => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await apiClient.getFeedbackList()
+      
+      if (response.success && response.data) {
+        return response.data.feedback || []
+      } else {
+        const errorMessage = response.error || 'Failed to fetch feedback list'
+        setError(errorMessage)
+        return []
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred'
+      setError(errorMessage)
+      return []
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
   return {
     submitImmediateAgentFeedback,
     submitWorkflowCompletionFeedback,
+    getFeedbackList,
     isSubmitting,
+    isLoading,
     error,
     lastSubmissionId,
     clearError,

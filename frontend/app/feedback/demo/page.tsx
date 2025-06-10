@@ -1,25 +1,27 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { AppSidebar } from '@/components/app-sidebar'
+import { SiteHeader } from '@/components/site-header'
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { 
   IconMessageCircle,
   IconUsers,
-  IconCheckCircle,
+  IconCircleCheck,
   IconClock,
   IconStar,
-  IconInfoCircle
+  IconInfoCircle,
+  IconLoader2
 } from '@tabler/icons-react'
 
 import { FeedbackDialog, useFeedbackDialog } from '@/components/feedback/FeedbackDialog'
-import { 
-  FeedbackData, 
-  FeedbackSubmissionResponse 
-} from '@/lib/feedback-types'
+import { useFeedback } from '@/hooks/useFeedback'
+import { FeedbackResponse, FeedbackSubmissionResponse as ApiFeedbackSubmissionResponse } from '@/lib/api'
+import { FeedbackData, FeedbackSubmissionResponse, ImmediateAgentFeedback, WorkflowCompletionFeedback } from '@/lib/feedback-types'
 
 // Sample agent decisions for demo
 const sampleAgentDecisions = [
@@ -60,37 +62,137 @@ const sampleWorkflow = {
 }
 
 export default function FeedbackDemoPage() {
-  const [submittedFeedback, setSubmittedFeedback] = useState<FeedbackData[]>([])
+  const [submittedFeedbackIds, setSubmittedFeedbackIds] = useState<string[]>([])
+  const [recentFeedback, setRecentFeedback] = useState<FeedbackResponse[]>([])
   const [lastSubmissionResult, setLastSubmissionResult] = useState<FeedbackSubmissionResponse | null>(null)
   
   const feedbackDialog = useFeedbackDialog()
+  const { 
+    submitImmediateAgentFeedback, 
+    submitWorkflowCompletionFeedback, 
+    getFeedbackList,
+    isLoading, 
+    error 
+  } = useFeedback()
 
-  // Mock feedback submission handler
+  // Load recent feedback on component mount
+  useEffect(() => {
+    const loadRecentFeedback = async () => {
+      try {
+        const feedbackList = await getFeedbackList()
+        setRecentFeedback(feedbackList.slice(0, 5)) // Show last 5 submissions
+      } catch (err) {
+        console.error('Failed to load recent feedback:', err)
+      }
+    }
+    
+    loadRecentFeedback()
+  }, [getFeedbackList])
+
+  // Real feedback submission handler using backend API
   const handleFeedbackSubmission = async (feedback: Omit<FeedbackData, 'id' | 'timestamp'>): Promise<FeedbackSubmissionResponse> => {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    // Simulate occasional failures for demo purposes
-    if (Math.random() < 0.1) {
-      throw new Error("Network error - please try again")
-    }
+    try {
+      let apiResult: ApiFeedbackSubmissionResponse
 
-    const submittedFeedback: FeedbackData = {
-      ...feedback,
-      id: `feedback-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: new Date().toISOString()
-    }
+      if (feedback.type === 'immediate_agent') {
+        // Type guard to ensure we have the right properties
+        const immediateFeedback = feedback as Omit<ImmediateAgentFeedback, 'id' | 'timestamp'>
+        
+        // Structure the request according to API expectations
+        const request = {
+          session_id: `demo-session-${Date.now()}`,
+          claim_id: `demo-claim-${Date.now()}`,
+          agent_name: immediateFeedback.agentName!,
+          interaction_id: `demo-interaction-${Date.now()}`,
+          user_id: 'demo-user-001',
+          ratings: [
+            {
+              category: 'accuracy',
+              rating: immediateFeedback.accuracyRating,
+              comment: immediateFeedback.comments || ''
+            },
+            {
+              category: 'helpfulness', 
+              rating: immediateFeedback.helpfulnessRating,
+              comment: immediateFeedback.comments || ''
+            }
+          ],
+          overall_rating: Math.round((immediateFeedback.accuracyRating + immediateFeedback.helpfulnessRating) / 2),
+          positive_feedback: immediateFeedback.comments || '',
+          improvement_suggestions: '',
+          additional_comments: `Decision: ${immediateFeedback.decisionContext.decision}, Validation: ${immediateFeedback.decisionValidation}`
+        }
 
-    setSubmittedFeedback(prev => [...prev, submittedFeedback])
-    
-    const result: FeedbackSubmissionResponse = {
-      success: true,
-      feedbackId: submittedFeedback.id,
-      message: "Thank you for your feedback! It helps us improve our agents."
+        const response = await submitImmediateAgentFeedback(request)
+        if (!response) {
+          throw new Error('Failed to submit immediate agent feedback')
+        }
+        apiResult = response
+      } else if (feedback.type === 'workflow_completion') {
+        // Type guard to ensure we have the right properties
+        const workflowFeedback = feedback as Omit<WorkflowCompletionFeedback, 'id' | 'timestamp'>
+        
+        // Structure the request according to API expectations
+        const request = {
+          session_id: `demo-session-${Date.now()}`,
+          claim_id: `demo-claim-${Date.now()}`,
+          workflow_type: 'claim_processing',
+          user_id: 'demo-user-001',
+          ratings: [
+            {
+              category: 'overall_satisfaction',
+              rating: workflowFeedback.overallSatisfaction,
+              comment: workflowFeedback.improvementSuggestions || ''
+            },
+            {
+              category: 'efficiency',
+              rating: workflowFeedback.efficiencyRating,
+              comment: ''
+            }
+          ],
+          overall_rating: Math.round((workflowFeedback.overallSatisfaction + workflowFeedback.efficiencyRating) / 2),
+          positive_feedback: workflowFeedback.mostHelpfulAspect || '',
+          improvement_suggestions: workflowFeedback.improvementSuggestions || '',
+          additional_comments: `Most helpful: ${workflowFeedback.mostHelpfulAspect || 'N/A'}, Least helpful: ${workflowFeedback.leastHelpfulAspect || 'N/A'}`,
+          completion_time_seconds: workflowFeedback.workflowDuration,
+          steps_completed: workflowFeedback.totalAgents,
+          encountered_issues: false
+        }
+
+        const response = await submitWorkflowCompletionFeedback(request)
+        if (!response) {
+          throw new Error('Failed to submit workflow completion feedback')
+        }
+        apiResult = response
+      } else {
+        throw new Error('Invalid feedback type')
+      }
+
+      // Convert API response to expected format
+      const result: FeedbackSubmissionResponse = {
+        success: apiResult.success,
+        feedbackId: apiResult.feedback_id || 'unknown',
+        message: apiResult.message,
+        error: apiResult.error
+      }
+
+      // Track successful submissions
+      setSubmittedFeedbackIds(prev => [...prev, result.feedbackId])
+      setLastSubmissionResult(result)
+
+      // Refresh recent feedback list
+      try {
+        const updatedFeedbackList = await getFeedbackList()
+        setRecentFeedback(updatedFeedbackList.slice(0, 5))
+      } catch (err) {
+        console.error('Failed to refresh feedback list:', err)
+      }
+
+      return result
+    } catch (err) {
+      console.error('Feedback submission failed:', err)
+      throw err
     }
-    
-    setLastSubmissionResult(result)
-    return result
   }
 
   const openImmediateFeedback = (decision: typeof sampleAgentDecisions[0]) => {
@@ -118,194 +220,275 @@ export default function FeedbackDemoPage() {
     return "bg-red-100 text-red-800 border-red-200"
   }
 
-  const formatFeedbackSummary = (feedback: FeedbackData) => {
-    switch (feedback.type) {
+  const formatFeedbackSummary = (feedback: FeedbackResponse) => {
+    // Find accuracy and helpfulness ratings from the ratings array
+    const accuracyRating = feedback.ratings.find(r => r.category === 'accuracy')?.rating
+    const helpfulnessRating = feedback.ratings.find(r => r.category === 'helpfulness')?.rating
+    const efficiencyRating = feedback.ratings.find(r => r.category === 'efficiency')?.rating
+    const overallSatisfactionRating = feedback.ratings.find(r => r.category === 'overall_satisfaction')?.rating
+
+    switch (feedback.feedback_type) {
       case 'immediate_agent':
-        return `${feedback.agentName}: ${feedback.accuracyRating}/5 accuracy, ${feedback.helpfulnessRating}/5 helpfulness`
+        return `${feedback.agent_name || 'Agent'}: ${accuracyRating || 'N/A'}/5 accuracy, ${helpfulnessRating || 'N/A'}/5 helpfulness`
       case 'workflow_completion':
-        return `Workflow: ${feedback.overallSatisfaction}/5 satisfaction, ${feedback.efficiencyRating}/5 efficiency`
+        return `Workflow: ${overallSatisfactionRating || 'N/A'}/5 satisfaction, ${efficiencyRating || 'N/A'}/5 efficiency`
       default:
-        return `${feedback.type} feedback submitted`
+        return `${feedback.feedback_type} feedback submitted`
     }
   }
 
   return (
-    <div className="container mx-auto py-8 space-y-8">
-      <div className="space-y-4">
-        <div className="flex items-center space-x-2">
-          <IconMessageCircle className="h-6 w-6 text-blue-600" />
-          <h1 className="text-3xl font-bold">Feedback Collection System Demo</h1>
-        </div>
-        <p className="text-muted-foreground max-w-3xl">
-          This demo showcases the feedback collection system integrated with the multi-agent workflow. 
-          Users can provide immediate feedback on individual agent decisions and comprehensive feedback 
-          after workflow completion.
-        </p>
-      </div>
-
-      {lastSubmissionResult && (
-        <Alert className="border-green-200 bg-green-50">
-          <IconCheckCircle className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-800">
-            {lastSubmissionResult.message}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Immediate Agent Feedback Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <IconUsers className="h-5 w-5" />
-            <span>Immediate Agent Feedback</span>
-          </CardTitle>
-          <CardDescription>
-            Provide feedback on individual agent decisions during the workflow
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4">
-            {sampleAgentDecisions.map((decision, index) => (
-              <div key={index} className="border rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="outline">{decision.agentName}</Badge>
-                    <Badge variant="secondary">{decision.agentType}</Badge>
-                  </div>
-                  <Badge className={getConfidenceColor(decision.confidence)}>
-                    {Math.round(decision.confidence * 100)}% confidence
-                  </Badge>
-                </div>
-                
-                <div>
-                  <div className="text-sm font-medium mb-1">Decision:</div>
-                  <div className="text-sm">{decision.decision}</div>
-                </div>
-                
-                <div>
-                  <div className="text-sm font-medium mb-1">Reasoning:</div>
-                  <div className="text-sm text-muted-foreground">{decision.reasoning}</div>
-                </div>
-                
-                <div className="flex justify-end">
-                  <Button 
-                    size="sm" 
-                    onClick={() => openImmediateFeedback(decision)}
-                    className="flex items-center space-x-1"
-                  >
-                    <IconMessageCircle className="h-4 w-4" />
-                    <span>Provide Feedback</span>
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Workflow Completion Feedback Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <IconCheckCircle className="h-5 w-5" />
-            <span>Workflow Completion Feedback</span>
-          </CardTitle>
-          <CardDescription>
-            Provide comprehensive feedback after the entire workflow is completed
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="bg-muted p-4 rounded-lg space-y-3">
-            <h4 className="font-medium">Sample Workflow Summary</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div className="flex items-center space-x-2">
-                <IconClock className="h-4 w-4 text-muted-foreground" />
-                <span>Duration: 3m 0s</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <IconUsers className="h-4 w-4 text-muted-foreground" />
-                <span>Agents: {sampleWorkflow.agentNames.length}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <IconCheckCircle className="h-4 w-4 text-green-600" />
-                <span>Automated Processing</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <IconStar className="h-4 w-4 text-yellow-600" />
-                <span>ID: {sampleWorkflow.workflowId}</span>
-              </div>
-            </div>
-            
-            <div>
-              <div className="text-sm font-medium mb-2">Participating Agents:</div>
-              <div className="flex flex-wrap gap-2">
-                {sampleWorkflow.agentNames.map((agentName, index) => (
-                  <Badge key={index} variant="outline">{agentName}</Badge>
-                ))}
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex justify-center">
-            <Button 
-              onClick={openWorkflowFeedback}
-              className="flex items-center space-x-2"
-            >
-              <IconMessageCircle className="h-4 w-4" />
-              <span>Provide Workflow Feedback</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Submitted Feedback Summary */}
-      {submittedFeedback.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <IconInfoCircle className="h-5 w-5" />
-              <span>Submitted Feedback</span>
-            </CardTitle>
-            <CardDescription>
-              Recent feedback submissions from this demo session
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {submittedFeedback.slice(-5).reverse().map((feedback, index) => (
-                <div key={feedback.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium">
-                      {formatFeedbackSummary(feedback)}
+    <SidebarProvider
+      style={
+        {
+          "--sidebar-width": "calc(var(--spacing) * 72)",
+          "--header-height": "calc(var(--spacing) * 12)",
+        } as React.CSSProperties
+      }
+    >
+      <AppSidebar variant="inset" />
+      <SidebarInset>
+        <SiteHeader />
+        <div className="flex flex-1 flex-col">
+          <div className="@container/main flex flex-1 flex-col gap-2">
+            <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
+              {/* Demo Explainer Card */}
+              <Card className="border-green-200 bg-green-50">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <IconInfoCircle className="h-5 w-5 text-green-600" />
+                    <span>Live Feedback System</span>
+                  </CardTitle>
+                  <CardDescription>
+                    This demo connects to the real backend API and stores your feedback in the database
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-2">
+                      <h4 className="font-medium flex items-center space-x-1">
+                        <IconUsers className="h-4 w-4" />
+                        <span>Immediate Feedback</span>
+                      </h4>
+                      <ul className="text-muted-foreground space-y-1">
+                        <li>• Rate individual agent decisions</li>
+                        <li>• Provide accuracy and helpfulness scores</li>
+                        <li>• Add comments and suggestions</li>
+                      </ul>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(feedback.timestamp).toLocaleString()}
+                    <div className="space-y-2">
+                      <h4 className="font-medium flex items-center space-x-1">
+                        <IconCircleCheck className="h-4 w-4" />
+                        <span>Workflow Feedback</span>
+                      </h4>
+                      <ul className="text-muted-foreground space-y-1">
+                        <li>• Overall satisfaction rating</li>
+                        <li>• Process efficiency evaluation</li>
+                        <li>• Comprehensive workflow review</li>
+                      </ul>
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-xs">
-                    {feedback.type.replace('_', ' ')}
-                  </Badge>
-                </div>
-              ))}
-              
-              {submittedFeedback.length > 5 && (
-                <div className="text-center text-sm text-muted-foreground">
-                  ... and {submittedFeedback.length - 5} more feedback submissions
-                </div>
+                  <div className="bg-white p-3 rounded border border-green-200">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">
+                        <strong>Live Backend Integration:</strong> All feedback is saved to the database and can be retrieved via API.
+                      </p>
+                      <div className="flex items-center space-x-1">
+                        <IconCircleCheck className="h-4 w-4 text-green-600" />
+                        <span className="text-green-600 text-xs font-medium">{submittedFeedbackIds.length} Feedback Submitted</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Error Alert */}
+              {error && (
+                <Alert className="border-red-200 bg-red-50">
+                  <IconInfoCircle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-800">
+                    Error: {error}
+                  </AlertDescription>
+                </Alert>
               )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Feedback Dialog */}
-      <FeedbackDialog
-        isOpen={feedbackDialog.isOpen}
-        onClose={feedbackDialog.close}
-        feedbackType={feedbackDialog.feedbackType}
-        onSubmit={handleFeedbackSubmission}
-        {...feedbackDialog.feedbackData}
-      />
-    </div>
+              {/* Success Alert */}
+              {lastSubmissionResult && (
+                <Alert className="border-green-200 bg-green-50">
+                  <IconCircleCheck className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-800">
+                    {lastSubmissionResult.message}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Immediate Agent Feedback Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <IconUsers className="h-5 w-5" />
+                    <span>Immediate Agent Feedback</span>
+                  </CardTitle>
+                  <CardDescription>
+                    Provide feedback on individual agent decisions during the workflow
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4">
+                    {sampleAgentDecisions.map((decision, index) => (
+                      <div key={index} className="border rounded-lg p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <Badge variant="outline">{decision.agentName}</Badge>
+                            <Badge variant="secondary">{decision.agentType}</Badge>
+                          </div>
+                          <Badge className={getConfidenceColor(decision.confidence)}>
+                            {Math.round(decision.confidence * 100)}% confidence
+                          </Badge>
+                        </div>
+                        
+                        <div>
+                          <div className="text-sm font-medium mb-1">Decision:</div>
+                          <div className="text-sm">{decision.decision}</div>
+                        </div>
+                        
+                        <div>
+                          <div className="text-sm font-medium mb-1">Reasoning:</div>
+                          <div className="text-sm text-muted-foreground">{decision.reasoning}</div>
+                        </div>
+                        
+                        <div className="flex justify-end">
+                          <Button 
+                            size="sm" 
+                            onClick={() => openImmediateFeedback(decision)}
+                            disabled={isLoading}
+                            className="flex items-center space-x-1"
+                          >
+                            {isLoading ? (
+                              <IconLoader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <IconMessageCircle className="h-4 w-4" />
+                            )}
+                            <span>Provide Feedback</span>
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Workflow Completion Feedback Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <IconCircleCheck className="h-5 w-5" />
+                    <span>Workflow Completion Feedback</span>
+                  </CardTitle>
+                  <CardDescription>
+                    Provide comprehensive feedback after the entire workflow is completed
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="bg-muted p-4 rounded-lg space-y-3">
+                    <h4 className="font-medium">Sample Workflow Summary</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div className="flex items-center space-x-2">
+                        <IconClock className="h-4 w-4 text-muted-foreground" />
+                        <span>Duration: 3m 0s</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <IconUsers className="h-4 w-4 text-muted-foreground" />
+                        <span>Agents: {sampleWorkflow.agentNames.length}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <IconCircleCheck className="h-4 w-4 text-green-600" />
+                        <span>Automated Processing</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <IconStar className="h-4 w-4 text-yellow-600" />
+                        <span>ID: {sampleWorkflow.workflowId}</span>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <div className="text-sm font-medium mb-2">Participating Agents:</div>
+                      <div className="flex flex-wrap gap-2">
+                        {sampleWorkflow.agentNames.map((agentName, index) => (
+                          <Badge key={index} variant="outline">{agentName}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-center">
+                    <Button 
+                      onClick={openWorkflowFeedback}
+                      disabled={isLoading}
+                      className="flex items-center space-x-2"
+                    >
+                      {isLoading ? (
+                        <IconLoader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <IconMessageCircle className="h-4 w-4" />
+                      )}
+                      <span>Provide Workflow Feedback</span>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Recent Feedback from Backend */}
+              {recentFeedback.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <IconInfoCircle className="h-5 w-5" />
+                      <span>Recent Feedback (Live Data)</span>
+                    </CardTitle>
+                    <CardDescription>
+                      Latest feedback submissions from the backend database
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {recentFeedback.map((feedback) => (
+                        <div key={feedback.feedback_id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                          <div className="space-y-1">
+                            <div className="text-sm font-medium">
+                              {formatFeedbackSummary(feedback)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(feedback.submitted_at).toLocaleString()}
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Badge variant="outline" className="text-xs">
+                              {feedback.feedback_type.replace('_', ' ')}
+                            </Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              ID: {feedback.feedback_id.slice(-6)}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Feedback Dialog */}
+              <FeedbackDialog
+                isOpen={feedbackDialog.isOpen}
+                onClose={feedbackDialog.close}
+                feedbackType={feedbackDialog.feedbackType}
+                onSubmit={handleFeedbackSubmission}
+                {...feedbackDialog.feedbackData}
+              />
+            </div>
+          </div>
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 } 

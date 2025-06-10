@@ -3,16 +3,15 @@
 import * as React from "react"
 import {
   IconCamera,
-  IconChartBar,
   IconDashboard,
   IconDatabase,
   IconFileAi,
   IconFileDescription,
   IconFileWord,
-  IconFolder,
   IconHelp,
   IconInnerShadowTop,
   IconListDetails,
+  IconMessageCircle,
   IconReport,
   IconSearch,
   IconSettings,
@@ -88,28 +87,9 @@ const data = {
       ],
     },
     {
-      title: "System Health",
-      url: "#",
-      icon: IconChartBar,
-      items: [
-        {
-          title: "Performance Metrics",
-          url: "#",
-        },
-        {
-          title: "API Status",
-          url: "#",
-        },
-        {
-          title: "Error Logs",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Tasks",
-      url: "/tasks",
-      icon: IconFolder,
+      title: "Feedback System",
+      url: "/feedback/demo",
+      icon: IconMessageCircle,
     },
   ],
   navClouds: [

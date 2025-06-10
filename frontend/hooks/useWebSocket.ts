@@ -57,7 +57,7 @@ export const useWebSocket = (
   const [readyState, setReadyState] = useState<number>(READY_STATE_CLOSED);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
 
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const urlRef = useRef(url);
 

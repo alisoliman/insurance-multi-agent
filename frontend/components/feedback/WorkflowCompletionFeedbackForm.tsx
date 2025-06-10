@@ -5,19 +5,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Progress } from '@/components/ui/progress'
 import { 
-  IconCheckCircle,
+  IconCircleCheck,
   IconClock,
   IconUsers,
-  IconMessageCircle,
   IconSend,
   IconX,
-  IconAlertTriangle,
-  IconThumbUp,
-  IconThumbDown
+  IconAlertTriangle
 } from '@tabler/icons-react'
 
 import { StarRating } from './StarRating'
@@ -195,7 +191,7 @@ export function WorkflowCompletionFeedbackForm({
                     </>
                   ) : (
                     <>
-                      <IconCheckCircle className="h-4 w-4 text-green-600" />
+                      <IconCircleCheck className="h-4 w-4 text-green-600" />
                       <span>Automated Processing</span>
                     </>
                   )}
@@ -211,12 +207,12 @@ export function WorkflowCompletionFeedbackForm({
             <div className="text-center space-y-2">
               <h3 className="text-lg font-semibold">Agent Performance</h3>
               <p className="text-sm text-muted-foreground">
-                Rate each agent's performance and helpfulness
+                Rate each agent&apos;s performance and helpfulness
               </p>
             </div>
 
             <div className="space-y-6">
-              {agentRatings.map((agent, index) => (
+              {agentRatings.map((agent) => (
                 <div key={agent.agentName} className="border rounded-lg p-4 space-y-4">
                   <div className="flex items-center space-x-2">
                     <Badge variant="outline">{agent.agentName}</Badge>
@@ -349,7 +345,7 @@ export function WorkflowCompletionFeedbackForm({
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <CardTitle className="flex items-center space-x-2">
-              <IconCheckCircle className="h-5 w-5 text-green-600" />
+              <IconCircleCheck className="h-5 w-5 text-green-600" />
               <span>Workflow Feedback</span>
             </CardTitle>
             <CardDescription>

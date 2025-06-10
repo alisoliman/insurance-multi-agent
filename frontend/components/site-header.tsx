@@ -62,6 +62,12 @@ export function SiteHeader() {
         case 'tasks':
           title = 'Tasks'
           break
+        case 'feedback':
+          title = 'Feedback System'
+          break
+        case 'demo':
+          title = 'Feedback System'
+          break
         default:
           title = segment.charAt(0).toUpperCase() + segment.slice(1)
       }

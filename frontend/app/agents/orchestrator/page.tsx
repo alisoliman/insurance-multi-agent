@@ -57,37 +57,6 @@ interface GraphFlowResult {
   workflow_type: "graphflow"
 }
 
-// Sample workflows for testing
-const sampleWorkflows = [
-  {
-    name: "Simple Auto Claim",
-    data: {
-      claimId: "CLM-2024-001",
-      workflowType: "standard",
-      priority: "medium",
-      description: "Minor fender bender in parking lot. No injuries reported. Damage to rear bumper and taillight.",
-    }
-  },
-  {
-    name: "Complex Home Claim",
-    data: {
-      claimId: "CLM-2024-002",
-      workflowType: "complex",
-      priority: "high",
-      description: "Burst pipe in basement caused flooding. Damage to flooring, drywall, and personal belongings. Multiple rooms affected.",
-    }
-  },
-  {
-    name: "High-Value Suspicious Claim",
-    data: {
-      claimId: "CLM-2024-003",
-      workflowType: "graphflow",
-      priority: "high",
-      description: "Total loss vehicle fire. Suspicious circumstances. Multiple previous claims. Inconsistent witness statements.",
-    }
-  }
-]
-
 export default function OrchestratorAgentDemo() {
   const [isLoading, setIsLoading] = useState(false)
   const [orchestratorResult, setOrchestratorResult] = useState<OrchestratorResult | null>(null)
@@ -210,6 +179,18 @@ export default function OrchestratorAgentDemo() {
   const handleIntervention = (interventionId: string, action: string) => {
     toast.info(`Intervention ${action} for ${interventionId}`)
     // In a real implementation, this would trigger backend actions
+  }
+
+  const transformFormDataToClaimData = (formData: OrchestratorFormData) => {
+    return {
+      customerName: "Demo Customer", // Default for demo
+      policyNumber: "POL-" + formData.claimId.split("-")[1] || "12345",
+      incidentDate: new Date().toISOString().split('T')[0],
+      description: formData.description,
+      amount: "5000", // Default amount for demo
+      claimType: "auto", // Default type for demo
+      useGraphflow: formData.workflowType === "graphflow"
+    }
   }
 
   return (
@@ -481,12 +462,12 @@ export default function OrchestratorAgentDemo() {
                                 </div>
                               )}
                               
-                              {decision.metadata && decision.metadata.assessment && (
+                              {decision.metadata && typeof decision.metadata.assessment === 'string' && decision.metadata.assessment && (
                                 <div className="text-xs bg-blue-50 p-2 rounded mt-2">
                                   <div className="font-medium mb-1">Assessment:</div>
                                   <div className="max-h-32 overflow-y-auto">
                                     <pre className="whitespace-pre-wrap text-xs">
-                                      {decision.metadata.assessment}
+                                      {String(decision.metadata.assessment)}
                                     </pre>
                                   </div>
                                 </div>
@@ -526,11 +507,16 @@ export default function OrchestratorAgentDemo() {
               </TabsContent>
 
               <TabsContent value="explainability" className="mt-4">
-                {orchestratorResult && (
+                {orchestratorResult && currentClaimData && (
                   <ExplainabilityPanel
-                    data={transformOrchestratorToExplainability(orchestratorResult, currentClaimData)}
+                    data={transformOrchestratorToExplainability(orchestratorResult, transformFormDataToClaimData(currentClaimData))}
                     onIntervention={handleIntervention}
                   />
+                )}
+                {orchestratorResult && !currentClaimData && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>Explainability data not available</p>
+                  </div>
                 )}
               </TabsContent>
             </Tabs>
