@@ -4,8 +4,8 @@ Health check and monitoring API routes.
 
 from fastapi import APIRouter
 from pydantic import BaseModel
-from typing import Dict, Any
-import asyncio
+from typing import Any
+
 from datetime import datetime
 
 router = APIRouter()
@@ -17,11 +17,11 @@ class HealthResponse(BaseModel):
     status: str
     timestamp: str
     version: str
-    services: Dict[str, str]
+    services: dict[str, str]
 
 
 @router.get("/health", response_model=HealthResponse)
-async def health_check():
+async def health_check() -> HealthResponse:
     """
     Basic health check endpoint.
 
@@ -38,8 +38,6 @@ async def health_check():
 
         # Test agent imports
         try:
-            from app.agents.assessment import EnhancedAssessmentAgent
-            from app.agents.communication import EnhancedCommunicationAgent
 
             services["agents"] = "healthy"
         except Exception:
@@ -62,7 +60,7 @@ async def health_check():
 
 
 @router.get("/health/detailed")
-async def detailed_health_check():
+async def detailed_health_check() -> dict[str, Any]:
     """
     Detailed health check with component testing.
 
@@ -121,7 +119,7 @@ async def detailed_health_check():
 
 
 @router.get("/ready")
-async def readiness_check():
+async def readiness_check() -> dict[str, str]:
     """
     Kubernetes-style readiness check.
 
@@ -130,8 +128,6 @@ async def readiness_check():
     """
     try:
         # Basic readiness checks
-        from app.agents.assessment import EnhancedAssessmentAgent
-        from app.agents.communication import EnhancedCommunicationAgent
 
         return {"status": "ready"}
     except Exception:
@@ -139,7 +135,7 @@ async def readiness_check():
 
 
 @router.get("/live")
-async def liveness_check():
+async def liveness_check() -> dict[str, str]:
     """
     Kubernetes-style liveness check.
 

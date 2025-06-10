@@ -4,6 +4,7 @@ Debug script to understand complexity assessment logic.
 """
 
 from app.agents.orchestrator import OrchestratorAgent, ClaimComplexity
+from app.utils.validation import parse_amount
 import sys
 
 sys.path.append("/Users/ali/Dev/ip/simple-insurance-multi-agent/backend")
@@ -30,7 +31,7 @@ def debug_complexity_assessment():
     complexity_score = 0
 
     # Check amount
-    amount = orchestrator._parse_amount(claim.get("amount", 0))
+    amount = parse_amount(claim.get("amount", 0))
     print(f"1. Amount parsing: {claim.get('amount')} -> {amount}")
 
     if amount > 50000:

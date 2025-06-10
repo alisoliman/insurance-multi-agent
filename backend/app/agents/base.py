@@ -2,8 +2,7 @@
 Base AutoGen agent configuration and utilities for insurance claims processing.
 """
 
-import asyncio
-from typing import Dict, Any, Optional
+from typing import Any
 
 # Import AutoGen components
 try:
@@ -24,7 +23,7 @@ class AutoGenConfig:
     """Configuration for AutoGen agents."""
 
     @staticmethod
-    def get_model_client() -> Optional[Any]:
+    def get_model_client() -> Any | None:
         """Get the Azure OpenAI model client for agents."""
         if not AUTOGEN_AVAILABLE:
             return None
@@ -56,7 +55,7 @@ class BaseInsuranceAgent:
     insurance-specific functionality and business logic.
     """
 
-    def __init__(self, name: str, system_message: str):
+    def __init__(self, name: str, system_message: str) -> None:
         self.name = name
         self.system_message = system_message
 
@@ -76,7 +75,7 @@ class BaseInsuranceAgent:
             system_message=self.system_message,
         )
 
-    def __getattr__(self, name):
+    def __getattr__(self, name) -> Any:
         """
         Delegate unknown methods to the internal AutoGen agent.
         This provides AutoGen compatibility while keeping our custom methods.
@@ -222,7 +221,7 @@ class BaseInsuranceAgent:
 class ClaimAssessmentAgent(BaseInsuranceAgent):
     """Agent specialized for insurance claim assessment with AutoGen compatibility."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         system_message = """
         You are an insurance claim assessment agent. Your role is to:
         1. Review insurance claims for completeness and accuracy
@@ -252,8 +251,10 @@ class ClaimAssessmentAgent(BaseInsuranceAgent):
 
         # Add claim-specific analysis
         if assessment["status"] == "processed":
-            assessment["validity_score"] = self._calculate_validity_score(claim_data)
-            assessment["risk_factors"] = self._identify_risk_factors(claim_data)
+            assessment["validity_score"] = self._calculate_validity_score(
+                claim_data)
+            assessment["risk_factors"] = self._identify_risk_factors(
+                claim_data)
 
         return assessment
 
@@ -275,7 +276,7 @@ class ClaimAssessmentAgent(BaseInsuranceAgent):
 
         return score / total_factors
 
-    def _identify_risk_factors(self, claim_data: dict) -> list:
+    def _identify_risk_factors(self, claim_data: dict) -> list[str]:
         """Identify potential risk factors in the claim."""
         risk_factors = []
 
@@ -293,7 +294,7 @@ class ClaimAssessmentAgent(BaseInsuranceAgent):
 class CustomerCommunicationAgent(BaseInsuranceAgent):
     """Agent specialized for customer communication with AutoGen compatibility."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         system_message = """
         You are a customer communication agent for an insurance company. Your role is to:
         1. Draft clear, empathetic, and professional communications to customers

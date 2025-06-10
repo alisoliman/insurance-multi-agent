@@ -3,7 +3,7 @@ REST API endpoints for WebSocket connection management and monitoring.
 """
 
 from fastapi import APIRouter, HTTPException
-from typing import Dict, Any, List
+from typing import Any
 from pydantic import BaseModel
 
 from app.services.websocket_service import websocket_service
@@ -18,7 +18,7 @@ class BroadcastMessage(BaseModel):
     """Model for broadcasting messages to all clients."""
 
     message: str
-    data: Dict[str, Any] = {}
+    data: dict[str, Any] = {}
     exclude_client: str = None
 
 
@@ -27,7 +27,7 @@ class ClientMessage(BaseModel):
 
     client_id: str
     message: str
-    data: Dict[str, Any] = {}
+    data: dict[str, Any] = {}
 
 
 class AgentActivityMessage(BaseModel):
@@ -35,7 +35,7 @@ class AgentActivityMessage(BaseModel):
 
     agent_name: str
     activity: str
-    data: Dict[str, Any] = {}
+    data: dict[str, Any] = {}
 
 
 class WorkflowUpdateMessage(BaseModel):
@@ -44,7 +44,7 @@ class WorkflowUpdateMessage(BaseModel):
     claim_id: str
     stage: str
     status: str
-    data: Dict[str, Any] = {}
+    data: dict[str, Any] = {}
 
 
 class SystemStatusMessage(BaseModel):
@@ -52,11 +52,11 @@ class SystemStatusMessage(BaseModel):
 
     status: str
     message: str
-    data: Dict[str, Any] = {}
+    data: dict[str, Any] = {}
 
 
 @router.get("/connections")
-async def get_websocket_connections():
+async def get_websocket_connections() -> dict[str, Any]:
     """Get information about current WebSocket connections."""
     try:
         stats = websocket_service.get_connected_clients()
@@ -67,7 +67,7 @@ async def get_websocket_connections():
 
 
 @router.get("/connections/{client_id}/status")
-async def check_client_connection(client_id: str):
+async def check_client_connection(client_id: str) -> dict[str, Any]:
     """Check if a specific client is connected."""
     try:
         is_connected = websocket_service.is_client_connected(client_id)
@@ -78,7 +78,7 @@ async def check_client_connection(client_id: str):
 
 
 @router.post("/broadcast")
-async def broadcast_message(message: BroadcastMessage):
+async def broadcast_message(message: BroadcastMessage) -> dict[str, Any]:
     """Broadcast a message to all connected WebSocket clients."""
     try:
         broadcast_data = {
@@ -103,7 +103,7 @@ async def broadcast_message(message: BroadcastMessage):
 
 
 @router.post("/send-to-client")
-async def send_to_client(message: ClientMessage):
+async def send_to_client(message: ClientMessage) -> dict[str, Any]:
     """Send a message to a specific WebSocket client."""
     try:
         message_data = {
@@ -136,7 +136,7 @@ async def send_to_client(message: ClientMessage):
 
 
 @router.post("/agent-activity")
-async def send_agent_activity(activity: AgentActivityMessage):
+async def send_agent_activity(activity: AgentActivityMessage) -> dict[str, Any]:
     """Send an agent activity update to subscribed clients."""
     try:
         await websocket_service.send_agent_activity(
@@ -155,7 +155,7 @@ async def send_agent_activity(activity: AgentActivityMessage):
 
 
 @router.post("/workflow-update")
-async def send_workflow_update(update: WorkflowUpdateMessage):
+async def send_workflow_update(update: WorkflowUpdateMessage) -> dict[str, Any]:
     """Send a workflow update to subscribed clients."""
     try:
         await websocket_service.send_workflow_update(
@@ -175,7 +175,7 @@ async def send_workflow_update(update: WorkflowUpdateMessage):
 
 
 @router.post("/system-status")
-async def send_system_status(status: SystemStatusMessage):
+async def send_system_status(status: SystemStatusMessage) -> dict[str, Any]:
     """Send a system status update to subscribed clients."""
     try:
         await websocket_service.send_system_status(
@@ -193,7 +193,7 @@ async def send_system_status(status: SystemStatusMessage):
 
 
 @router.get("/health")
-async def websocket_health_check():
+async def websocket_health_check() -> dict[str, Any]:
     """Health check endpoint for WebSocket functionality."""
     try:
         stats = websocket_service.get_connected_clients()

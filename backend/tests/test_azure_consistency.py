@@ -4,7 +4,7 @@ Comprehensive test to verify Azure OpenAI consistency across all agents.
 
 import asyncio
 from app.agents.llm_complexity_assessor import LLMComplexityAssessor
-from app.agents.enhanced_orchestrator import EnhancedOrchestratorAgent, AssessmentMode
+from app.agents.orchestrator import OrchestratorAgent, AssessmentMode
 from app.agents.assessment import EnhancedAssessmentAgent
 from app.agents.communication import (
     EnhancedCommunicationAgent,
@@ -61,7 +61,7 @@ async def test_azure_consistency():
     # Test 2: Enhanced Orchestrator
     print("\n🎯 Testing Enhanced Orchestrator...")
     try:
-        orchestrator = EnhancedOrchestratorAgent()
+        orchestrator = OrchestratorAgent()
         print(f"✅ Orchestrator initialized")
 
         # Test LLM-driven assessment
@@ -92,7 +92,8 @@ async def test_azure_consistency():
         assessment_result = await assessment_agent.assess_claim(test_claim)
         print(f"✅ Decision: {assessment_result.decision.value}")
         print(f"✅ Confidence: {assessment_result.confidence_score:.2f}")
-        print(f"✅ Processing Time: {assessment_result.processing_time_seconds:.2f}s")
+        print(
+            f"✅ Processing Time: {assessment_result.processing_time_seconds:.2f}s")
         results["enhanced_assessment"] = True
 
     except Exception as e:
@@ -115,7 +116,8 @@ async def test_azure_consistency():
         )
 
         comm_result = await communication_agent.generate_communication(context)
-        print(f"✅ Communication generated: {comm_result.communication_type.value}")
+        print(
+            f"✅ Communication generated: {comm_result.communication_type.value}")
         print(f"✅ Language: {comm_result.language.value}")
         print(f"✅ Processing Time: {comm_result.processing_time_seconds:.4f}s")
         results["enhanced_communication"] = True

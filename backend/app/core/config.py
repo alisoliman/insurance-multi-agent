@@ -1,7 +1,6 @@
 from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
-
 class Settings(BaseSettings):
     """Application settings."""
 
@@ -42,6 +41,5 @@ class Settings(BaseSettings):
     AZURE_OPENAI_DEPLOYMENT_NAME: str | None = None
 
     model_config = ConfigDict(env_file=".env", case_sensitive=True)
-
 
 settings = Settings()

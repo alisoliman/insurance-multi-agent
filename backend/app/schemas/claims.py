@@ -2,32 +2,33 @@
 Claim-related schemas for API requests and responses.
 """
 
+from typing import Any
 from pydantic import BaseModel, Field
-from typing import Dict, Any, Optional, List, Union
+
 from fastapi import UploadFile, File, Form
 
 
 class ClaimData(BaseModel):
     """Model for insurance claim data."""
 
-    claim_id: Optional[str] = None
+    claim_id: str | None = None
     policy_number: str
     incident_date: str
     description: str
-    amount: Optional[float] = None
-    documentation: Optional[List[str]] = None
+    amount: float | None = None
+    documentation: list[str] | None = None
 
 
 class ClaimDataWithImages(BaseModel):
     """Model for insurance claim data with image support."""
 
-    claim_id: Optional[str] = None
+    claim_id: str | None = None
     policy_number: str
     incident_date: str
     description: str
-    amount: Optional[float] = None
-    documentation: Optional[List[str]] = None
-    image_files: Optional[List[str]] = Field(
+    amount: float | None = None
+    documentation: list[str] | None = None
+    image_files: list[str] | None = Field(
         default=None,
         description="List of uploaded image file names for processing"
     )
@@ -36,36 +37,36 @@ class ClaimDataWithImages(BaseModel):
 class ExtractedData(BaseModel):
     """Model for structured data extracted from images."""
 
-    document_type: Optional[str] = None
-    vendor_name: Optional[str] = None
+    document_type: str | None = None
+    vendor_name: str | None = None
     # Allow both strings and structured objects
-    amounts: Optional[List[Union[str, Dict[str, Any]]]] = None
-    dates: Optional[List[str]] = None
-    names: Optional[List[str]] = None
-    invoice_number: Optional[str] = None
+    amounts: list[str | dict[str, Any]] | None = None
+    dates: list[str] | None = None
+    names: list[str] | None = None
+    invoice_number: str | None = None
     # Allow both strings and structured objects
-    line_items: Optional[List[Union[str, Dict[str, Any]]]] = None
-    tax_amount: Optional[str] = None
-    total_amount: Optional[str] = None
-    payment_terms: Optional[str] = None
-    key_details: Optional[List[str]] = None
+    line_items: list[str | dict[str, Any]] | None = None
+    tax_amount: str | None = None
+    total_amount: str | None = None
+    payment_terms: str | None = None
+    key_details: list[str] | None = None
 
 
 class DamageAssessment(BaseModel):
     """Model for damage assessment data."""
 
     severity: str
-    estimated_cost: Optional[str] = None
-    description: Optional[str] = None
-    affected_areas: Optional[List[str]] = None
+    estimated_cost: str | None = None
+    description: str | None = None
+    affected_areas: list[str] | None = None
 
 
 class FraudIndicators(BaseModel):
     """Model for fraud analysis indicators."""
 
-    suspicious_elements: Optional[List[str]] = None
-    authenticity_score: Optional[float] = None
-    concerns: Optional[List[str]] = None
+    suspicious_elements: list[str] | None = None
+    authenticity_score: float | None = None
+    concerns: list[str] | None = None
 
 
 class ImageAnalysisResult(BaseModel):
@@ -77,10 +78,10 @@ class ImageAnalysisResult(BaseModel):
     classification: str
     confidence_score: float
     relevance_score: float
-    extracted_text: Optional[str] = None
-    extracted_data: Optional[ExtractedData] = None
-    damage_assessment: Optional[DamageAssessment] = None
-    fraud_indicators: Optional[FraudIndicators] = None
+    extracted_text: str | None = None
+    extracted_data: ExtractedData | None = None
+    damage_assessment: DamageAssessment | None = None
+    fraud_indicators: FraudIndicators | None = None
     processing_time_seconds: float
 
 
@@ -89,9 +90,9 @@ class MultiImageAssessmentResult(BaseModel):
 
     total_images_processed: int
     processing_time_seconds: float
-    image_analyses: List[ImageAnalysisResult]
+    image_analyses: list[ImageAnalysisResult]
     overall_relevance_score: float
-    recommended_actions: List[str]
+    recommended_actions: list[str]
     summary: str
 
 
@@ -99,9 +100,9 @@ class CustomerInquiry(BaseModel):
     """Model for customer inquiry data."""
 
     inquiry: str
-    customer_id: Optional[str] = None
-    claim_status: Optional[str] = None
-    policy_type: Optional[str] = None
+    customer_id: str | None = None
+    claim_status: str | None = None
+    policy_type: str | None = None
 
 
 class WorkflowRequest(BaseModel):
@@ -115,42 +116,43 @@ class WorkflowStatusResponse(BaseModel):
     """Response model for workflow status."""
 
     success: bool
-    workflow_state: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
+    workflow_state: dict[str, Any] | None = None
+    error: str | None = None
 
 
 class EnhancedAssessmentRequest(BaseModel):
     """Request model for enhanced claim assessment."""
 
     claim_data: ClaimData
-    policy_data: Optional[Dict[str, Any]] = None
+    policy_data: dict[str, Any] | None = None
 
 
 class EnhancedAssessmentWithImagesRequest(BaseModel):
     """Request model for enhanced claim assessment with image support."""
 
     claim_data: ClaimDataWithImages
-    policy_data: Optional[Dict[str, Any]] = None
+    policy_data: dict[str, Any] | None = None
 
 
 class EnhancedAssessmentResponse(BaseModel):
     """Response model for enhanced claim assessment."""
 
     success: bool
-    assessment_result: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
+    assessment_result: dict[str, Any] | None = None
+    error: str | None = None
 
 
 class EnhancedAssessmentWithImagesResponse(BaseModel):
     """Response model for enhanced claim assessment with image analysis."""
 
     success: bool
-    assessment_result: Optional[Dict[str, Any]] = None
-    image_analysis_result: Optional[MultiImageAssessmentResult] = None
-    error: Optional[str] = None
-
+    assessment_result: dict[str, Any] | None = None
+    image_analysis_result: MultiImageAssessmentResult | None = None
+    error: str | None = None
 
 # Form data models for multipart/form-data requests
+
+
 class ClaimFormData:
     """Form data model for claim submission with images."""
 
@@ -159,12 +161,12 @@ class ClaimFormData:
         policy_number: str = Form(...),
         incident_date: str = Form(...),
         description: str = Form(...),
-        amount: Optional[float] = Form(None),
-        claim_id: Optional[str] = Form(None),
+        amount: float | None = Form(None),
+        claim_id: str | None = Form(None),
         # JSON string of documentation list
-        documentation: Optional[str] = Form(None),
-        images: List[UploadFile] = File(default=[]),
-        policy_data: Optional[str] = Form(None),  # JSON string of policy data
+        documentation: str | None = Form(None),
+        images: list[UploadFile] = File(default=[]),
+        policy_data: str | None = Form(None),  # JSON string of policy data
     ):
         self.policy_number = policy_number
         self.incident_date = incident_date
@@ -196,7 +198,7 @@ class ClaimFormData:
             image_files=[img.filename for img in self.images if img.filename]
         )
 
-    def get_policy_data(self) -> Optional[Dict[str, Any]]:
+    def get_policy_data(self) -> dict[str, Any] | None:
         """Parse and return policy data from JSON string."""
         if not self.policy_data:
             return None

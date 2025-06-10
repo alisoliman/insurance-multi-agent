@@ -4,7 +4,7 @@ WebSocket routes for real-time communication with agents and dashboard.
 
 import json
 import asyncio
-from typing import Dict, List, Any, Optional
+from typing import Any
 from datetime import datetime
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from fastapi.websockets import WebSocketState
@@ -21,11 +21,11 @@ router = APIRouter()
 class ConnectionManager:
     """Manages WebSocket connections for real-time communication."""
 
-    def __init__(self):
-        self.active_connections: List[WebSocket] = []
-        self.client_data: Dict[WebSocket, Dict[str, Any]] = {}
+    def __init__(self) -> None:
+        self.active_connections: list[WebSocket] = []
+        self.client_data: dict[WebSocket, dict[str, Any]] = {}
 
-    async def connect(self, websocket: WebSocket, client_id: str = None):
+    async def connect(self, websocket: WebSocket, client_id: str = None) -> None:
         """Accept a new WebSocket connection."""
         await websocket.accept()
         self.active_connections.append(websocket)
@@ -49,18 +49,19 @@ class ConnectionManager:
             websocket,
         )
 
-    def disconnect(self, websocket: WebSocket):
+    def disconnect(self, websocket: WebSocket) -> None:
         """Remove a WebSocket connection."""
         if websocket in self.active_connections:
-            client_id = self.client_data.get(websocket, {}).get("client_id", "unknown")
+            client_id = self.client_data.get(
+                websocket, {}).get("client_id", "unknown")
             self.active_connections.remove(websocket)
             if websocket in self.client_data:
                 del self.client_data[websocket]
             logger.info(f"WebSocket client disconnected: {client_id}")
 
     async def send_personal_message(
-        self, message: Dict[str, Any], websocket: WebSocket
-    ):
+        self, message: dict[str, Any], websocket: WebSocket
+    ) -> None:
         """Send a message to a specific WebSocket connection."""
         if websocket.client_state == WebSocketState.CONNECTED:
             try:
@@ -69,7 +70,7 @@ class ConnectionManager:
                 logger.error(f"Error sending message to client: {e}")
                 self.disconnect(websocket)
 
-    async def broadcast(self, message: Dict[str, Any], exclude: WebSocket = None):
+    async def broadcast(self, message: dict[str, Any], exclude: WebSocket = None) -> None:
         """Broadcast a message to all connected clients."""
         disconnected = []
         for connection in self.active_connections:
@@ -87,7 +88,7 @@ class ConnectionManager:
         for conn in disconnected:
             self.disconnect(conn)
 
-    async def send_to_subscribers(self, message: Dict[str, Any], event_type: str):
+    async def send_to_subscribers(self, message: dict[str, Any], event_type: str) -> None:
         """Send message to clients subscribed to a specific event type."""
         disconnected = []
         for connection in self.active_connections:
@@ -106,7 +107,7 @@ class ConnectionManager:
         for conn in disconnected:
             self.disconnect(conn)
 
-    def get_connection_stats(self) -> Dict[str, Any]:
+    def get_connection_stats(self) -> dict[str, Any]:
         """Get statistics about current connections."""
         return {
             "total_connections": len(self.active_connections),
@@ -126,7 +127,7 @@ manager = ConnectionManager()
 
 
 @router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(websocket: WebSocket) -> None:
     """Main WebSocket endpoint for dashboard communication."""
     await manager.connect(websocket)
 
@@ -147,7 +148,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 @router.websocket("/ws/{client_id}")
-async def websocket_endpoint_with_id(websocket: WebSocket, client_id: str):
+async def websocket_endpoint_with_id(websocket: WebSocket, client_id: str) -> None:
     """WebSocket endpoint with specific client ID."""
     await manager.connect(websocket, client_id)
 
@@ -164,7 +165,7 @@ async def websocket_endpoint_with_id(websocket: WebSocket, client_id: str):
         manager.disconnect(websocket)
 
 
-async def handle_websocket_message(websocket: WebSocket, message: Dict[str, Any]):
+async def handle_websocket_message(websocket: WebSocket, message: dict[str, Any]) -> None:
     """Handle incoming WebSocket messages from clients."""
     message_type = message.get("type")
     client_data = manager.client_data.get(websocket, {})
@@ -217,7 +218,8 @@ async def handle_websocket_message(websocket: WebSocket, message: Dict[str, Any]
         elif message_type == "ping":
             # Respond to ping with pong
             await manager.send_personal_message(
-                {"type": "pong", "timestamp": datetime.now().isoformat()}, websocket
+                {"type": "pong", "timestamp": datetime.now().isoformat()
+                 }, websocket
             )
 
         elif message_type == "get_stats":
@@ -280,7 +282,7 @@ async def handle_websocket_message(websocket: WebSocket, message: Dict[str, Any]
         )
 
 
-async def handle_agent_process(websocket: WebSocket, message: Dict[str, Any]):
+async def handle_agent_process(websocket: WebSocket, message: dict[str, Any]) -> None:
     """Handle agent processing requests via WebSocket."""
     agent_type = message.get("agent_type")
     user_message = message.get("message")
@@ -351,7 +353,7 @@ async def handle_agent_process(websocket: WebSocket, message: Dict[str, Any]):
         )
 
 
-async def handle_workflow_start(websocket: WebSocket, message: Dict[str, Any]):
+async def handle_workflow_start(websocket: WebSocket, message: dict[str, Any]) -> None:
     """Handle workflow start requests with real-time updates."""
     claim_data = message.get("claim_data")
     request_id = message.get("request_id", "unknown")
@@ -432,7 +434,7 @@ async def handle_workflow_start(websocket: WebSocket, message: Dict[str, Any]):
 
 async def handle_workflow_simulation(
     websocket: WebSocket, workflow_type: str, client_id: str
-):
+) -> None:
     """Handle workflow simulation requests for testing purposes."""
     import asyncio
     import random
@@ -491,7 +493,8 @@ async def handle_workflow_simulation(
                 claim_id,
                 stage["name"],
                 "in_progress",
-                {"progress": (i / len(stages)) * 100, "workflow_type": workflow_type},
+                {"progress": (i / len(stages)) * 100,
+                 "workflow_type": workflow_type},
             )
 
             # Simulate processing time
@@ -560,13 +563,12 @@ async def handle_workflow_simulation(
             websocket,
         )
 
-
 # Utility functions for broadcasting events from other parts of the application
 
 
 async def broadcast_agent_activity(
-    agent_name: str, activity: str, data: Dict[str, Any] = None
-):
+    agent_name: str, activity: str, data: dict[str, Any] = None
+) -> None:
     """Broadcast agent activity to all subscribed clients."""
     message = {
         "type": "agent_activity",
@@ -579,8 +581,8 @@ async def broadcast_agent_activity(
 
 
 async def broadcast_workflow_update(
-    claim_id: str, stage: str, status: str, data: Dict[str, Any] = None
-):
+    claim_id: str, stage: str, status: str, data: dict[str, Any] = None
+) -> None:
     """Broadcast workflow updates to all subscribed clients."""
     message = {
         "type": "workflow_update",
@@ -594,8 +596,8 @@ async def broadcast_workflow_update(
 
 
 async def broadcast_system_status(
-    status: str, message: str, data: Dict[str, Any] = None
-):
+    status: str, message: str, data: dict[str, Any] = None
+) -> None:
     """Broadcast system status updates to all subscribed clients."""
     broadcast_message = {
         "type": "system_status",

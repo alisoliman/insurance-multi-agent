@@ -21,13 +21,10 @@ import { ExplainabilityPanel } from "@/components/explainability/ExplainabilityP
 import { transformOrchestratorToExplainability } from "@/lib/explainability-utils"
 
 const orchestratorFormSchema = z.object({
-  customerName: z.string().min(1, "Customer name is required"),
-  policyNumber: z.string().min(1, "Policy number is required"),
-  incidentDate: z.string().min(1, "Incident date is required"),
+  claimId: z.string().min(1, "Claim ID is required"),
+  workflowType: z.string().min(1, "Workflow type is required"),
+  priority: z.string().min(1, "Priority is required"),
   description: z.string().min(10, "Description must be at least 10 characters"),
-  amount: z.string().min(1, "Claim amount is required"),
-  claimType: z.string().min(1, "Claim type is required"),
-  useGraphflow: z.boolean().default(false),
 })
 
 type OrchestratorFormData = z.infer<typeof orchestratorFormSchema>
@@ -60,45 +57,36 @@ interface GraphFlowResult {
   workflow_type: "graphflow"
 }
 
-// Sample workflows for testing - commented out as not currently used
-// const sampleWorkflows = [
-//   {
-//     name: "Simple Auto Claim",
-//     data: {
-//       customerName: "John Smith",
-//       policyNumber: "AUTO-2024-001",
-//       incidentDate: "2024-01-15",
-//       description: "Minor fender bender in parking lot. No injuries reported. Damage to rear bumper and taillight.",
-//       amount: "2500",
-//       claimType: "auto",
-//       useGraphflow: false
-//     }
-//   },
-//   {
-//     name: "Complex Home Claim",
-//     data: {
-//       customerName: "Sarah Johnson",
-//       policyNumber: "HOME-2024-002",
-//       incidentDate: "2024-01-10",
-//       description: "Burst pipe in basement caused flooding. Damage to flooring, drywall, and personal belongings. Multiple rooms affected.",
-//       amount: "15000",
-//       claimType: "home",
-//       useGraphflow: true
-//     }
-//   },
-//   {
-//     name: "High-Value Suspicious Claim",
-//     data: {
-//       customerName: "Mike Wilson",
-//       policyNumber: "AUTO-2024-003",
-//       incidentDate: "2024-01-05",
-//       description: "Total loss vehicle fire. Suspicious circumstances. Multiple previous claims. Inconsistent witness statements.",
-//       amount: "45000",
-//       claimType: "auto",
-//       useGraphflow: true
-//     }
-//   }
-// ]
+// Sample workflows for testing
+const sampleWorkflows = [
+  {
+    name: "Simple Auto Claim",
+    data: {
+      claimId: "CLM-2024-001",
+      workflowType: "standard",
+      priority: "medium",
+      description: "Minor fender bender in parking lot. No injuries reported. Damage to rear bumper and taillight.",
+    }
+  },
+  {
+    name: "Complex Home Claim",
+    data: {
+      claimId: "CLM-2024-002",
+      workflowType: "complex",
+      priority: "high",
+      description: "Burst pipe in basement caused flooding. Damage to flooring, drywall, and personal belongings. Multiple rooms affected.",
+    }
+  },
+  {
+    name: "High-Value Suspicious Claim",
+    data: {
+      claimId: "CLM-2024-003",
+      workflowType: "graphflow",
+      priority: "high",
+      description: "Total loss vehicle fire. Suspicious circumstances. Multiple previous claims. Inconsistent witness statements.",
+    }
+  }
+]
 
 export default function OrchestratorAgentDemo() {
   const [isLoading, setIsLoading] = useState(false)
@@ -110,13 +98,10 @@ export default function OrchestratorAgentDemo() {
   const form = useForm<OrchestratorFormData>({
     resolver: zodResolver(orchestratorFormSchema),
     defaultValues: {
-      customerName: "",
-      policyNumber: "",
-      incidentDate: "",
+      claimId: "",
+      workflowType: "",
+      priority: "",
       description: "",
-      amount: "",
-      claimType: "",
-      useGraphflow: false,
     },
   })
 
@@ -142,12 +127,13 @@ export default function OrchestratorAgentDemo() {
         },
         body: JSON.stringify({
           claim_data: {
-            policy_number: data.policyNumber,
-            incident_date: data.incidentDate,
+            claim_id: data.claimId,
+            policy_number: "POL-" + data.claimId.split("-")[1] || "12345", // Generate policy number from claim ID
+            incident_date: new Date().toISOString().split('T')[0], // Use current date
             description: data.description,
-            amount: parseFloat(data.amount),
+            amount: 5000, // Default amount for demo
           },
-          use_graphflow: data.useGraphflow,
+          use_graphflow: data.workflowType === "graphflow",
         }),
       })
 
@@ -322,7 +308,7 @@ export default function OrchestratorAgentDemo() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Workflow Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select workflow type" />
@@ -345,7 +331,7 @@ export default function OrchestratorAgentDemo() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Priority</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select priority" />

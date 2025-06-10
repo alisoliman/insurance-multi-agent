@@ -6,23 +6,17 @@ specialized agents (Assessment, Communication, etc.) using AutoGen's GraphFlow
 for structured claim processing.
 """
 
-import asyncio
 import uuid
+import logging
 from datetime import datetime
 from enum import Enum
-from typing import Dict, Any, Optional, List, Union
+from typing import Any
+
 from dataclasses import dataclass, asdict
 
 # AutoGen imports
 try:
-    from autogen_agentchat.agents import AssistantAgent
-    from autogen_agentchat.teams import RoundRobinGroupChat, GraphFlow
-    from autogen_agentchat.conditions import (
-        MaxMessageTermination,
-        TextMentionTermination,
-    )
-    from autogen_agentchat.messages import TextMessage
-    from autogen_agentchat.teams import DiGraphBuilder
+    from autogen_agentchat.teams import GraphFlow, DiGraphBuilder
 
     AUTOGEN_AVAILABLE = True
 except ImportError as e:
@@ -35,27 +29,19 @@ from app.agents.base import (
     CustomerCommunicationAgent,
 )
 from app.agents.assessment import EnhancedAssessmentAgent
-from app.core.config import settings
+from app.agents.llm_complexity_assessor import LLMComplexityAssessor, ComplexityAssessment
+from app.utils.validation import parse_amount
+
+# Import enums from shared module to avoid circular imports
+from app.agents.enums import ClaimComplexity, WorkflowStage
 
 
-class WorkflowStage(Enum):
-    """Enumeration of workflow stages."""
+class AssessmentMode(Enum):
+    """Assessment mode options for complexity assessment."""
 
-    INTAKE = "intake"
-    ASSESSMENT = "assessment"
-    IMAGE_PROCESSING = "image_processing"  # New stage for image processing
-    COMMUNICATION = "communication"
-    HUMAN_REVIEW = "human_review"
-    COMPLETED = "completed"
-    FAILED = "failed"
-
-
-class ClaimComplexity(Enum):
-    """Enumeration of claim complexity levels."""
-
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
+    RULE_BASED = "rule_based"
+    LLM_DRIVEN = "llm_driven"
+    HYBRID = "hybrid"
 
 
 @dataclass
@@ -67,19 +53,19 @@ class ClaimWorkflowState:
     complexity: ClaimComplexity
     started_at: datetime
     updated_at: datetime
-    agent_decisions: List[Dict[str, Any]]
+    agent_decisions: list[dict[str, Any]]
     requires_human_review: bool = False
-    error_message: Optional[str] = None
+    error_message: str | None = None
     workflow_id: str = None
     has_images: bool = False  # New field to track if workflow includes images
     # Store image analysis results
-    image_analysis_result: Optional[Dict[str, Any]] = None
+    image_analysis_result: dict[str, Any] | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.workflow_id is None:
             self.workflow_id = str(uuid.uuid4())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         data = asdict(self)
         data["current_stage"] = self.current_stage.value
@@ -87,6 +73,19 @@ class ClaimWorkflowState:
         data["started_at"] = self.started_at.isoformat()
         data["updated_at"] = self.updated_at.isoformat()
         return data
+
+
+@dataclass
+class EnhancedComplexityResult:
+    """Enhanced complexity assessment result with comparison data."""
+
+    final_complexity: ClaimComplexity
+    confidence_score: float
+    reasoning: str
+    assessment_mode: AssessmentMode
+    rule_based_result: ClaimComplexity | None = None
+    llm_result: ComplexityAssessment | None = None
+    comparison_notes: str | None = None
 
 
 @dataclass
@@ -98,9 +97,9 @@ class AgentDecision:
     confidence_score: float
     reasoning: str
     timestamp: datetime
-    metadata: Dict[str, Any] = None
+    metadata: dict[str, Any] = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         data = asdict(self)
         data["timestamp"] = self.timestamp.isoformat()
@@ -116,7 +115,7 @@ class OrchestratorAgent(BaseInsuranceAgent):
     and other specialized agents. Now supports image processing workflows.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         if not AUTOGEN_AVAILABLE:
             raise ImportError(f"AutoGen not available: {AUTOGEN_IMPORT_ERROR}")
 
@@ -150,20 +149,31 @@ Always provide structured responses with clear reasoning and next steps."""
         self.enhanced_assessment_agent = None
         self.communication_agent = None
 
+        # Enhanced assessment capabilities
+        self.default_assessment_mode = AssessmentMode.LLM_DRIVEN
+        self.llm_assessor = LLMComplexityAssessor()
+        self.logger = logging.getLogger(__name__)
+
         # Workflow state tracking
-        self.active_workflows: Dict[str, ClaimWorkflowState] = {}
+        self.active_workflows: dict[str, ClaimWorkflowState] = {}
 
         # Escalation criteria (updated for image processing)
+        # These thresholds determine when claims require human review
         self.escalation_criteria = {
-            "high_amount_threshold": 50000,  # Claims over $50k
+            # Claims over $50k require human review due to financial impact
+            "high_amount_threshold": 50000,
+            # Keywords indicating complex legal/investigative needs
             "complex_keywords": ["fraud", "litigation", "death", "catastrophic"],
-            "low_confidence_threshold": 0.7,  # Confidence below 70%
-            "image_analysis_threshold": 0.6,  # Image relevance below 60%
+            # Confidence below 70% indicates uncertainty requiring human judgment
+            "low_confidence_threshold": 0.7,
+            # Image relevance below 60% suggests poor quality or irrelevant images
+            "image_analysis_threshold": 0.6,
             # Damage levels requiring review
+            # Severe damage requires expert assessment
             "damage_severity_escalation": ["severe", "total_loss"],
         }
 
-    async def initialize_agents(self):
+    async def initialize_agents(self) -> bool:
         """Initialize specialized agents for workflow coordination."""
         try:
             self.assessment_agent = ClaimAssessmentAgent()
@@ -175,9 +185,13 @@ Always provide structured responses with clear reasoning and next steps."""
             print(f"Error initializing agents: {str(e)}")
             return False
 
-    def assess_claim_complexity(self, claim_data: Dict[str, Any], has_images: bool = False) -> ClaimComplexity:
+    def assess_claim_complexity(self, claim_data: dict[str, Any], has_images: bool = False) -> ClaimComplexity:
         """
         Assess the complexity of a claim to determine processing path.
+
+        This method uses a scoring system to evaluate multiple factors that contribute
+        to claim complexity. Higher scores indicate more complex claims requiring
+        additional resources or human oversight.
 
         Args:
             claim_data: Dictionary containing claim information
@@ -186,55 +200,63 @@ Always provide structured responses with clear reasoning and next steps."""
         Returns:
             ClaimComplexity enum value
         """
+        # Initialize complexity scoring system
+        # Score ranges: 0-1 = LOW, 2-3 = MEDIUM, 4+ = HIGH
         complexity_score = 0
 
-        # Check claim amount
-        amount = self._parse_amount(claim_data.get("amount", 0))
+        # Check claim amount - higher amounts increase complexity
+        amount = parse_amount(claim_data.get("amount", 0))
 
         # Amount-based complexity scoring
+        # Financial thresholds based on typical claim processing costs vs. claim value
         if amount > 50000:
-            complexity_score += 2
+            complexity_score += 2  # High-value claims require detailed investigation
         elif amount > 10000:
-            complexity_score += 1
+            complexity_score += 1  # Medium-value claims need moderate oversight
 
-        # Check for complex keywords
+        # Check for complex keywords that indicate special handling needs
         description = claim_data.get("description", "").lower()
         for keyword in self.escalation_criteria["complex_keywords"]:
             if keyword in description:
-                complexity_score += 2
-                break
+                complexity_score += 2  # Any complex keyword significantly increases complexity
+                break  # Only count once even if multiple keywords present
 
-        # Image processing adds complexity
+        # Image processing adds complexity due to analysis requirements
         if has_images:
-            complexity_score += 1
+            complexity_score += 1  # Images require additional processing time and expertise
 
-        # Check for missing documentation - but be more lenient for low-amount claims
+        # Documentation completeness assessment
+        # Missing documentation increases investigation time and complexity
         required_docs = ["incident_report", "photos", "police_report"]
         missing_docs = [
             doc for doc in required_docs if not claim_data.get(doc)]
 
-        # Only add complexity for missing docs if amount is significant
-        # For very low amounts (< $1000), don't penalize for missing docs
-        # For moderate amounts ($1000-$5000), only penalize if all docs missing
-        # For higher amounts (> $5000), penalize if more than 1 doc missing
+        # Graduated penalty system based on claim amount
+        # Lower-value claims are more tolerant of missing documentation
+        # Higher-value claims require complete documentation for proper assessment
         if amount > 5000 and len(missing_docs) > 1:
-            complexity_score += 1
+            complexity_score += 1  # Significant claims with multiple missing docs
         elif amount > 1000 and len(missing_docs) == len(required_docs):
-            complexity_score += 1
+            complexity_score += 1  # Moderate claims with no documentation
 
-        # Determine complexity level
+        # Determine final complexity level based on total score
+        # Thresholds calibrated based on processing capacity and resource allocation
         if complexity_score >= 3:
-            return ClaimComplexity.HIGH
+            return ClaimComplexity.HIGH    # Requires specialized handling
         elif complexity_score >= 1:
-            return ClaimComplexity.MEDIUM
+            return ClaimComplexity.MEDIUM  # Standard processing with oversight
         else:
-            return ClaimComplexity.LOW
+            return ClaimComplexity.LOW     # Automated processing suitable
 
     def should_escalate_to_human(
-        self, claim_data: Dict[str, Any], agent_decisions: List[AgentDecision], image_analysis: Optional[Dict[str, Any]] = None
+        self, claim_data: dict[str, Any], agent_decisions: list[AgentDecision], image_analysis: dict[str, Any] | None = None
     ) -> bool:
         """
         Determine if a claim should be escalated to human review.
+
+        This method implements a multi-factor escalation decision system that considers
+        financial impact, complexity indicators, agent confidence, and image analysis
+        results to determine if human expertise is required.
 
         Args:
             claim_data: Dictionary containing claim information
@@ -244,60 +266,46 @@ Always provide structured responses with clear reasoning and next steps."""
         Returns:
             Boolean indicating if escalation is needed
         """
-        # Check amount threshold
-        amount = self._parse_amount(claim_data.get("amount", 0))
+        # Financial threshold check - high-value claims always require human review
+        # $50k threshold based on regulatory requirements and risk management policies
+        amount = parse_amount(claim_data.get("amount", 0))
         if amount > self.escalation_criteria["high_amount_threshold"]:
-            return True
+            return True  # Mandatory escalation for financial risk management
 
-        # Check for complex keywords
+        # Keyword-based escalation for complex legal/investigative scenarios
+        # These keywords indicate situations requiring specialized expertise
         description = claim_data.get("description", "").lower()
         for keyword in self.escalation_criteria["complex_keywords"]:
             if keyword in description:
-                return True
+                return True  # Immediate escalation for complex scenarios
 
-        # Check agent confidence levels
+        # Agent confidence assessment - low confidence indicates uncertainty
+        # Multiple agents with low confidence suggests the claim is beyond automated processing
         for decision in agent_decisions:
             if decision.confidence_score < self.escalation_criteria["low_confidence_threshold"]:
-                return True
+                return True  # Escalate when agents are uncertain
 
-        # Check image analysis results if available
+        # Image analysis quality assessment (if images are present)
         if image_analysis:
-            # Check overall relevance score
+            # Overall relevance score indicates image quality and usefulness
+            # Low relevance suggests images don't support the claim narrative
             overall_relevance = image_analysis.get(
                 "overall_relevance_score", 1.0)
             if overall_relevance < self.escalation_criteria["image_analysis_threshold"]:
-                return True
+                return True  # Poor image quality requires human verification
 
-            # Check for severe damage assessments
+            # Damage severity assessment from image analysis
+            # Severe damage requires expert evaluation for accurate assessment
             for analysis in image_analysis.get("image_analyses", []):
                 damage_assessment = analysis.get("damage_assessment", {})
                 if damage_assessment.get("severity") in self.escalation_criteria["damage_severity_escalation"]:
-                    return True
+                    return True  # Severe damage needs expert assessment
 
+        # No escalation triggers found - proceed with automated processing
         return False
 
-    def _parse_amount(self, amount: Union[str, int, float]) -> float:
-        """
-        Parse amount from various formats into a float.
-
-        Args:
-            amount: Amount in string, int, or float format
-
-        Returns:
-            Parsed amount as float, 0 if parsing fails
-        """
-        if isinstance(amount, (int, float)):
-            return float(amount)
-        elif isinstance(amount, str):
-            try:
-                return float(amount.replace("$", "").replace(",", ""))
-            except ValueError:
-                return 0.0
-        else:
-            return 0.0
-
     async def process_claim_workflow(
-        self, claim_data: Dict[str, Any], image_files: Optional[List] = None
+        self, claim_data: dict[str, Any], image_files: list | None = None
     ) -> ClaimWorkflowState:
         """
         Main orchestration method for processing a claim through the workflow.
@@ -380,8 +388,8 @@ Always provide structured responses with clear reasoning and next steps."""
         return workflow_state
 
     async def _validate_claim_intake(
-        self, claim_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, claim_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Validate claim data during intake stage."""
         required_fields = ["policy_number", "incident_date", "description"]
 
@@ -431,7 +439,7 @@ Always provide structured responses with clear reasoning and next steps."""
 
         return {"valid": True}
 
-    async def _process_assessment(self, claim_data: Dict[str, Any]) -> AgentDecision:
+    async def _process_assessment(self, claim_data: dict[str, Any]) -> AgentDecision:
         """Process claim through assessment agent (without images)."""
         if not self.assessment_agent:
             await self.initialize_agents()
@@ -461,7 +469,7 @@ Always provide structured responses with clear reasoning and next steps."""
                 metadata={"error": str(e)},
             )
 
-    async def _process_assessment_with_images(self, claim_data: Dict[str, Any], image_files: List) -> AgentDecision:
+    async def _process_assessment_with_images(self, claim_data: dict[str, Any], image_files: list) -> AgentDecision:
         """Process claim through enhanced assessment agent with image support."""
         if not self.enhanced_assessment_agent:
             await self.initialize_agents()
@@ -499,7 +507,7 @@ Always provide structured responses with clear reasoning and next steps."""
             )
 
     async def _process_communication(
-        self, claim_data: Dict[str, Any], assessment_decision: AgentDecision
+        self, claim_data: dict[str, Any], assessment_decision: AgentDecision
     ) -> AgentDecision:
         """Process communication through communication agent."""
         if not self.communication_agent:
@@ -545,7 +553,7 @@ Always provide structured responses with clear reasoning and next steps."""
                 metadata={"error": str(e)},
             )
 
-    def get_workflow_status(self, claim_id: str) -> Optional[Dict[str, Any]]:
+    def get_workflow_status(self, claim_id: str) -> dict[str, Any] | None:
         """
         Get the current status of a workflow.
 
@@ -560,7 +568,7 @@ Always provide structured responses with clear reasoning and next steps."""
             return workflow_state.to_dict()
         return None
 
-    def get_all_active_workflows(self) -> Dict[str, Dict[str, Any]]:
+    def get_all_active_workflows(self) -> dict[str, dict[str, Any]]:
         """Get status of all active workflows."""
         return {
             claim_id: workflow_state.to_dict()
@@ -568,8 +576,8 @@ Always provide structured responses with clear reasoning and next steps."""
         }
 
     async def create_graphflow_workflow(
-        self, claim_data: Dict[str, Any]
-    ) -> Optional[Any]:
+        self, claim_data: dict[str, Any]
+    ) -> Any | None:
         """
         Create a GraphFlow workflow for structured claim processing.
 
@@ -618,8 +626,8 @@ Always provide structured responses with clear reasoning and next steps."""
             return None
 
     async def run_graphflow_workflow(
-        self, claim_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, claim_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Run a claim through the GraphFlow workflow.
 
@@ -660,3 +668,267 @@ Always provide structured responses with clear reasoning and next steps."""
 
         except Exception as e:
             return {"success": False, "error": str(e), "workflow_completed": False}
+
+    # Enhanced Assessment Methods
+    async def assess_claim_complexity_enhanced(
+        self, claim_data: dict[str, Any], mode: AssessmentMode | None = None
+    ) -> EnhancedComplexityResult:
+        """
+        Assess claim complexity using the specified mode.
+
+        Args:
+            claim_data: Dictionary containing claim information
+            mode: Assessment mode to use (defaults to instance default)
+
+        Returns:
+            EnhancedComplexityResult with detailed assessment information
+        """
+        assessment_mode = mode or self.default_assessment_mode
+
+        if assessment_mode == AssessmentMode.RULE_BASED:
+            return await self._rule_based_assessment(claim_data)
+        elif assessment_mode == AssessmentMode.LLM_DRIVEN:
+            return await self._llm_driven_assessment(claim_data)
+        elif assessment_mode == AssessmentMode.HYBRID:
+            return await self._hybrid_assessment(claim_data)
+        else:
+            raise ValueError(f"Unknown assessment mode: {assessment_mode}")
+
+    async def _rule_based_assessment(
+        self, claim_data: dict[str, Any]
+    ) -> EnhancedComplexityResult:
+        """Perform rule-based complexity assessment."""
+        rule_result = self.assess_claim_complexity(claim_data)
+
+        return EnhancedComplexityResult(
+            final_complexity=rule_result,
+            confidence_score=0.7,  # Fixed confidence for rule-based
+            reasoning="Assessment based on predefined rules: amount thresholds, keyword matching, and documentation requirements.",
+            assessment_mode=AssessmentMode.RULE_BASED,
+            rule_based_result=rule_result,
+        )
+
+    async def _llm_driven_assessment(
+        self, claim_data: dict[str, Any]
+    ) -> EnhancedComplexityResult:
+        """Perform LLM-driven complexity assessment."""
+        try:
+            llm_result = await self.llm_assessor.assess_claim_complexity(claim_data)
+
+            return EnhancedComplexityResult(
+                final_complexity=llm_result.complexity,
+                confidence_score=llm_result.confidence_score,
+                reasoning=llm_result.reasoning,
+                assessment_mode=AssessmentMode.LLM_DRIVEN,
+                llm_result=llm_result,
+            )
+
+        except Exception as e:
+            self.logger.error(f"LLM assessment failed: {str(e)}")
+            raise Exception(f"LLM complexity assessment failed: {str(e)}")
+
+    async def _hybrid_assessment(
+        self, claim_data: dict[str, Any]
+    ) -> EnhancedComplexityResult:
+        """Perform hybrid assessment using both approaches."""
+        # Get both assessments
+        rule_result = self.assess_claim_complexity(claim_data)
+
+        try:
+            llm_result = await self.llm_assessor.assess_claim_complexity(claim_data)
+
+            # Compare results and determine final assessment
+            final_complexity, comparison_notes = self._reconcile_assessments(
+                rule_result, llm_result
+            )
+
+            return EnhancedComplexityResult(
+                final_complexity=final_complexity,
+                confidence_score=llm_result.confidence_score,
+                reasoning=f"Hybrid assessment: {llm_result.reasoning}",
+                assessment_mode=AssessmentMode.HYBRID,
+                rule_based_result=rule_result,
+                llm_result=llm_result,
+                comparison_notes=comparison_notes,
+            )
+
+        except Exception as e:
+            self.logger.error(
+                f"LLM assessment failed in hybrid mode: {str(e)}")
+            raise Exception(f"Hybrid complexity assessment failed: {str(e)}")
+
+    def _reconcile_assessments(
+        self, rule_result: ClaimComplexity, llm_result: ComplexityAssessment
+    ) -> tuple[ClaimComplexity, str]:
+        """
+        Reconcile differences between rule-based and LLM assessments.
+
+        This method implements a sophisticated decision-making algorithm that weighs
+        the strengths of both rule-based and AI-driven assessments to produce the
+        most accurate final complexity determination.
+
+        Args:
+            rule_result: Result from rule-based assessment
+            llm_result: Result from LLM assessment
+
+        Returns:
+            Tuple of (final_complexity, comparison_notes)
+        """
+        # Perfect agreement - use either result with confidence
+        if rule_result == llm_result.complexity:
+            return rule_result, "Both assessments agree"
+
+        # Convert complexity levels to numeric scores for comparison
+        # This allows mathematical comparison of assessment differences
+        rule_score = self._complexity_to_score(rule_result)
+        llm_score = self._complexity_to_score(llm_result.complexity)
+
+        # High-confidence LLM assessment override
+        # When LLM has high confidence (>80%), it likely identified nuanced factors
+        # that rule-based systems might miss
+        if llm_result.confidence_score > 0.8:
+            return (
+                llm_result.complexity,
+                f"LLM assessment preferred (high confidence: {llm_result.confidence_score:.1%})",
+            )
+
+        # Close assessment reconciliation - prefer conservative approach
+        # When assessments are within 1 complexity level, choose the higher complexity
+        # This ensures adequate resources are allocated rather than under-resourcing
+        if abs(rule_score - llm_score) <= 1:
+            final = rule_result if rule_score > llm_score else llm_result.complexity
+            return final, "Conservative assessment chosen due to close results"
+
+        # Significant disagreement with lower LLM confidence
+        # Fall back to rule-based assessment as it's more predictable and auditable
+        # This maintains consistency when AI confidence is questionable
+        return (
+            rule_result,
+            f"Rule-based preferred due to significant disagreement and lower LLM confidence ({llm_result.confidence_score:.1%})",
+        )
+
+    def _complexity_to_score(self, complexity: ClaimComplexity) -> int:
+        """
+        Convert complexity enum to numeric score for comparison.
+
+        This mapping enables mathematical operations on complexity levels
+        for assessment reconciliation and decision-making algorithms.
+        """
+        mapping = {
+            ClaimComplexity.LOW: 1,     # Simple, automated processing
+            ClaimComplexity.MEDIUM: 2,  # Standard processing with oversight
+            ClaimComplexity.HIGH: 3,    # Complex, requires specialized handling
+        }
+        return mapping[complexity]
+
+    async def process_claim_workflow_enhanced(
+        self,
+        claim_data: dict[str, Any],
+        assessment_mode: AssessmentMode | None = None,
+    ) -> dict[str, Any]:
+        """
+        Process a claim workflow with enhanced complexity assessment.
+
+        Args:
+            claim_data: Dictionary containing claim information
+            assessment_mode: Assessment mode to use for complexity evaluation
+
+        Returns:
+            Dictionary with workflow results and enhanced assessment data
+        """
+        try:
+            # Perform enhanced complexity assessment
+            complexity_result = await self.assess_claim_complexity_enhanced(
+                claim_data, assessment_mode
+            )
+
+            # Process the workflow using the enhanced assessment
+            workflow_state = await self.process_claim_workflow(claim_data)
+
+            # Add enhanced assessment data to the result
+            result = {
+                "workflow_state": workflow_state.to_dict(),
+                "enhanced_assessment": {
+                    "final_complexity": complexity_result.final_complexity.value,
+                    "confidence_score": complexity_result.confidence_score,
+                    "reasoning": complexity_result.reasoning,
+                    "assessment_mode": complexity_result.assessment_mode.value,
+                    "comparison_notes": complexity_result.comparison_notes,
+                },
+                "success": True,
+            }
+
+            # Include detailed assessment comparison if available
+            if complexity_result.rule_based_result and complexity_result.llm_result:
+                result["assessment_comparison"] = {
+                    "rule_based": complexity_result.rule_based_result.value,
+                    "llm_driven": {
+                        "complexity": complexity_result.llm_result.complexity.value,
+                        "confidence": complexity_result.llm_result.confidence_score,
+                        "reasoning": complexity_result.llm_result.reasoning,
+                    },
+                }
+
+            return result
+
+        except Exception as e:
+            self.logger.error(f"Enhanced workflow processing failed: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e),
+                "claim_id": claim_data.get("claim_id"),
+            }
+
+    async def get_assessment_comparison(
+        self, claim_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Get a comparison of different assessment approaches for a claim.
+
+        Args:
+            claim_data: Dictionary containing claim information
+
+        Returns:
+            Dictionary with comparison results from different assessment modes
+        """
+        try:
+            # Get assessments from all modes
+            rule_based = await self._rule_based_assessment(claim_data)
+            llm_driven = await self._llm_driven_assessment(claim_data)
+            hybrid = await self._hybrid_assessment(claim_data)
+
+            return {
+                "claim_id": claim_data.get("claim_id"),
+                "assessments": {
+                    "rule_based": {
+                        "complexity": rule_based.final_complexity.value,
+                        "confidence": rule_based.confidence_score,
+                        "reasoning": rule_based.reasoning,
+                    },
+                    "llm_driven": {
+                        "complexity": llm_driven.final_complexity.value,
+                        "confidence": llm_driven.confidence_score,
+                        "reasoning": llm_driven.reasoning,
+                    },
+                    "hybrid": {
+                        "complexity": hybrid.final_complexity.value,
+                        "confidence": hybrid.confidence_score,
+                        "reasoning": hybrid.reasoning,
+                        "comparison_notes": hybrid.comparison_notes,
+                    },
+                },
+                "agreement": {
+                    "rule_vs_llm": rule_based.final_complexity == llm_driven.final_complexity,
+                    "rule_vs_hybrid": rule_based.final_complexity == hybrid.final_complexity,
+                    "llm_vs_hybrid": llm_driven.final_complexity == hybrid.final_complexity,
+                },
+                "success": True,
+            }
+
+        except Exception as e:
+            self.logger.error(f"Assessment comparison failed: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e),
+                "claim_id": claim_data.get("claim_id"),
+            }

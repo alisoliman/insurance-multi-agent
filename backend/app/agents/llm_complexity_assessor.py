@@ -6,14 +6,13 @@ capabilities, providing contextual analysis and explainable decisions.
 """
 
 import json
-from typing import Dict, Any, Optional
-from enum import Enum
+from typing import Any
 from dataclasses import dataclass
 from openai import AsyncAzureOpenAI
 from app.core.config import settings
 
-# Import ClaimComplexity from orchestrator to maintain consistency
-from .orchestrator import ClaimComplexity
+# Import ClaimComplexity from shared enums to avoid circular imports
+from .enums import ClaimComplexity
 
 
 @dataclass
@@ -35,7 +34,7 @@ class LLMComplexityAssessor:
     and reasoning-based decisions for insurance claims using Azure OpenAI.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the LLM complexity assessor with Azure OpenAI."""
         # Validate Azure OpenAI configuration
         if (
@@ -55,7 +54,7 @@ class LLMComplexityAssessor:
         self.model = settings.AZURE_OPENAI_DEPLOYMENT_NAME
 
     async def assess_claim_complexity(
-        self, claim_data: Dict[str, Any]
+        self, claim_data: dict[str, Any]
     ) -> ComplexityAssessment:
         """
         Assess claim complexity using LLM reasoning with Azure OpenAI.
@@ -157,9 +156,13 @@ class LLMComplexityAssessor:
             # Return error instead of fallback
             raise Exception(f"LLM complexity assessment failed: {str(e)}")
 
-    def _build_assessment_prompt(self, claim_data: Dict[str, Any]) -> str:
+    def _build_assessment_prompt(self, claim_data: dict[str, Any]) -> str:
         """
         Build a comprehensive prompt for LLM complexity assessment.
+
+        This method constructs a structured prompt that provides the LLM with
+        all necessary context and clear assessment criteria. The prompt design
+        is critical for consistent, accurate complexity assessments.
 
         Args:
             claim_data: Dictionary containing claim information
@@ -168,13 +171,16 @@ class LLMComplexityAssessor:
             Formatted prompt string
         """
 
-        # Extract key information
+        # Extract key information with safe defaults
+        # Handle missing or malformed data gracefully to prevent assessment failures
         amount = claim_data.get("amount", "Not specified")
         description = claim_data.get("description", "No description provided")
         incident_date = claim_data.get("incident_date", "Not specified")
         policy_number = claim_data.get("policy_number", "Not specified")
 
         # Check for available documentation
+        # Documentation availability significantly impacts complexity assessment
+        # More documentation generally reduces complexity by providing clear evidence
         docs_available = []
         if claim_data.get("incident_report"):
             docs_available.append("incident report")
@@ -183,12 +189,16 @@ class LLMComplexityAssessor:
         if claim_data.get("police_report"):
             docs_available.append("police report")
 
+        # Format documentation status for clear LLM understanding
         docs_status = (
             f"Available: {', '.join(docs_available)}"
             if docs_available
             else "No documentation provided"
         )
 
+        # Construct structured prompt with clear sections
+        # This format helps the LLM understand the assessment framework
+        # and provides consistent context for decision-making
         prompt = f"""
 Please assess the complexity of this insurance claim based on all available information:
 
@@ -244,10 +254,15 @@ Please provide a thorough analysis with specific reasoning for your assessment.
         return prompt
 
     async def explain_decision(
-        self, claim_data: Dict[str, Any], assessment: ComplexityAssessment
+        self, claim_data: dict[str, Any], assessment: ComplexityAssessment
     ) -> str:
         """
         Generate a detailed explanation of the complexity decision for transparency.
+
+        This method creates human-readable explanations of assessment decisions
+        to support transparency, auditability, and regulatory compliance.
+        Clear explanations help stakeholders understand the reasoning behind
+        automated decisions and build trust in the assessment process.
 
         Args:
             claim_data: Original claim data
@@ -257,6 +272,8 @@ Please provide a thorough analysis with specific reasoning for your assessment.
             Detailed explanation string
         """
 
+        # Format explanation with clear structure and comprehensive details
+        # This format supports both human review and automated reporting
         explanation = f"""
 **COMPLEXITY ASSESSMENT EXPLANATION**
 

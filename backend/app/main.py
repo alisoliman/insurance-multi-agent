@@ -38,5 +38,5 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
 @app.get("/")
-async def root():
+async def root() -> dict[str, str]:
     return {"message": "Welcome to the Shadcn-FastAPI Starter API!"}

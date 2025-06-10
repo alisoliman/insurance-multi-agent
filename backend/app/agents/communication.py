@@ -6,26 +6,22 @@ for personalized, contextual customer communications while maintaining complianc
 and regulatory requirements.
 """
 
-import asyncio
 import json
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Dict, Any, Optional, List, Union
+from typing import Any
+
 from dataclasses import dataclass, asdict
 
-# AutoGen imports
+# AutoGen imports - keeping try/except for consistency with base class
 try:
-    from autogen_agentchat.agents import AssistantAgent
-    from autogen_agentchat.teams import RoundRobinGroupChat
-    from autogen_agentchat.conditions import MaxMessageTermination
-
+    # No direct AutoGen imports needed for this agent
     AUTOGEN_AVAILABLE = True
 except ImportError as e:
     AUTOGEN_AVAILABLE = False
 
 from app.agents.base import BaseInsuranceAgent
-from app.core.config import settings
 
 
 class CommunicationType(Enum):
@@ -69,14 +65,14 @@ class CommunicationContext:
     claim_id: str
     policy_number: str
     communication_type: CommunicationType
-    assessment_result: Optional[Dict[str, Any]] = None
-    policy_details: Optional[Dict[str, Any]] = None
+    assessment_result: dict[str, Any] | None = None
+    policy_details: dict[str, Any] | None = None
     preferred_language: Language = Language.ENGLISH
-    communication_history: Optional[List[Dict[str, Any]]] = None
-    special_instructions: Optional[str] = None
+    communication_history: list[dict[str, Any]] | None = None
+    special_instructions: str | None = None
     urgency_level: str = "normal"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         data = asdict(self)
         data["communication_type"] = self.communication_type.value
@@ -98,9 +94,9 @@ class CommunicationResult:
     compliance_verified: bool
     generated_at: datetime
     processing_time_seconds: float
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         data = asdict(self)
         data["communication_type"] = self.communication_type.value
@@ -118,7 +114,7 @@ class EnhancedCommunicationAgent(BaseInsuranceAgent):
     generation while ensuring compliance and regulatory requirements.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         if not AUTOGEN_AVAILABLE:
             raise ImportError("AutoGen not available for Communication Agent")
 
@@ -243,7 +239,7 @@ Always ensure accuracy and consistency with provided assessment results."""
 
     async def _perform_llm_communication_generation(
         self, context: CommunicationContext
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Use LLM to generate personalized communication content.
 
@@ -385,7 +381,7 @@ Generate the communication now:"""
 
         return prompt
 
-    def _validate_llm_response(self, response: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_llm_response(self, response: dict[str, Any]) -> dict[str, Any]:
         """Validate and enhance LLM response."""
         required_fields = ["subject", "content"]
 
@@ -406,7 +402,7 @@ Generate the communication now:"""
 
     def _parse_text_response(
         self, content: str, context: CommunicationContext
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Parse text response when JSON parsing fails."""
         lines = content.split("\n")
 
@@ -439,8 +435,8 @@ Generate the communication now:"""
         }
 
     def _apply_compliance_validation(
-        self, communication_data: Dict[str, Any], context: CommunicationContext
-    ) -> Dict[str, Any]:
+        self, communication_data: dict[str, Any], context: CommunicationContext
+    ) -> dict[str, Any]:
         """Apply compliance validation and add required elements."""
         compliance_checks = []
 
@@ -470,7 +466,7 @@ Generate the communication now:"""
         return communication_data
 
     def _calculate_personalization_score(
-        self, communication_data: Dict[str, Any], context: CommunicationContext
+        self, communication_data: dict[str, Any], context: CommunicationContext
     ) -> float:
         """Calculate personalization score based on context usage."""
         score = 0.0
@@ -521,7 +517,7 @@ Generate the communication now:"""
 
         return min(score, max_score)
 
-    def get_communication_capabilities(self) -> Dict[str, Any]:
+    def get_communication_capabilities(self) -> dict[str, Any]:
         """Get information about communication agent capabilities."""
         return {
             "agent_type": "enhanced_communication_agent",
@@ -553,7 +549,7 @@ Generate the communication now:"""
         }
 
     async def generate_communication_from_assessment(
-        self, assessment_result: Dict[str, Any], customer_data: Dict[str, Any]
+        self, assessment_result: dict[str, Any], customer_data: dict[str, Any]
     ) -> CommunicationResult:
         """
         Generate communication based on assessment result.
@@ -576,13 +572,15 @@ Generate the communication now:"""
 
         # Create communication context
         context = CommunicationContext(
-            customer_name=customer_data.get("customer_name", "Valued Customer"),
+            customer_name=customer_data.get(
+                "customer_name", "Valued Customer"),
             claim_id=customer_data.get("claim_id", "N/A"),
             policy_number=customer_data.get("policy_number", "N/A"),
             communication_type=comm_type,
             assessment_result=assessment_result,
             policy_details=customer_data.get("policy_details"),
-            preferred_language=Language(customer_data.get("preferred_language", "en")),
+            preferred_language=Language(
+                customer_data.get("preferred_language", "en")),
         )
 
         return await self.generate_communication(context)
