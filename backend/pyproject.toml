@@ -1,40 +1,10 @@
 [project]
 name = "uv-fastapi-example"
 version = "0.1.0"
-description = "Add your description here"
+description = "Hello World FastAPI app"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "autogen-agentchat>=0.6.1",
-    "autogen-ext[openai]>=0.6.1",
-    "azure-identity>=1.15.0",
     "fastapi[standard]>=0.112.1",
-    "httpx>=0.25.0",
-    "pillow>=10.0.0",
-    "pydantic-settings>=2.9.1",
-    "ruff>=0.11.13",
-]
-
-[project.optional-dependencies]
-test = [
-    "pytest>=7.0.0",
-    "httpx>=0.24.0",
-]
-
-[dependency-groups]
-test = [
-    "pytest>=8.4.0",
-]
-
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-addopts = ["-v", "--tb=short"]
-filterwarnings = [
-    "ignore::DeprecationWarning",
-    "ignore::PytestUnknownMarkWarning"
+    "uvicorn[standard]>=0.29.0",
 ]
