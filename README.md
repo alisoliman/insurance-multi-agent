@@ -1,32 +1,21 @@
-# Shadcn-FastAPI Starter
+# Insurance Multi-Agent Backend (FastAPI)
 
-A minimalist boilerplate for building applications with a Python FastAPI backend and a Next.js frontend using shadcn/ui components.
+This repository contains a modular FastAPI backend that exposes a multi-agent workflow (built with LangGraph) for processing insurance claims.
 
 ## Features
 
-- **Backend**: Python FastAPI with uv for dependency management
-- **Frontend**: Next.js with shadcn/ui components and TypeScript
-- **Deployment**: Azure Container Apps infrastructure
-- **Example App**: Task Manager with CRUD operations
-
-## Example Application: Task Manager
-
-This boilerplate includes a simple Task Manager application that demonstrates:
-
-- Task creation, reading, updating, and deletion
-- Status filtering (pending, completed, etc.)
-- Clean API design with FastAPI
-- Modern UI with shadcn/ui components
-- Responsive design with dark/light mode
+* **Multi-Agent Workflow** – Claim assessor, policy checker, risk analyst, communication agent, orchestrated by a LangGraph supervisor.
+* **Tools** – Policy lookup, claimant history, vehicle details, policy-document semantic search, Azure-GPT multimodal image analysis.
+* **Config** – Centralised settings via `app/core/config.py`.
+* **Dev server** – Run with `uv run fastapi dev`.
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.10+
-- Node.js 18+
-- uv (Python package manager)
-- Azure Developer CLI (for deployment)
+* Python 3.12+
+* [uv](https://github.com/astral-sh/uv)
+* Azure OpenAI account (optional – the app can run with stubbed LLM if env vars are missing)
 
 ### Backend Setup
 
@@ -37,30 +26,29 @@ uv run fastapi dev
 
 The API will be available at http://localhost:8000
 
-### Frontend Setup
+### Environment Variables
 
-```bash
-cd frontend
-npm install --legacy-peer-deps
-npm run dev
+Set these in your shell or a `.env` file if you want real Azure OpenAI calls:
+
+```
+AZURE_OPENAI_API_KEY=...
+AZURE_OPENAI_ENDPOINT=...
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
 ```
 
-The frontend will be available at http://localhost:3000
-
-## Deployment
-
-Deploy to Azure Container Apps:
-
-```bash
-azd auth login
-azd up
-```
+Without them the backend falls back to a local stub LLM.
 
 ## Project Structure
 
-- `backend/`: FastAPI application with task management API
-- `frontend/`: Next.js application with shadcn/ui components  
-- `infra/`: Azure infrastructure as code (Bicep templates)
+```
+backend/
+  app/
+    api/v1/endpoints/      # FastAPI routers
+    core/                 # Settings, utils
+    models/               # Pydantic schemas
+    services/             # Orchestration wrappers
+    workflow/             # Agents, tools, supervisor graph
+```
 
 ## License
 
