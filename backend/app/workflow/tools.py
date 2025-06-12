@@ -195,24 +195,60 @@ def search_policy_documents(query: str) -> Dict[str, Any]:
 
 @tool
 def analyze_image(image_path: str) -> Dict[str, Any]:
-    """Analyze an image using Azure OpenAI multimodal model."""
+    """Analyze an image using the Azure OpenAI multimodal model.
+
+    The model is asked to (a) classify the image into one of three categories —
+    ``claim_form``, ``invoice``, or ``damage_photo`` — and (b) extract any
+    relevant structured data it can confidently identify. The response **must**
+    be valid JSON so downstream agents can parse it easily.
+
+    Args:
+        image_path: Path to a local image file (jpg, png, etc.).
+
+    Returns:
+        Dictionary with keys:
+        ``status`` (success|error), ``category``, ``data_extracted`` (may be
+        nested JSON), and optional ``raw_response``.
+    """
+
     if not os.path.exists(image_path):
         return {"status": "error", "message": f"Image not found: {image_path}"}
+
     try:
-        import openai
+        # ------------------------------------------------------------
+        # 1) Base64-encode the image so we can send via data URL.
+        # ------------------------------------------------------------
         with open(image_path, "rb") as f:
             image_b64 = base64.b64encode(f.read()).decode("utf-8")
+
+        # ------------------------------------------------------------
+        # 2) Build multimodal ChatCompletion request.
+        # ------------------------------------------------------------
+        import openai  # lazy import to avoid mandatory dependency elsewhere
+
         client = openai.AzureOpenAI(
             azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
             api_key=os.getenv("AZURE_OPENAI_API_KEY"),
             api_version="2024-02-15-preview",
         )
+
         deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4o")
+
         system_prompt = (
             "You are an insurance image analyst. "
-            "Classify the image into exactly one of: claim_form, invoice, damage_photo. "
-            "Then extract structured data. Return JSON."
+            "Classify the image into exactly one of the following categories: "
+            "claim_form, invoice, damage_photo. "
+            "Then extract any structured data you can confidently identify.\n\n"
+            "For damage_photo: extract vehicle type, damage location, damage type, visible damage details.\n"
+            "For invoice: extract invoice number, total cost, service details, vehicle info.\n"
+            "For claim_form: extract claim number, dates, claimant info.\n\n"
+            "Always include a 'summary' field with a clear, detailed description of what you see in the image.\n\n"
+            "Return JSON like:\n"
+            "{\n  \"category\": \"damage_photo\",\n"
+            "  \"summary\": \"Image shows a silver sedan with significant front-end collision damage...\",\n"
+            "  \"data_extracted\": {\"vehicle_type\": \"car\", \"damage_location\": \"front\", ...}\n}"
         )
+
         messages = [
             {"role": "system", "content": system_prompt},
             {
@@ -220,28 +256,45 @@ def analyze_image(image_path: str) -> Dict[str, Any]:
                 "content": [
                     {
                         "type": "image_url",
-                        "image_url": {"url": f"data:image/jpeg;base64,{image_b64}", "detail": "auto"},
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{image_b64}",
+                            "detail": "auto",
+                        },
                     }
                 ],
             },
         ]
+
         response = client.chat.completions.create(
             model=deployment_name,
             messages=messages,
             temperature=0,
             response_format={"type": "json_object"},
         )
+
+        # The model must reply with a JSON object.
         content = response.choices[0].message.content
-        parsed = json.loads(content)
+        try:
+            parsed = json.loads(content)
+        except json.JSONDecodeError as err:
+            logger.error("LLM returned non-JSON: %s", content)
+            return {"status": "error", "message": "Invalid JSON from LLM", "raw_response": content}
+
+        category = parsed.get("category")
+        summary = parsed.get("summary")
+        data_extracted = parsed.get("data_extracted")
+
         return {
             "status": "success",
             "image_path": image_path,
-            "category": parsed.get("category"),
-            "data_extracted": parsed.get("data_extracted"),
+            "category": category,
+            "summary": summary,
+            "data_extracted": data_extracted,
         }
+
     except Exception as e:
         logger.error("Error analyzing image %s: %s",
-                     image_path, e, exc_info=True)
+                     image_path, str(e), exc_info=True)
         return {"status": "error", "message": str(e)}
 
 

@@ -34,12 +34,15 @@ logger = logging.getLogger(__name__)
 # Shared LLM configuration (Azure OpenAI)
 # ---------------------------------------------------------------------------
 
-def _build_llm() -> AzureChatOpenAI:  # noqa: D401
-    """Instantiate AzureChatOpenAI with env vars; fall back to dummy config."""
 
-    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4o")
-    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+def _build_llm() -> AzureChatOpenAI:  # noqa: D401
+    """Instantiate AzureChatOpenAI with centralized config; fall back to dummy config."""
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    endpoint = settings.azure_openai_endpoint
+    deployment = settings.azure_openai_deployment_name or "gpt-4o"
+    api_key = settings.azure_openai_api_key
 
     logger.info("✅ Configuration loaded successfully")
     logger.info("Azure OpenAI Endpoint: %s", endpoint or "Not set")
@@ -83,11 +86,13 @@ logger.info("- 📧 Communication Agent: Customer outreach for missing informati
 # Compile supervisor
 # ---------------------------------------------------------------------------
 
+
 def create_insurance_supervisor():  # noqa: D401
     """Create and compile the supervisor coordinating all agents."""
 
     supervisor = create_supervisor(
-        agents=[claim_assessor, policy_checker, risk_analyst, communication_agent],
+        agents=[claim_assessor, policy_checker,
+                risk_analyst, communication_agent],
         model=LLM,
         prompt="""You are a senior claims manager supervising a team of insurance claim processing specialists.
 
@@ -129,48 +134,117 @@ logger.info("%s", "=" * 80)
 # Public helper
 # ---------------------------------------------------------------------------
 
-def process_claim_with_supervisor(claim_data: Dict[str, Any]) -> List[Dict[str, Any]]:  # noqa: D401,E501
-    """Run the claim through the supervisor and return the raw stream chunks.
 
-    Each streamed chunk is logged at INFO level summarising the agent involved
-    and the last message content (truncated for readability).
+def process_claim_with_supervisor(claim_data: Dict[str, Any]) -> List[Dict[str, Any]]:  # noqa: D401,E501
+    """Run the claim through the supervisor and return detailed trace information.
+
+    Returns comprehensive trace data including:
+    - Agent interactions and handoffs
+    - Tool calls and results
+    - Message history per agent
+    - Workflow state transitions
+    - Timing information
     """
 
     logger.info("")
     logger.info("🚀 Starting supervisor-based claim processing…")
-    logger.info("📋 Processing Claim ID: %s", claim_data.get("claim_id", "Unknown"))
+    logger.info("📋 Processing Claim ID: %s",
+                claim_data.get("claim_id", "Unknown"))
     logger.info("%s", "=" * 60)
 
     messages = [
         {
             "role": "user",
             "content": (
-                "Please process this insurance claim through your team of specialists:"\
+                "Please process this insurance claim through your team of specialists:"
                 f"\n\n{json.dumps(claim_data, indent=2)}"
             ),
         }
     ]
 
     chunks: List[Dict[str, Any]] = []
-    for chunk in insurance_supervisor.stream({"messages": messages}):
-        # Log a concise summary of each agent step to aid debugging
+    step_count = 0
+
+    # Enhanced streaming with detailed trace capture
+    for chunk in insurance_supervisor.stream(
+        {"messages": messages},
+        stream_mode="values",  # Get full state values
+        debug=True  # Enable debug information
+    ):
+        step_count += 1
+
+        # Enhanced chunk processing with detailed trace information
+        enhanced_chunk = {
+            "step": step_count,
+            "timestamp": __import__("datetime").datetime.now().isoformat(),
+            "raw_chunk": chunk,
+            "trace_info": {}
+        }
+
         for node_name, node_data in chunk.items():
-            if node_name == "__end__" or "messages" not in node_data:
+            if node_name == "__end__":
+                enhanced_chunk["trace_info"]["workflow_complete"] = True
                 continue
-            last_msg = node_data["messages"][-1]
 
-            # Determine sender role/type safely
-            role = getattr(last_msg, "role", getattr(last_msg, "type", last_msg.__class__.__name__))
+            if "messages" not in node_data:
+                continue
 
-            # Extract content for preview – fall back to str(message) if unavailable
-            if hasattr(last_msg, "content") and isinstance(last_msg.content, str):  # type: ignore[attr-defined]
-                full_content = last_msg.content  # type: ignore[attr-defined]
+            messages_list = node_data["messages"]
+            if not messages_list:
+                continue
+
+            last_msg = messages_list[-1]
+
+            # Extract detailed message information
+            message_info = {
+                "agent": node_name,
+                "message_count": len(messages_list),
+                "message_type": type(last_msg).__name__,
+                "role": getattr(last_msg, "role", "unknown"),
+            }
+
+            # Extract content safely
+            if hasattr(last_msg, "content"):
+                content = last_msg.content
+                if isinstance(content, str):
+                    message_info["content"] = content
+                    message_info["content_preview"] = content  # No truncation
+                else:
+                    message_info["content"] = str(content)
+                    message_info["content_preview"] = str(
+                        content)  # No truncation
             else:
-                full_content = str(last_msg)
+                message_info["content"] = str(last_msg)
+                message_info["content_preview"] = str(
+                    last_msg)  # No truncation
 
-            preview = full_content[:120].replace("\n", " ") + ("…" if len(full_content) > 120 else "")
+            # Check for tool calls in the message
+            if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
+                message_info["tool_calls"] = []
+                for tool_call in last_msg.tool_calls:
+                    tool_info = {
+                        "tool_name": getattr(tool_call, "name", "unknown"),
+                        "tool_id": getattr(tool_call, "id", "unknown"),
+                    }
+                    if hasattr(tool_call, "args"):
+                        tool_info["args"] = tool_call.args
+                    message_info["tool_calls"].append(tool_info)
 
-            logger.info("%s → %s: %s", node_name, role, preview)
+            # Check for additional message attributes
+            if hasattr(last_msg, "additional_kwargs") and last_msg.additional_kwargs:
+                message_info["additional_kwargs"] = last_msg.additional_kwargs
 
-        chunks.append(chunk)
+            enhanced_chunk["trace_info"][node_name] = message_info
+
+            # Log enhanced information
+            preview = message_info.get("content_preview", "No content")
+            tool_info = f" [Tools: {len(message_info.get('tool_calls', []))}]" if message_info.get(
+                'tool_calls') else ""
+            logger.info("Step %d - %s → %s: %s%s",
+                        step_count, node_name, message_info["role"],
+                        preview, tool_info)  # No truncation or newline replacement
+
+        chunks.append(enhanced_chunk)
+
+    logger.info("✅ Workflow completed in %d steps", step_count)
     return chunks

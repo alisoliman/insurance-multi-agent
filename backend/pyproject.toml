@@ -15,4 +15,5 @@ dependencies = [
     "langchain-community>=0.3.0",
     "faiss-cpu>=1.8.0",
     "tiktoken>=0.8.0",
+    "pydantic-settings>=2.9.1",
 ]

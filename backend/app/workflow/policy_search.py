@@ -64,11 +64,13 @@ class PolicyVectorSearch:  # noqa: D101
     # ------------------------------------------------------------------
     def _init_embeddings(self):
         try:
+            from app.core.config import get_settings
+            settings = get_settings()
+
             self.embeddings = AzureOpenAIEmbeddings(
-                model=os.getenv("AZURE_OPENAI_EMBEDDING_MODEL",
-                                "text-embedding-ada-002"),
-                azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-                api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+                model=settings.azure_openai_embedding_model or "text-embedding-ada-002",
+                azure_endpoint=settings.azure_openai_endpoint,
+                api_key=settings.azure_openai_api_key,
                 api_version="2024-02-01",
             )
             logger.info("Azure OpenAI embeddings initialized")

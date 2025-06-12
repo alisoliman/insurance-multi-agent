@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from app.models.claim import ClaimIn, ClaimOut, ClaimByIdIn, ClaimDataIn
+from app.models.claim import ClaimIn, ClaimOut
 from app.services.claim_processing import run as run_workflow
 from app.sample_data import ALL_SAMPLE_CLAIMS
 
@@ -61,60 +61,6 @@ async def workflow_run(claim: ClaimIn):  # noqa: D401
             # Use provided claim data directly
             claim_data = claim.to_dict()
 
-        chunks = run_workflow(claim_data)
-
-        # Aggregate conversation per agent
-        conversation: dict[str, list[dict[str, str]]] = {}
-        msg_counters: dict[str, int] = {}
-        final_decision: str | None = None
-
-        for chunk in chunks:
-            for node_name, node_data in chunk.items():
-                if node_name == "__end__" or "messages" not in node_data:
-                    continue
-
-                msgs = node_data["messages"]
-                start = msg_counters.get(node_name, 0)
-                new = msgs[start:]
-                if not new:
-                    continue
-                conversation.setdefault(node_name, [])
-                for m in new:
-                    conversation[node_name].append({
-                        "role": getattr(m, "role", "assistant"),
-                        "content": getattr(m, "content", str(m)),
-                    })
-                msg_counters[node_name] = len(msgs)
-
-        sup_msgs = conversation.get("supervisor", [])
-        if sup_msgs:
-            final_decision = sup_msgs[-1]["content"]
-
-        return ClaimOut(success=True, final_decision=final_decision, conversation=conversation)
-
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
-
-
-@router.post("/workflow/run-by-id", response_model=ClaimOut)
-async def workflow_run_by_id(request: ClaimIdRequest):  # noqa: D401
-    """Run a sample claim by ID through the multi-agent workflow."""
-
-    # Find the claim in sample data
-    claim_data = None
-    for sample_claim in ALL_SAMPLE_CLAIMS:
-        if sample_claim["claim_id"] == request.claim_id:
-            claim_data = sample_claim
-            break
-
-    if not claim_data:
-        available_ids = [claim["claim_id"] for claim in ALL_SAMPLE_CLAIMS]
-        raise HTTPException(
-            status_code=404,
-            detail=f"Claim ID '{request.claim_id}' not found. Available IDs: {available_ids}"
-        )
-
-    try:
         chunks = run_workflow(claim_data)
 
         # Aggregate conversation per agent

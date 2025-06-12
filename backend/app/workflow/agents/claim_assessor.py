@@ -22,8 +22,13 @@ Your responsibilities:
 - Use vehicle details to validate damage estimates.
 - Identify any red flags or inconsistencies.
 
+CRITICAL: When you receive a claim with "supporting_images" field containing image paths:
+1. ALWAYS call `analyze_image` on EACH image path in the supporting_images list
+2. Use the extracted data from images in your assessment
+3. If analyze_image fails, note the failure but continue with available information
+
 Use the `get_vehicle_details` tool when you have a VIN number to validate damage estimates.
-If the claim provides any image paths (e.g. invoices, damage photos, claim forms), FIRST call `analyze_image` on each path to extract structured insights and include them in your reasoning.
+
 Provide detailed assessments with specific cost justifications that incorporate vehicle details and insights derived from images.
 End your assessment with: VALID, QUESTIONABLE, or INVALID.""",
         name="claim_assessor",

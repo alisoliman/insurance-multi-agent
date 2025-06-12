@@ -8,14 +8,24 @@ from __future__ import annotations
 import functools
 from typing import Any, Dict
 
-from pydantic import BaseSettings, Field
+try:
+    from pydantic_settings import BaseSettings
+    from pydantic import Field
+except ImportError:
+    # Fallback for older pydantic versions
+    from pydantic import BaseSettings, Field
 
 
 class Settings(BaseSettings):  # noqa: D101
     # Azure OpenAI
-    azure_openai_api_key: str | None = Field(default=None, alias="AZURE_OPENAI_API_KEY")
-    azure_openai_endpoint: str | None = Field(default=None, alias="AZURE_OPENAI_ENDPOINT")
-    azure_openai_deployment_name: str | None = Field(default="gpt-4o", alias="AZURE_OPENAI_DEPLOYMENT_NAME")
+    azure_openai_api_key: str | None = Field(
+        default=None, alias="AZURE_OPENAI_API_KEY")
+    azure_openai_endpoint: str | None = Field(
+        default=None, alias="AZURE_OPENAI_ENDPOINT")
+    azure_openai_deployment_name: str | None = Field(
+        default="gpt-4o", alias="AZURE_OPENAI_DEPLOYMENT_NAME")
+    azure_openai_embedding_model: str | None = Field(
+        default="text-embedding-ada-002", alias="AZURE_OPENAI_EMBEDDING_MODEL")
 
     # FastAPI
     app_name: str = "Insurance Multi-Agent Backend"
