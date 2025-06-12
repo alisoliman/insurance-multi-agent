@@ -18,7 +18,7 @@ sample_claim = {
     "location": "Main St & Oak Ave, Springfield",
     "police_report": True,
     "photos_provided": True,
-    "witness_statements": 2,
+    "witness_statements": "2",
     "vehicle_info": {
         "vin": "1HGBH41JXMN109186",  # Added for vehicle lookup
         "make": "Honda",
@@ -45,7 +45,7 @@ high_value_claim = {
     "location": "Highway 101, Mile Marker 45",
     "police_report": True,
     "photos_provided": True,
-    "witness_statements": 3,
+    "witness_statements": "3",
     "vehicle_info": {
         "vin": "1HGBH41JXMN109186",
         "make": "Honda",
@@ -68,7 +68,7 @@ suspicious_claim = {
     "location": "Unknown parking lot",
     "police_report": False,  # Red flag
     "photos_provided": False,  # Red flag
-    "witness_statements": 0,  # Red flag
+    "witness_statements": "0",  # Red flag
     "vehicle_info": {
         "vin": "UNKNOWN123456789",  # Invalid VIN
         "make": "Unknown",

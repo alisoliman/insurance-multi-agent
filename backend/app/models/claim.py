@@ -24,7 +24,7 @@ class ClaimIn(BaseModel):
     location: Optional[str] = None
     police_report: Optional[bool] = None
     photos_provided: Optional[bool] = None
-    witness_statements: Optional[int] = None
+    witness_statements: Optional[str] = None
     vehicle_info: Optional[Dict[str, Any]] = None
     supporting_images: Optional[list] = None
 

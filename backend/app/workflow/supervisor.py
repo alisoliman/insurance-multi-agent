@@ -166,14 +166,15 @@ def process_claim_with_supervisor(claim_data: Dict[str, Any]) -> List[Dict[str, 
     step_count = 0
 
     # Enhanced streaming with detailed trace capture
-    for chunk in insurance_supervisor.stream(
-        {"messages": messages},
-        stream_mode="values",  # Get full state values
-        debug=True  # Enable debug information
-    ):
-        step_count += 1
+    try:
+        for chunk in insurance_supervisor.stream(
+            {"messages": messages},
+            stream_mode="values",  # Get full state values
+            debug=False  # Disable debug information temporarily
+        ):
+            step_count += 1
 
-        # Enhanced chunk processing with detailed trace information
+            # Enhanced chunk processing with proper trace information
         enhanced_chunk = {
             "step": step_count,
             "timestamp": __import__("datetime").datetime.now().isoformat(),
@@ -184,6 +185,7 @@ def process_claim_with_supervisor(claim_data: Dict[str, Any]) -> List[Dict[str, 
         for node_name, node_data in chunk.items():
             if node_name == "__end__":
                 enhanced_chunk["trace_info"]["workflow_complete"] = True
+                logger.info("Step %d - Workflow completed", step_count)
                 continue
 
             if "messages" not in node_data:
@@ -208,27 +210,27 @@ def process_claim_with_supervisor(claim_data: Dict[str, Any]) -> List[Dict[str, 
                 content = last_msg.content
                 if isinstance(content, str):
                     message_info["content"] = content
-                    message_info["content_preview"] = content  # No truncation
+                    message_info["content_preview"] = content
                 else:
                     message_info["content"] = str(content)
-                    message_info["content_preview"] = str(
-                        content)  # No truncation
+                    message_info["content_preview"] = str(content)
             else:
                 message_info["content"] = str(last_msg)
-                message_info["content_preview"] = str(
-                    last_msg)  # No truncation
+                message_info["content_preview"] = str(last_msg)
 
-            # Check for tool calls in the message
-            if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
-                message_info["tool_calls"] = []
-                for tool_call in last_msg.tool_calls:
-                    tool_info = {
-                        "tool_name": getattr(tool_call, "name", "unknown"),
-                        "tool_id": getattr(tool_call, "id", "unknown"),
-                    }
-                    if hasattr(tool_call, "args"):
-                        tool_info["args"] = tool_call.args
-                    message_info["tool_calls"].append(tool_info)
+            # Check for tool calls in the message (with proper type checking)
+            if hasattr(last_msg, "tool_calls"):
+                tool_calls_attr = getattr(last_msg, "tool_calls", None)
+                if tool_calls_attr and isinstance(tool_calls_attr, (list, tuple)) and len(tool_calls_attr) > 0:
+                    message_info["tool_calls"] = []
+                    for tool_call in tool_calls_attr:
+                        tool_info = {
+                            "tool_name": getattr(tool_call, "name", "unknown"),
+                            "tool_id": getattr(tool_call, "id", "unknown"),
+                        }
+                        if hasattr(tool_call, "args"):
+                            tool_info["args"] = tool_call.args
+                        message_info["tool_calls"].append(tool_info)
 
             # Check for additional message attributes
             if hasattr(last_msg, "additional_kwargs") and last_msg.additional_kwargs:
@@ -238,13 +240,17 @@ def process_claim_with_supervisor(claim_data: Dict[str, Any]) -> List[Dict[str, 
 
             # Log enhanced information
             preview = message_info.get("content_preview", "No content")
-            tool_info = f" [Tools: {len(message_info.get('tool_calls', []))}]" if message_info.get(
-                'tool_calls') else ""
+            tool_calls_list = message_info.get('tool_calls', [])
+            tool_info = f" [Tools: {len(tool_calls_list)}]" if isinstance(
+                tool_calls_list, list) and tool_calls_list else ""
             logger.info("Step %d - %s → %s: %s%s",
                         step_count, node_name, message_info["role"],
-                        preview, tool_info)  # No truncation or newline replacement
+                        preview, tool_info)
 
         chunks.append(enhanced_chunk)
 
-    logger.info("✅ Workflow completed in %d steps", step_count)
-    return chunks
+        logger.info("✅ Workflow completed in %d steps", step_count)
+        return chunks
+    except Exception as e:
+        logger.error("Error in workflow processing: %s", e, exc_info=True)
+        raise

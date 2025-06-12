@@ -69,11 +69,15 @@ async def workflow_run(claim: ClaimIn):  # noqa: D401
         final_decision: str | None = None
 
         for chunk in chunks:
-            for node_name, node_data in chunk.items():
-                if node_name == "__end__" or "messages" not in node_data:
+            # Handle the new chunk structure with raw_chunk
+            raw_chunk = chunk.get("raw_chunk", chunk)
+            for node_name, node_data in raw_chunk.items():
+                if node_name == "__end__" or not isinstance(node_data, dict) or "messages" not in node_data:
                     continue
 
                 msgs = node_data["messages"]
+                if not msgs:
+                    continue
                 start = msg_counters.get(node_name, 0)
                 new = msgs[start:]
                 if not new:
