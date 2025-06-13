@@ -4,7 +4,9 @@ import {
   IconCreditCard,
   IconDotsVertical,
   IconLogout,
+  IconMoon,
   IconNotification,
+  IconSun,
   IconUserCircle,
 } from "@tabler/icons-react"
 
@@ -28,6 +30,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { useTheme } from "next-themes"
 
 export function NavUser({
   user,
@@ -39,6 +42,7 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
+  const { theme, setTheme } = useTheme()
 
   return (
     <SidebarMenu>
@@ -95,6 +99,10 @@ export function NavUser({
               <DropdownMenuItem>
                 <IconNotification />
                 Notifications
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+                {theme === 'dark' ? <IconSun /> : <IconMoon />}
+                {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

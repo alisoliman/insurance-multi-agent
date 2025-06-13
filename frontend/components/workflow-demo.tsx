@@ -153,13 +153,13 @@ const getDecisionIcon = (decision: string) => {
 const getDecisionColor = (decision: string) => {
   switch (decision) {
     case 'APPROVED':
-      return 'bg-green-100 text-green-800 border-green-200'
+      return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800'
     case 'DENIED':
-      return 'bg-red-100 text-red-800 border-red-200'
+      return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800'
     case 'REQUIRES_INVESTIGATION':
-      return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800'
     default:
-      return 'bg-gray-100 text-gray-800 border-gray-200'
+      return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700'
   }
 }
 
@@ -225,6 +225,11 @@ export function WorkflowDemo() {
   const [workflowResult, setWorkflowResult] = useState<WorkflowResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
+
+  // Derived selected claim object
+  const selectedClaim = availableClaims.find(
+    (claim) => claim.claim_id === selectedClaimId
+  )
 
   // Fetch available claims on component mount
   useEffect(() => {
@@ -337,7 +342,7 @@ export function WorkflowDemo() {
         <div className="space-y-6">
           {/* System Architecture Information */}
           <TooltipProvider>
-            <Card className="border-2 border-dashed border-gray-200 hover:border-gray-300 transition-colors">
+                            <Card className="border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-colors">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Bot className="h-5 w-5 text-blue-600" />
@@ -359,8 +364,8 @@ export function WorkflowDemo() {
                     </AccordionTrigger>
                     <AccordionContent>
                       <div className="space-y-4 pt-2">
-                        <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200">
-                          <div className="flex items-center gap-2 text-sm text-gray-700 mb-4">
+                        <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                          <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 mb-4">
                             <Bot className="h-4 w-4 text-blue-600" />
                             <span className="font-medium">Supervisor orchestrates the entire workflow</span>
                           </div>
@@ -372,13 +377,13 @@ export function WorkflowDemo() {
                               { step: 4, agent: 'Communication Agent', action: 'drafts customer emails if information is missing', color: 'bg-purple-500', icon: MessageSquare },
                               { step: 5, agent: 'Supervisor', action: 'makes final decision based on all assessments', color: 'bg-gray-600', icon: Target }
                             ].map((item, index) => (
-                              <div key={index} className="flex items-center gap-3 group hover:bg-white/50 p-2 rounded transition-colors">
+                              <div key={index} className="flex items-center gap-3 group hover:bg-white/50 dark:hover:bg-gray-800/50 p-2 rounded transition-colors">
                                 <div className={`w-8 h-8 ${item.color} text-white rounded-full flex items-center justify-center text-sm font-bold shadow-sm`}>
                                   {item.step}
                                 </div>
-                                <item.icon className="h-4 w-4 text-gray-500" />
+                                <item.icon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                                 <span className="text-sm">
-                                  <strong className="text-gray-900">{item.agent}</strong> {item.action}
+                                  <strong className="text-gray-900 dark:text-gray-100">{item.agent}</strong> <span className="text-gray-700 dark:text-gray-300">{item.action}</span>
                                 </span>
                                 {index < 4 && <ArrowRight className="h-3 w-3 text-gray-400 ml-auto" />}
                               </div>
@@ -421,12 +426,12 @@ export function WorkflowDemo() {
 
                           {/* Claim Assessor Tab */}
                           <TabsContent value="claim_assessor" className="mt-0">
-                            <div className="border rounded-lg p-4 bg-blue-50/30 border-blue-200">
+                            <div className="border rounded-lg p-4 bg-blue-50/30 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
                               <div className="flex items-center gap-3 mb-4">
                                 {renderAgentAvatar('claim_assessor')}
                                 <div>
-                                  <h4 className="font-semibold text-blue-900">Claim Assessor</h4>
-                                  <p className="text-sm text-blue-700">Damage evaluation specialist</p>
+                                  <h4 className="font-semibold text-blue-900 dark:text-blue-100">Claim Assessor</h4>
+                                  <p className="text-sm text-blue-700 dark:text-blue-300">Damage evaluation specialist</p>
                                 </div>
                               </div>
                               <div className="grid grid-cols-1 gap-4">
@@ -438,8 +443,8 @@ export function WorkflowDemo() {
                                   <div className="space-y-2">
                                     <Tooltip>
                                       <TooltipTrigger asChild>
-                                        <div className="bg-white p-2 rounded border text-xs cursor-help hover:bg-blue-50 transition-colors">
-                                          <code className="text-blue-600 font-medium">analyze_image</code>
+                                        <div className="bg-white dark:bg-gray-800 p-2 rounded border dark:border-gray-700 text-xs cursor-help hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors">
+                                          <code className="text-blue-600 dark:text-blue-400 font-medium">analyze_image</code>
                                         </div>
                                       </TooltipTrigger>
                                       <TooltipContent>
@@ -448,8 +453,8 @@ export function WorkflowDemo() {
                                     </Tooltip>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
-                                        <div className="bg-white p-2 rounded border text-xs cursor-help hover:bg-blue-50 transition-colors">
-                                          <code className="text-blue-600 font-medium">get_vehicle_details</code>
+                                        <div className="bg-white dark:bg-gray-800 p-2 rounded border dark:border-gray-700 text-xs cursor-help hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors">
+                                          <code className="text-blue-600 dark:text-blue-400 font-medium">get_vehicle_details</code>
                                         </div>
                                       </TooltipTrigger>
                                       <TooltipContent>
@@ -463,7 +468,7 @@ export function WorkflowDemo() {
                                     <Target className="h-3 w-3" />
                                     Key Responsibilities
                                   </h5>
-                                  <ul className="text-xs space-y-1 text-gray-700">
+                                  <ul className="text-xs space-y-1 text-gray-700 dark:text-gray-300">
                                     <li className="flex items-start gap-1">
                                       <span className="text-blue-500 mt-1">•</span>
                                       <span>Evaluate damage consistency</span>
@@ -484,12 +489,12 @@ export function WorkflowDemo() {
 
                           {/* Policy Checker Tab */}
                           <TabsContent value="policy_checker" className="mt-0">
-                            <div className="border rounded-lg p-4 bg-green-50/30 border-green-200">
+                            <div className="border rounded-lg p-4 bg-green-50/30 dark:bg-green-950/20 border-green-200 dark:border-green-800">
                               <div className="flex items-center gap-3 mb-4">
                                 {renderAgentAvatar('policy_checker')}
                                 <div>
-                                  <h4 className="font-semibold text-green-900">Policy Checker</h4>
-                                  <p className="text-sm text-green-700">Coverage verification specialist</p>
+                                  <h4 className="font-semibold text-green-900 dark:text-green-100">Policy Checker</h4>
+                                  <p className="text-sm text-green-700 dark:text-green-300">Coverage verification specialist</p>
                                 </div>
                               </div>
                               <div className="grid grid-cols-1 gap-4">
@@ -501,8 +506,8 @@ export function WorkflowDemo() {
                                   <div className="space-y-2">
                                     <Tooltip>
                                       <TooltipTrigger asChild>
-                                        <div className="bg-white p-2 rounded border text-xs cursor-help hover:bg-green-50 transition-colors">
-                                          <code className="text-green-600 font-medium">get_policy_details</code>
+                                        <div className="bg-white dark:bg-gray-800 p-2 rounded border dark:border-gray-700 text-xs cursor-help hover:bg-green-50 dark:hover:bg-green-950/30 transition-colors">
+                                          <code className="text-green-600 dark:text-green-400 font-medium">get_policy_details</code>
                                         </div>
                                       </TooltipTrigger>
                                       <TooltipContent>
@@ -511,8 +516,8 @@ export function WorkflowDemo() {
                                     </Tooltip>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
-                                        <div className="bg-white p-2 rounded border text-xs cursor-help hover:bg-green-50 transition-colors">
-                                          <code className="text-green-600 font-medium">search_policy_documents</code>
+                                        <div className="bg-white dark:bg-gray-800 p-2 rounded border dark:border-gray-700 text-xs cursor-help hover:bg-green-50 dark:hover:bg-green-950/30 transition-colors">
+                                          <code className="text-green-600 dark:text-green-400 font-medium">search_policy_documents</code>
                                         </div>
                                       </TooltipTrigger>
                                       <TooltipContent>
@@ -547,12 +552,12 @@ export function WorkflowDemo() {
 
                           {/* Risk Analyst Tab */}
                           <TabsContent value="risk_analyst" className="mt-0">
-                            <div className="border rounded-lg p-4 bg-orange-50/30 border-orange-200">
+                            <div className="border rounded-lg p-4 bg-orange-50/30 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800">
                               <div className="flex items-center gap-3 mb-4">
                                 {renderAgentAvatar('risk_analyst')}
                                 <div>
-                                  <h4 className="font-semibold text-orange-900">Risk Analyst</h4>
-                                  <p className="text-sm text-orange-700">Fraud detection specialist</p>
+                                  <h4 className="font-semibold text-orange-900 dark:text-orange-100">Risk Analyst</h4>
+                                  <p className="text-sm text-orange-700 dark:text-orange-300">Fraud detection specialist</p>
                                 </div>
                               </div>
                               <div className="grid grid-cols-1 gap-4">
@@ -564,8 +569,8 @@ export function WorkflowDemo() {
                                   <div className="space-y-2">
                                     <Tooltip>
                                       <TooltipTrigger asChild>
-                                        <div className="bg-white p-2 rounded border text-xs cursor-help hover:bg-orange-50 transition-colors">
-                                          <code className="text-orange-600 font-medium">get_claimant_history</code>
+                                        <div className="bg-white dark:bg-gray-800 p-2 rounded border dark:border-gray-700 text-xs cursor-help hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-colors">
+                                          <code className="text-orange-600 dark:text-orange-400 font-medium">get_claimant_history</code>
                                         </div>
                                       </TooltipTrigger>
                                       <TooltipContent>
@@ -579,7 +584,7 @@ export function WorkflowDemo() {
                                     <Target className="h-3 w-3" />
                                     Key Responsibilities
                                   </h5>
-                                  <ul className="text-xs space-y-1 text-gray-700">
+                                  <ul className="text-xs space-y-1 text-gray-700 dark:text-gray-300">
                                     <li className="flex items-start gap-1">
                                       <span className="text-orange-500 mt-1">•</span>
                                       <span>Analyze claimant history</span>
@@ -600,12 +605,12 @@ export function WorkflowDemo() {
 
                           {/* Communication Agent Tab */}
                           <TabsContent value="communication_agent" className="mt-0">
-                            <div className="border rounded-lg p-4 bg-purple-50/30 border-purple-200">
+                            <div className="border rounded-lg p-4 bg-purple-50/30 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800">
                               <div className="flex items-center gap-3 mb-4">
                                 {renderAgentAvatar('communication_agent')}
                                 <div>
-                                  <h4 className="font-semibold text-purple-900">Communication Agent</h4>
-                                  <p className="text-sm text-purple-700">Customer communication specialist</p>
+                                  <h4 className="font-semibold text-purple-900 dark:text-purple-100">Communication Agent</h4>
+                                  <p className="text-sm text-purple-700 dark:text-purple-300">Customer communication specialist</p>
                                 </div>
                               </div>
                               <div className="grid grid-cols-1 gap-4">
@@ -617,8 +622,8 @@ export function WorkflowDemo() {
                                   <div className="space-y-2">
                                     <Tooltip>
                                       <TooltipTrigger asChild>
-                                        <div className="bg-white p-2 rounded border text-xs cursor-help hover:bg-purple-50 transition-colors">
-                                          <code className="text-purple-600 font-medium">Language Model</code>
+                                        <div className="bg-white dark:bg-gray-800 p-2 rounded border dark:border-gray-700 text-xs cursor-help hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors">
+                                          <code className="text-purple-600 dark:text-purple-400 font-medium">Language Model</code>
                                         </div>
                                       </TooltipTrigger>
                                       <TooltipContent>
@@ -632,7 +637,7 @@ export function WorkflowDemo() {
                                     <Target className="h-3 w-3" />
                                     Key Responsibilities
                                   </h5>
-                                  <ul className="text-xs space-y-1 text-gray-700">
+                                  <ul className="text-xs space-y-1 text-gray-700 dark:text-gray-300">
                                     <li className="flex items-start gap-1">
                                       <span className="text-purple-500 mt-1">•</span>
                                       <span>Draft professional emails</span>
@@ -677,12 +682,16 @@ export function WorkflowDemo() {
                     <SelectTrigger className="h-11">
                       <SelectValue placeholder="Select a claim to process" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="w-[420px]">
                       {availableClaims.map((claim) => (
                         <SelectItem key={claim.claim_id} value={claim.claim_id}>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{claim.claim_id}</span>
-                            <span className="text-muted-foreground">- {claim.description}</span>
+                          <div className="flex flex-col text-left">
+                            <span className="font-medium">
+                              {claim.claim_id} - {claim.claimant_name}
+                            </span>
+                            <span className="text-muted-foreground text-xs whitespace-normal">
+                              {claim.claim_type} · ${claim.estimated_damage}
+                            </span>
                           </div>
                         </SelectItem>
                       ))}
@@ -709,20 +718,42 @@ export function WorkflowDemo() {
                 </Button>
               </div>
 
+              {selectedClaim && (
+                <div className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-800 space-y-1 text-sm">
+                  <div className="font-medium text-gray-900 dark:text-gray-100">Claim Summary</div>
+                  <div>
+                    <span className="font-medium">Claimant:</span>{' '}
+                    {selectedClaim.claimant_name}
+                  </div>
+                  <div>
+                    <span className="font-medium">Type:</span>{' '}
+                    {selectedClaim.claim_type}
+                  </div>
+                  <div>
+                    <span className="font-medium">Estimated Damage:</span>{' '}
+                    ${selectedClaim.estimated_damage.toLocaleString()}
+                  </div>
+                  <div>
+                    <span className="font-medium">Description:</span>{' '}
+                    <span className="whitespace-pre-wrap">{selectedClaim.description}</span>
+                  </div>
+                </div>
+              )}
+
               {isLoading && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-3">
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-blue-600 animate-spin" />
-                    <span className="font-medium text-blue-900">Processing workflow...</span>
+                    <span className="font-medium text-blue-900 dark:text-blue-100">Processing workflow...</span>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-blue-700">Agents collaborating on claim analysis</span>
-                      <span className="font-medium text-blue-900">{Math.round(progress)}%</span>
+                      <span className="text-blue-700 dark:text-blue-300">Agents collaborating on claim analysis</span>
+                      <span className="font-medium text-blue-900 dark:text-blue-100">{Math.round(progress)}%</span>
                     </div>
                     <Progress value={progress} className="w-full h-2" />
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-blue-600">
+                  <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400">
                     <Info className="h-3 w-3" />
                     <span>This may take 30-60 seconds as agents analyze the claim thoroughly</span>
                   </div>
@@ -818,16 +849,16 @@ export function WorkflowDemo() {
           {!isLoading && !workflowResult && (
             <Card className="h-fit">
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="rounded-full bg-gray-100 p-6 mb-4">
+                <div className="rounded-full bg-gray-100 dark:bg-gray-800 p-6 mb-4">
                   <Eye className="h-8 w-8 text-gray-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
                   Ready to Process Claims
                 </h3>
-                <p className="text-gray-600 mb-4 max-w-sm">
+                <p className="text-gray-600 dark:text-gray-400 mb-4 max-w-sm">
                   Select a claim from the left panel and click "Run Workflow" to see the multi-agent system in action.
                 </p>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
+                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                   <ArrowRight className="h-4 w-4 rotate-180" />
                   <span>Choose a claim to get started</span>
                 </div>

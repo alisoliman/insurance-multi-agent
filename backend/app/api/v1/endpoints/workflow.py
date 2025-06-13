@@ -40,7 +40,7 @@ async def list_sample_claims():
             "claimant_name": claim.get("claimant_name"),
             "claim_type": claim.get("claim_type"),
             "estimated_damage": claim.get("estimated_damage"),
-            "description": claim.get("description", "")[:100] + "..." if len(claim.get("description", "")) > 100 else claim.get("description", "")
+            "description": claim.get("description", "")
         })
 
     return {
