@@ -5,12 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { 
-  IconBrain, 
-  IconMessageCircle, 
-  IconGitBranch, 
+  IconBrain,
   IconExternalLink,
   IconPlayerPlay,
-  IconTestPipe
+  IconTestPipe,
+  IconFileText,
+  IconShield,
+  IconTrendingUp,
+  IconMessage
 } from "@tabler/icons-react"
 
 interface QuickAction {
@@ -24,37 +26,50 @@ interface QuickAction {
 
 const quickActions: QuickAction[] = [
   {
-    title: "Assessment Agent",
-    description: "Test AI-powered claim assessment with real-time analysis and decision-making",
-    href: "/agents/assessment",
-    icon: <IconBrain className="h-5 w-5" />,
-    badge: "AI Analysis",
-    badgeVariant: "default"
+    title: "Claim Assessor",
+    description:
+      "Analyzes claim details and determines initial assessment with risk scoring",
+    href: "/agents/claim-assessor",
+    icon: <IconFileText className="h-5 w-5" />,
+    badge: "Assessment",
+    badgeVariant: "default",
   },
   {
-    title: "Communication Agent", 
-    description: "Generate personalized customer communications in multiple languages",
-    href: "/agents/communication",
-    icon: <IconMessageCircle className="h-5 w-5" />,
-    badge: "Multi-language",
-    badgeVariant: "secondary"
+    title: "Policy Checker",
+    description:
+      "Validates policy coverage and verifies terms for claim eligibility",
+    href: "/agents/policy-checker",
+    icon: <IconShield className="h-5 w-5" />,
+    badge: "Validation",
+    badgeVariant: "default",
   },
   {
-    title: "Orchestrator Agent",
-    description: "Manage complex workflows and coordinate multiple agents",
-    href: "/agents/orchestrator", 
-    icon: <IconGitBranch className="h-5 w-5" />,
-    badge: "Workflow",
-    badgeVariant: "outline"
+    title: "Risk Analyst",
+    description:
+      "Evaluates fraud indicators and calculates comprehensive risk factors",
+    href: "/agents/risk-analyst",
+    icon: <IconTrendingUp className="h-5 w-5" />,
+    badge: "Risk Analysis",
+    badgeVariant: "secondary",
+  },
+  {
+    title: "Communication Agent",
+    description:
+      "Generates personalized customer communications and notifications",
+    href: "/agents/communication-agent",
+    icon: <IconMessage className="h-5 w-5" />,
+    badge: "Communication",
+    badgeVariant: "default",
   },
   {
     title: "Explainability Demo",
-    description: "Comprehensive AI decision transparency and human oversight interface",
+    description:
+      "Comprehensive AI decision transparency and human oversight interface",
     href: "/agents/explainability",
     icon: <IconBrain className="h-5 w-5" />,
     badge: "Transparency",
-    badgeVariant: "secondary"
-  }
+    badgeVariant: "secondary",
+  },
 ]
 
 export function QuickActions() {
@@ -70,7 +85,7 @@ export function QuickActions() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {quickActions.map((action) => (
             <div key={action.href} className="group relative">
               <Link href={action.href}>

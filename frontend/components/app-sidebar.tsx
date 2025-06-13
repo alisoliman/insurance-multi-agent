@@ -50,16 +50,20 @@ const data = {
       icon: IconUsers,
       items: [
         {
-          title: "Assessment Agent",
-          url: "/agents/assessment",
+          title: "Claim Assessor",
+          url: "/agents/claim-assessor",
+        },
+        {
+          title: "Policy Checker",
+          url: "/agents/policy-checker",
+        },
+        {
+          title: "Risk Analyst",
+          url: "/agents/risk-analyst",
         },
         {
           title: "Communication Agent",
-          url: "/agents/communication",
-        },
-        {
-          title: "Orchestrator Agent",
-          url: "/agents/orchestrator",
+          url: "/agents/communication-agent",
         },
         {
           title: "Explainability Demo",
