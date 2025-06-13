@@ -13,13 +13,21 @@ export const getApiUrl = async (): Promise<string> => {
     // If we're running on Azure Container Apps, construct the backend URL
     if (currentHost.includes('azurecontainerapps.io')) {
       // Replace 'frontend-' with 'backend-' in the hostname
-      const backendHost = currentHost.replace('frontend-', 'backend-')
+      const backendHost = currentHost.replace(/^frontend-/, 'backend-')
       cachedApiUrl = `https://${backendHost}`
       return cachedApiUrl
     }
   }
 
-  // Fallback to environment variables or localhost for development
+  // Attempt to build backend URL from server-side env (Azure Container Apps passes WEBSITE_HOSTNAME)
+  const siteHost = process.env.WEBSITE_HOSTNAME || process.env.NEXT_PUBLIC_SITE_HOST
+  if (siteHost && siteHost.includes('azurecontainerapps.io') && siteHost.startsWith('frontend-')) {
+    const backendHost = siteHost.replace(/^frontend-/, 'backend-')
+    cachedApiUrl = `https://${backendHost}`
+    return cachedApiUrl
+  }
+
+  // Fallback to predefined env var or localhost for development
   const fallback = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
   cachedApiUrl = fallback
   return fallback
