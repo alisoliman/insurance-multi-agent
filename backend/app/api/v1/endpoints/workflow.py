@@ -72,13 +72,7 @@ async def workflow_run(claim: ClaimIn):  # noqa: D401
                 if k != "claim_id"
             }
 
-            # If supporting_documents is provided, ensure both legacy and new keys updated
-            if "supporting_documents" in override_data:
-                claim_data["supporting_images"] = override_data["supporting_documents"]
-                claim_data["supporting_documents"] = override_data["supporting_documents"]
-                override_data.pop("supporting_documents")
-
-            # Apply remaining overrides
+            # Apply overrides (including supporting_images) on top of sample claim
             claim_data.update(override_data)
         else:
             # Full claim provided without loading sample

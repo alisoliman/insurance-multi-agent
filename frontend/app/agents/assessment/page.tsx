@@ -228,7 +228,7 @@ ${result.processing_notes}
         setSupportingDocs(paths)
       }
 
-      // 2) Call assessment API with supporting_documents list
+      // 2) Call assessment API with supporting_images list
       const assessResp = await fetch("http://localhost:8000/api/agents/assessment/process-claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -241,7 +241,7 @@ ${result.processing_notes}
           claimant_name: data.claimantName,
           contact_information: data.contactInformation,
           special_circumstances: data.specialCircumstances,
-          supporting_documents: paths,
+          supporting_images: paths,
         }),
       })
       if (!assessResp.ok) throw new Error(`HTTP error! status: ${assessResp.status}`)

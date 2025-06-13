@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Label } from "@/components/ui/label"
+import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { 
@@ -238,8 +239,8 @@ export function WorkflowDemo() {
     // Simulate progress updates
     const progressInterval = setInterval(() => {
       setProgress(prev => {
-        if (prev >= 90) return prev
-        return prev + Math.random() * 20
+        if (prev >= 95) return prev
+        return Math.min(prev + Math.random() * 10, 95)
       })
     }, 500)
 
@@ -254,7 +255,7 @@ export function WorkflowDemo() {
         },
         body: JSON.stringify(
           paths.length>0
-            ? { claim_id: selectedClaimId, supporting_documents: paths }
+            ? { claim_id: selectedClaimId, supporting_images: paths }
             : { claim_id: selectedClaimId }
         ),
       })
@@ -283,11 +284,15 @@ export function WorkflowDemo() {
     const files = Array.from(e.target.files||[])
     const allowed=['image/jpeg','image/png','image/bmp','image/webp','application/pdf','text/plain','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document']
     const valid=files.filter(f=>{
-      if(!allowed.includes(f.type)){ setError(`Unsupported type: ${f.name}`); return false }
-      if(f.size>10*1024*1024){ setError(`File too large: ${f.name}`); return false }
+      if(!allowed.includes(f.type)){ toast.error(`Unsupported type: ${f.name}`); return false }
+      if(f.size>10*1024*1024){ toast.error(`File too large: ${f.name}`); return false }
       return true
     })
-    if(valid.length>0){ setUploadedFiles(prev=>[...prev,...valid]); setError(`${valid.length} file(s) added`) }
+    if(valid.length>0){
+      setUploadedFiles(prev=>[...prev,...valid]);
+      toast.success(`${valid.length} file(s) added`)
+      setError(null)
+    }
   }
 
   const removeFile=(idx:number)=> setUploadedFiles(prev=>prev.filter((_,i)=>i!==idx))
@@ -735,7 +740,7 @@ export function WorkflowDemo() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-blue-700 dark:text-blue-300">Agents collaborating on claim analysis</span>
-                      <span className="font-medium text-blue-900 dark:text-blue-100">{Math.round(progress)}%</span>
+                      <span className="font-medium text-blue-900 dark:text-blue-100">{Math.min(Math.round(progress),100)}%</span>
                     </div>
                     <Progress value={progress} className="w-full h-2" />
                   </div>

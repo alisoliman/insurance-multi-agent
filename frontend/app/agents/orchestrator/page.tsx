@@ -106,17 +106,30 @@ export default function OrchestratorAgentDemo() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          claim_data: {
-            claim_id: data.claimId,
-            policy_number: "POL-" + data.claimId.split("-")[1] || "12345", // Generate policy number from claim ID
-            incident_date: new Date().toISOString().split('T')[0], // Use current date
-            description: data.description,
-            amount: 5000, // Default amount for demo
-            supporting_documents: paths,
-          },
-          use_graphflow: data.workflowType === "graphflow",
-        }),
+        body: JSON.stringify(
+          paths.length>0
+            ? {
+              claim_data: {
+                claim_id: data.claimId,
+                policy_number: "POL-" + data.claimId.split("-")[1] || "12345", // Generate policy number from claim ID
+                incident_date: new Date().toISOString().split('T')[0], // Use current date
+                description: data.description,
+                amount: 5000, // Default amount for demo
+                supporting_images: paths,
+              },
+              use_graphflow: data.workflowType === "graphflow",
+            }
+            : {
+              claim_data: {
+                claim_id: data.claimId,
+                policy_number: "POL-" + data.claimId.split("-")[1] || "12345", // Generate policy number from claim ID
+                incident_date: new Date().toISOString().split('T')[0], // Use current date
+                description: data.description,
+                amount: 5000, // Default amount for demo
+              },
+              use_graphflow: data.workflowType === "graphflow",
+            }
+        ),
       })
 
       if (!response.ok) {
