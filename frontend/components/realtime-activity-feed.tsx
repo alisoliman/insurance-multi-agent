@@ -134,8 +134,8 @@ const generateMockActivities = () => {
 };
 
 export const RealtimeActivityFeed: React.FC = () => {
-  // Use mock data for demo purposes
-  const allActivities = generateMockActivities();
+  // Generate mock data only once to avoid SSR/CSR timestamp mismatch
+  const [allActivities] = React.useState(generateMockActivities);
   
   const connectionStatus = 'Demo Mode';
   const connectionColor = 'bg-blue-500';

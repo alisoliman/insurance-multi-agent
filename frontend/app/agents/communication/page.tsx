@@ -6,6 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { toast } from "sonner"
 import { MessageSquare, Copy, Download } from "lucide-react"
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -486,8 +488,10 @@ export default function CommunicationAgentDemo() {
               {/* Content */}
               <div>
                 <Label className="text-sm font-medium">Content</Label>
-                <div className="mt-1 p-4 bg-muted rounded-md">
-                  <div className="text-sm whitespace-pre-wrap">{communicationResult.content}</div>
+                <div className="mt-1 p-4 bg-muted rounded-md prose prose-sm max-w-none dark:prose-invert">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {communicationResult.content}
+                  </ReactMarkdown>
                 </div>
               </div>
 

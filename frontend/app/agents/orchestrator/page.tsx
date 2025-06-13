@@ -5,9 +5,12 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { toast } from "sonner"
-import { Loader2, GitBranch, CheckCircle, Clock, AlertTriangle, Activity, AlertCircle } from "lucide-react"
+import { Loader2, GitBranch, CheckCircle, Clock, AlertTriangle, Activity, AlertCircle, Upload, FileText, X } from "lucide-react"
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
@@ -28,8 +31,6 @@ const orchestratorFormSchema = z.object({
 })
 
 type OrchestratorFormData = z.infer<typeof orchestratorFormSchema>
-
-
 
 interface OrchestratorResult {
   workflow_id: string
@@ -63,6 +64,8 @@ export default function OrchestratorAgentDemo() {
   const [graphFlowResult, setGraphFlowResult] = useState<GraphFlowResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [currentClaimData, setCurrentClaimData] = useState<OrchestratorFormData | null>(null)
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
+  const [supportingDocs, setSupportingDocs] = useState<string[]>([])
 
   const form = useForm<OrchestratorFormData>({
     resolver: zodResolver(orchestratorFormSchema),
@@ -89,6 +92,15 @@ export default function OrchestratorAgentDemo() {
     setGraphFlowResult(null)
 
     try {
+      // upload files first
+      let paths: string[] = []
+      if(uploadedFiles.length>0){
+        const fd=new FormData(); uploadedFiles.forEach(f=>fd.append('files',f))
+        const upRes=await fetch('http://localhost:8000/api/v1/files/upload',{method:'POST',body:fd})
+        if(!upRes.ok) throw new Error(`Upload failed (${upRes.status})`)
+        const upJson=await upRes.json(); paths=Array.isArray(upJson.paths)?upJson.paths:[]; setSupportingDocs(paths);
+      }
+
       const response = await fetch("http://localhost:8000/api/agents/orchestrator/process-workflow", {
         method: "POST",
         headers: {
@@ -101,6 +113,7 @@ export default function OrchestratorAgentDemo() {
             incident_date: new Date().toISOString().split('T')[0], // Use current date
             description: data.description,
             amount: 5000, // Default amount for demo
+            supporting_documents: paths,
           },
           use_graphflow: data.workflowType === "graphflow",
         }),
@@ -142,6 +155,19 @@ export default function OrchestratorAgentDemo() {
       setIsLoading(false)
     }
   }
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || [])
+    const allowed = ['image/jpeg','image/png','image/bmp','image/webp','application/pdf','text/plain','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+    const valid = files.filter(f=>{
+      if(!allowed.includes(f.type)){ toast.error(`Unsupported type: ${f.name}`); return false }
+      if(f.size>10*1024*1024){ toast.error(`File too large: ${f.name}`); return false }
+      return true
+    })
+    if(valid.length>0){ setUploadedFiles(prev=>[...prev,...valid]); toast.success(`${valid.length} file(s) added`) }
+  }
+
+  const removeFile = (idx:number)=>{ setUploadedFiles(prev=>prev.filter((_,i)=>i!==idx)) }
 
   const getStepIcon = (status: string) => {
     switch (status) {
@@ -347,6 +373,36 @@ export default function OrchestratorAgentDemo() {
                 )}
               />
 
+              {/* File upload section */}
+              <div className="space-y-4">
+                <Label className="text-sm font-medium">Supporting Documents</Label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                  <Upload className="mx-auto h-8 w-8 text-gray-400" />
+                  <Label htmlFor="wf-file-upload" className="cursor-pointer mt-2 block">
+                    <span className="text-sm font-medium text-blue-600 hover:text-blue-500">Upload files</span>
+                    <input id="wf-file-upload" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.bmp,.webp,.txt,.doc,.docx" onChange={handleFileUpload} className="sr-only" />
+                  </Label>
+                  <p className="text-xs text-gray-500">Images or documents up to 10 MB each</p>
+                </div>
+
+                {uploadedFiles.length>0 && (
+                  <div className="space-y-1">
+                    {uploadedFiles.map((f,i)=>(
+                      <div key={i} className="flex items-center justify-between bg-gray-50 p-2 rounded border">
+                        <div className="flex items-center space-x-2">
+                          <FileText className="h-4 w-4 text-gray-500" />
+                          <span className="text-sm truncate">{f.name}</span>
+                          <span className="text-xs text-gray-500">({(f.size/1024).toFixed(1)} KB)</span>
+                        </div>
+                        <button type="button" onClick={()=>removeFile(i)}>
+                          <X className="h-4 w-4 text-red-500" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <Button type="submit" disabled={isLoading} className="w-full">
                 {isLoading ? (
                   <>
@@ -520,6 +576,19 @@ export default function OrchestratorAgentDemo() {
                 )}
               </TabsContent>
             </Tabs>
+          )}
+
+          {graphFlowResult && (
+            <TabsContent value="workflow" className="mt-4">
+              <div className="space-y-4">
+                <h4 className="font-medium">Workflow Messages</h4>
+                <div className="prose prose-sm max-w-none dark:prose-invert bg-muted p-4 rounded-md">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {graphFlowResult.messages.join('\n\n')}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            </TabsContent>
           )}
 
           {!orchestratorResult && !graphFlowResult && !isLoading && !error && (

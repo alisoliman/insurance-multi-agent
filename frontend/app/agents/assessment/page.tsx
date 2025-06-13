@@ -122,7 +122,7 @@ export default function AssessmentAgentDemo() {
   const [assessmentResult, setAssessmentResult] = useState<AssessmentResult | null>(null)
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [useFileUpload, setUseFileUpload] = useState(false)
-  const [imageData, setImageData] = useState<ImageData[]>([])
+  const [supportingDocs, setSupportingDocs] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState("results")
 
   const form = useForm<AssessmentFormData>({
@@ -146,66 +146,6 @@ export default function AssessmentAgentDemo() {
     toast.success("Sample claim loaded!")
   }
 
-  const extractImageData = async (files: File[]): Promise<ImageData[]> => {
-    const imageDataPromises = files.map(async (file): Promise<ImageData> => {
-      const imageData: ImageData = {
-        filename: file.name,
-        size: file.size,
-        type: file.type,
-        metadata: {
-          lastModified: new Date(file.lastModified).toISOString(),
-          webkitRelativePath: (file as ExtendedFile).webkitRelativePath ?? '',
-        }
-      }
-
-      // For images, we can extract basic metadata
-      if (file.type.startsWith('image/')) {
-        try {
-          const img = new Image()
-          const canvas = document.createElement('canvas')
-          const ctx = canvas.getContext('2d')
-          
-          await new Promise((resolve, reject) => {
-            img.onload = () => {
-              canvas.width = img.width
-              canvas.height = img.height
-              ctx?.drawImage(img, 0, 0)
-              
-              imageData.metadata = {
-                ...imageData.metadata,
-                width: img.width,
-                height: img.height,
-                aspectRatio: (img.width / img.height).toFixed(2),
-                resolution: `${img.width}x${img.height}`,
-                estimatedQuality: img.width * img.height > 1000000 ? 'High' : img.width * img.height > 300000 ? 'Medium' : 'Low'
-              }
-              resolve(void 0)
-            }
-            img.onerror = reject
-            img.src = URL.createObjectURL(file)
-          })
-        } catch (error) {
-          console.warn('Failed to extract image metadata:', error)
-        }
-      }
-
-      // Simulate text extraction for documents
-      if (file.type === 'application/pdf' || file.type.includes('document')) {
-        imageData.extractedText = `[Simulated] Document content from ${file.name}. In a real implementation, this would contain extracted text from the document.`
-        imageData.analysis = `Document Analysis: ${file.name} appears to be a ${file.type.includes('pdf') ? 'PDF document' : 'text document'} with ${(file.size / 1024).toFixed(1)}KB of content.`
-      }
-
-      // Simulate AI analysis for images
-      if (file.type.startsWith('image/')) {
-        imageData.analysis = `Image Analysis: ${file.name} is a ${file.type} image. Based on visual inspection, this appears to be ${file.name.toLowerCase().includes('receipt') ? 'a service receipt or document' : file.name.toLowerCase().includes('damage') ? 'damage documentation' : 'supporting documentation'}. The image quality is ${imageData.metadata?.estimatedQuality || 'unknown'} resolution.`
-      }
-
-      return imageData
-    })
-
-    return Promise.all(imageDataPromises)
-  }
-
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || [])
     const allowedTypes = ['image/jpeg', 'image/png', 'image/tiff', 'image/bmp', 'image/webp', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
@@ -224,18 +164,12 @@ export default function AssessmentAgentDemo() {
 
     if (validFiles.length > 0) {
       setUploadedFiles(prev => [...prev, ...validFiles])
-      
-      // Extract image data
-      const extractedData = await extractImageData(validFiles)
-      setImageData(prev => [...prev, ...extractedData])
-      
-      toast.success(`${validFiles.length} file(s) uploaded and analyzed successfully`)
+      toast.success(`${validFiles.length} file(s) uploaded successfully`)
     }
   }
 
   const removeFile = (index: number) => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index))
-    setImageData(prev => prev.filter((_, i) => i !== index))
     toast.success("File removed")
   }
 
@@ -277,85 +211,51 @@ ${result.processing_notes}
   }
 
   const handleAssessment = async (data: AssessmentFormData) => {
-    if (useFileUpload && uploadedFiles.length > 0) {
-      // Use file upload endpoint
-      const endpoint = "http://localhost:8000/api/agents/enhanced-assessment/assess-claim-with-files"
-      
-      try {
-        const formData = new FormData()
-        formData.append("policy_number", data.policyNumber)
-        formData.append("claim_amount", data.claimAmount)
-        formData.append("date_of_incident", data.dateOfIncident)
-        formData.append("description", data.description)
-        formData.append("claim_type", data.claimType)
-        formData.append("claimant_name", data.claimantName)
-        formData.append("contact_information", data.contactInformation || "")
-        formData.append("special_circumstances", data.specialCircumstances || "")
-        
-        // Add files
-        uploadedFiles.forEach(file => {
-          formData.append("files", file)
-        })
-
-        const response = await fetch(endpoint, {
+    setError(null)
+    try {
+      // 1) Upload supporting files (if any) and collect temp paths
+      let paths: string[] = []
+      if (uploadedFiles.length > 0) {
+        const fd = new FormData()
+        uploadedFiles.forEach(f => fd.append("files", f))
+        const uploadResp = await fetch("http://localhost:8000/api/v1/files/upload", {
           method: "POST",
-          body: formData,
+          body: fd,
         })
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const result = await response.json()
-        
-        if (result.success && result.assessment_result) {
-          setAssessmentResult(result.assessment_result)
-          toast.success(`Assessment completed with ${uploadedFiles.length} file(s) processed!`)
-        } else {
-          throw new Error(result.error || "Assessment failed")
-        }
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred"
-        setError(errorMessage)
-        toast.error("Assessment failed: " + errorMessage)
+        if (!uploadResp.ok) throw new Error(`Upload failed (${uploadResp.status})`)
+        const uploadJson = await uploadResp.json()
+        paths = Array.isArray(uploadJson.paths) ? uploadJson.paths : []
+        setSupportingDocs(paths)
       }
-    } else {
-      // Use regular endpoint
-      const endpoint = "http://localhost:8000/api/agents/enhanced-assessment/assess-claim"
 
-      try {
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            claim_data: {
-              policy_number: data.policyNumber,
-              incident_date: data.dateOfIncident,
-              description: data.description,
-              amount: parseFloat(data.claimAmount),
-            },
-          }),
-        })
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const result = await response.json()
-        
-        if (result.success && result.assessment_result) {
-          setAssessmentResult(result.assessment_result)
-          toast.success("Assessment completed successfully!")
-        } else {
-          throw new Error(result.error || "Assessment failed")
-        }
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred"
-        setError(errorMessage)
-        toast.error("Assessment failed: " + errorMessage)
+      // 2) Call assessment API with supporting_documents list
+      const assessResp = await fetch("http://localhost:8000/api/agents/assessment/process-claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          policy_number: data.policyNumber,
+          claim_amount: data.claimAmount,
+          date_of_incident: data.dateOfIncident,
+          description: data.description,
+          claim_type: data.claimType,
+          claimant_name: data.claimantName,
+          contact_information: data.contactInformation,
+          special_circumstances: data.specialCircumstances,
+          supporting_documents: paths,
+        }),
+      })
+      if (!assessResp.ok) throw new Error(`HTTP error! status: ${assessResp.status}`)
+      const result = await assessResp.json()
+      if (result.success && result.assessment_result) {
+        setAssessmentResult(result.assessment_result)
+        toast.success("Assessment completed!")
+      } else {
+        throw new Error(result.error || "Assessment failed")
       }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred"
+      setError(errorMessage)
+      toast.error("Assessment failed: " + errorMessage)
     }
   }
 
@@ -731,7 +631,7 @@ ${result.processing_notes}
         <CardContent>
           {assessmentResult ? (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="results" className="flex items-center space-x-2">
                   <Eye className="h-4 w-4" />
                   <span>Assessment</span>
@@ -739,10 +639,6 @@ ${result.processing_notes}
                 <TabsTrigger value="markdown" className="flex items-center space-x-2">
                   <FileText className="h-4 w-4" />
                   <span>Markdown</span>
-                </TabsTrigger>
-                <TabsTrigger value="images" className="flex items-center space-x-2" disabled={imageData.length === 0}>
-                  <FileImage className="h-4 w-4" />
-                  <span>Image Data ({imageData.length})</span>
                 </TabsTrigger>
               </TabsList>
 
@@ -831,75 +727,6 @@ ${result.processing_notes}
                     {formatMarkdownAssessment(assessmentResult)}
                   </ReactMarkdown>
                 </div>
-              </TabsContent>
-
-              <TabsContent value="images" className="mt-4">
-                {imageData.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="text-sm text-muted-foreground">
-                      Extracted data from {imageData.length} uploaded file(s)
-                    </div>
-                    {imageData.map((data, index) => (
-                      <Card key={index} className="border-l-4 border-l-blue-500">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base flex items-center space-x-2">
-                            <FileImage className="h-4 w-4" />
-                            <span>{data.filename}</span>
-                            <Badge variant="outline" className="text-xs">
-                              {data.type}
-                            </Badge>
-                          </CardTitle>
-                          <CardDescription>
-                            Size: {(data.size / 1024).toFixed(1)} KB
-                            {data.metadata?.resolution && ` • Resolution: ${String(data.metadata.resolution)}`}
-                            {data.metadata?.estimatedQuality && ` • Quality: ${String(data.metadata.estimatedQuality)}`}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          {data.analysis && (
-                            <div>
-                              <Label className="text-sm font-medium">AI Analysis</Label>
-                              <div className="mt-1 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
-                                <div className="text-sm">{data.analysis}</div>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {data.extractedText && (
-                            <div>
-                              <Label className="text-sm font-medium">Extracted Text</Label>
-                              <div className="mt-1 p-3 bg-gray-50 dark:bg-gray-900 rounded-md border">
-                                <div className="text-sm font-mono">{data.extractedText}</div>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {data.metadata && Object.keys(data.metadata).length > 0 && (
-                            <div>
-                              <Label className="text-sm font-medium">Metadata</Label>
-                              <div className="mt-1 p-3 bg-gray-50 dark:bg-gray-900 rounded-md border">
-                                <div className="grid grid-cols-2 gap-2 text-xs">
-                                  {Object.entries(data.metadata).map(([key, value]) => (
-                                    <div key={key} className="flex justify-between">
-                                      <span className="font-medium text-muted-foreground">{key}:</span>
-                                      <span className="font-mono">{String(value)}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <FileImage className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No image data available</p>
-                    <p className="text-sm">Upload files with your claim to see extracted data and analysis</p>
-                  </div>
-                )}
               </TabsContent>
             </Tabs>
           ) : (

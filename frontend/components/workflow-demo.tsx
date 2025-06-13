@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Label } from "@/components/ui/label"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { 
@@ -25,7 +26,9 @@ import {
   Target,
   Eye,
   Settings,
-  ArrowRight
+  ArrowRight,
+  Upload,
+  X
 } from 'lucide-react'
 import { getApiUrl } from "@/lib/config"
 import { 
@@ -177,6 +180,8 @@ export function WorkflowDemo() {
   const [workflowResult, setWorkflowResult] = useState<WorkflowResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
+  const [supportingDocs, setSupportingDocs] = useState<string[]>([])
 
   // Derived selected claim object
   const selectedClaim = availableClaims.find(
@@ -219,6 +224,17 @@ export function WorkflowDemo() {
     setWorkflowResult(null)
     setProgress(0)
 
+    // upload files first
+    let paths:string[]=[]
+    if(uploadedFiles.length>0){
+      try{
+        const fd=new FormData(); uploadedFiles.forEach(f=>fd.append('files',f))
+        const upRes=await fetch(`${await getApiUrl()}/api/v1/files/upload`,{method:'POST',body:fd})
+        if(!upRes.ok) throw new Error(`Upload failed (${upRes.status})`)
+        const upJson=await upRes.json(); paths=Array.isArray(upJson.paths)?upJson.paths:[]; setSupportingDocs(paths)
+      }catch(err){ console.error(err); setError('File upload failed'); }
+    }
+
     // Simulate progress updates
     const progressInterval = setInterval(() => {
       setProgress(prev => {
@@ -236,7 +252,11 @@ export function WorkflowDemo() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ claim_id: selectedClaimId }),
+        body: JSON.stringify(
+          paths.length>0
+            ? { claim_id: selectedClaimId, supporting_documents: paths }
+            : { claim_id: selectedClaimId }
+        ),
       })
 
       if (!response.ok) {
@@ -258,6 +278,19 @@ export function WorkflowDemo() {
       setIsLoading(false)
     }
   }
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>)=>{
+    const files = Array.from(e.target.files||[])
+    const allowed=['image/jpeg','image/png','image/bmp','image/webp','application/pdf','text/plain','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+    const valid=files.filter(f=>{
+      if(!allowed.includes(f.type)){ setError(`Unsupported type: ${f.name}`); return false }
+      if(f.size>10*1024*1024){ setError(`File too large: ${f.name}`); return false }
+      return true
+    })
+    if(valid.length>0){ setUploadedFiles(prev=>[...prev,...valid]); setError(`${valid.length} file(s) added`) }
+  }
+
+  const removeFile=(idx:number)=> setUploadedFiles(prev=>prev.filter((_,i)=>i!==idx))
 
   const renderAgentAvatar = (agentName: string) => {
     const config = AGENT_CONFIG[agentName as keyof typeof AGENT_CONFIG]
@@ -722,6 +755,36 @@ export function WorkflowDemo() {
               )}
             </CardContent>
           </Card>
+
+          {/* Upload section */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Supporting Documents</Label>
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+              <Upload className="mx-auto h-6 w-6 text-gray-400" />
+              <Label htmlFor="wf-demo-upload" className="cursor-pointer block mt-2">
+                <span className="text-sm text-blue-600 hover:text-blue-500">Upload files</span>
+                <input id="wf-demo-upload" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.bmp,.webp,.txt,.doc,.docx" onChange={handleFileUpload} className="sr-only" />
+              </Label>
+              <p className="text-xs text-gray-500">Images or docs up to 10 MB each</p>
+            </div>
+
+            {uploadedFiles.length>0 && (
+              <div className="space-y-1">
+                {uploadedFiles.map((f,i)=>(
+                  <div key={i} className="flex items-center justify-between bg-gray-50 p-2 rounded border">
+                    <div className="flex items-center space-x-2">
+                      <FileText className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm truncate">{f.name}</span>
+                      <span className="text-xs text-gray-500">({(f.size/1024).toFixed(1)} KB)</span>
+                    </div>
+                    <button type="button" onClick={()=>removeFile(i)}>
+                      <X className="h-4 w-4 text-red-500" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right Column - Results Display */}

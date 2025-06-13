@@ -62,9 +62,26 @@ async def workflow_run(claim: ClaimIn):  # noqa: D401
         # ------------------------------------------------------------------
         # 1. Decide whether to load sample claim or use provided data
         # ------------------------------------------------------------------
-        if claim.is_sample_claim_request():
+        # Load sample data if claim_id provided and matches sample claim
+        if claim.claim_id:
             claim_data = get_sample_claim_by_id(claim.claim_id)
+
+            # Merge/override with any additional fields supplied in request (e.g., supporting_documents)
+            override_data = {
+                k: v for k, v in claim.model_dump(by_alias=True, exclude_none=True).items()
+                if k != "claim_id"
+            }
+
+            # If supporting_documents is provided, ensure both legacy and new keys updated
+            if "supporting_documents" in override_data:
+                claim_data["supporting_images"] = override_data["supporting_documents"]
+                claim_data["supporting_documents"] = override_data["supporting_documents"]
+                override_data.pop("supporting_documents")
+
+            # Apply remaining overrides
+            claim_data.update(override_data)
         else:
+            # Full claim provided without loading sample
             claim_data = claim.to_dict()
 
         # ------------------------------------------------------------------
