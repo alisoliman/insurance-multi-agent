@@ -2,12 +2,18 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
+import re
+from typing import Any
 
 from app.models.claim import ClaimIn, ClaimOut
 from app.services.claim_processing import run as run_workflow
 from app.sample_data import ALL_SAMPLE_CLAIMS
 
 router = APIRouter(tags=["workflow"])
+
+# Regex compiled once
+DECISION_PATTERN = re.compile(
+    r"\b(APPROVED|DENIED|REQUIRES_INVESTIGATION)\b", re.IGNORECASE)
 
 
 def get_sample_claim_by_id(claim_id: str) -> dict:
@@ -53,48 +59,92 @@ async def workflow_run(claim: ClaimIn):  # noqa: D401
     """
 
     try:
-        # Determine if this is a sample claim request or full claim data
+        # ------------------------------------------------------------------
+        # 1. Decide whether to load sample claim or use provided data
+        # ------------------------------------------------------------------
         if claim.is_sample_claim_request():
-            # Load sample data by claim_id
             claim_data = get_sample_claim_by_id(claim.claim_id)
         else:
-            # Use provided claim data directly
             claim_data = claim.to_dict()
 
-        chunks = run_workflow(claim_data)
+        # ------------------------------------------------------------------
+        # 2. Stream LangGraph execution; capture both grouped & chronological
+        # ------------------------------------------------------------------
+        chronological: list[dict[str, str]] = []
+        seen_lengths: dict[str, int] = {}
 
-        # Aggregate conversation per agent
-        conversation: dict[str, list[dict[str, str]]] = {}
-        msg_counters: dict[str, int] = {}
+        chunks = []
+        for chunk in run_workflow(claim_data):
+            chunks.append(chunk)
+
+            # Process each node in the chunk (now we get individual agent updates)
+            for node_name, node_data in chunk.items():
+                if node_name == "__end__":
+                    continue
+
+                # Handle different data structures
+                if isinstance(node_data, list):
+                    msgs = node_data
+                elif isinstance(node_data, dict) and "messages" in node_data:
+                    msgs = node_data["messages"]
+                elif isinstance(node_data, dict) and set(node_data.keys()) == {"messages"}:
+                    # Handle supervisor-style single messages key
+                    msgs = node_data["messages"]
+                else:
+                    continue
+
+                prev_len = seen_lengths.get(node_name, 0)
+                new_msgs = msgs[prev_len:]
+
+                for msg in new_msgs:
+                    chronological.append(_serialize_msg(node_name, msg))
+
+                seen_lengths[node_name] = len(msgs)
+
+        # ------------------------------------------------------------------
+        # 3. Extract final decision from chronological messages
+        # ------------------------------------------------------------------
         final_decision: str | None = None
 
-        for chunk in chunks:
-            # Handle the new chunk structure with raw_chunk
-            raw_chunk = chunk.get("raw_chunk", chunk)
-            for node_name, node_data in raw_chunk.items():
-                if node_name == "__end__" or not isinstance(node_data, dict) or "messages" not in node_data:
-                    continue
+        # Extract final decision scanning chronological reverse order
+        for entry in reversed(chronological):
+            match = DECISION_PATTERN.search(entry["content"])
+            if match:
+                final_decision = match.group(1).upper()
+                break
 
-                msgs = node_data["messages"]
-                if not msgs:
-                    continue
-                start = msg_counters.get(node_name, 0)
-                new = msgs[start:]
-                if not new:
-                    continue
-                conversation.setdefault(node_name, [])
-                for m in new:
-                    conversation[node_name].append({
-                        "role": getattr(m, "role", "assistant"),
-                        "content": getattr(m, "content", str(m)),
-                    })
-                msg_counters[node_name] = len(msgs)
-
-        sup_msgs = conversation.get("supervisor", [])
-        if sup_msgs:
-            final_decision = sup_msgs[-1]["content"]
-
-        return ClaimOut(success=True, final_decision=final_decision, conversation=conversation)
+        # ------------------------------------------------------------------
+        # 4. Return response with chronological stream only
+        # ------------------------------------------------------------------
+        return ClaimOut(
+            success=True,
+            final_decision=final_decision,
+            conversation_chronological=chronological,
+        )
 
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+# ------------------------------------------------------------------
+# Helper serialization
+# ------------------------------------------------------------------
+
+
+def _serialize_msg(node: str, msg: Any, *, include_node: bool = True) -> dict:  # noqa: D401
+    """Return a serializable dict for a LangChain message including tool calls."""
+    role = getattr(msg, "role", getattr(msg, "type", "assistant"))
+
+    # Handle tool call messages (AIMessage with tool_calls attr)
+    if hasattr(msg, "tool_calls") and msg.tool_calls:
+        content_repr = f"TOOL_CALL: {msg.tool_calls}"
+    else:
+        content_repr = getattr(msg, "content", str(msg)) or ""
+
+    data = {
+        "role": role,
+        "content": content_repr.strip(),
+    }
+    if include_node:
+        data["node"] = node
+    return data

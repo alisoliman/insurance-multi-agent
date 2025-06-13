@@ -45,4 +45,4 @@ class ClaimIn(BaseModel):
 class ClaimOut(BaseModel):
     success: bool = True
     final_decision: Optional[str] = None
-    conversation: Dict[str, Any]
+    conversation_chronological: Optional[list[Dict[str, str]]] = None

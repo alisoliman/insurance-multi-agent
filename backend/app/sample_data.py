@@ -28,7 +28,7 @@ sample_claim = {
     },
     "supporting_images": [
         "/Users/ali/Dev/ip/simple-insurance-multi-agent/backend/app/workflow/data/claims/invoice.png",
-        "/Users/ali/Dev/ip/simple-insurance-multi-agent/backend/app/workflow/data/claims/crash1.jpg"
+        "/Users/ali/Dev/ip/simple-insurance-multi-agent/backend/app/workflow/data/claims/crash2.jpg"
     ]
 }
 

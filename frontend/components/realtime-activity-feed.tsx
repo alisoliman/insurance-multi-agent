@@ -5,8 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { useWebSocketContext } from '@/lib/websocket-context';
-import { Activity, Bot, Workflow, Zap } from 'lucide-react';
+import { Activity, Bot, Workflow, Zap, CheckCircle } from 'lucide-react';
 
 const formatTimestamp = (timestamp: string) => {
   return new Date(timestamp).toLocaleTimeString();
@@ -82,57 +81,73 @@ const ActivityItem: React.FC<{
   </div>
 );
 
-export const RealtimeActivityFeed: React.FC = () => {
-  const { 
-    agentActivities, 
-    workflowUpdates, 
-    systemStatuses,
-    isConnected,
-    isConnecting 
-  } = useWebSocketContext();
-
-  // Combine all activities and sort by timestamp
-  const allActivities = [
-    ...agentActivities.map(activity => ({
-      id: activity.id,
-      type: 'agent_activity',
-      timestamp: activity.timestamp,
-      title: `${activity.agent_name} Activity`,
-      description: activity.activity,
-      status: 'active',
-      badge: activity.agent_name
-    })),
-    ...workflowUpdates.map(update => ({
-      id: update.id,
+// Mock demo data for activity feed
+const generateMockActivities = () => {
+  const now = new Date();
+  return [
+    {
+      id: 'act-1',
       type: 'workflow',
-      timestamp: update.timestamp,
-      title: `Workflow: ${update.claim_id}`,
-      description: `${update.stage} - ${update.status}`,
-      status: update.status,
-      badge: update.stage
-    })),
-    ...systemStatuses.map(status => ({
-      id: status.id,
+      timestamp: new Date(now.getTime() - 2 * 60000).toISOString(), // 2 mins ago
+      title: 'Workflow: CLM-2024-001',
+      description: 'Claim assessment completed - Requires Investigation',
+      status: 'completed',
+      badge: 'Assessment'
+    },
+    {
+      id: 'act-2',
+      type: 'agent_activity',
+      timestamp: new Date(now.getTime() - 5 * 60000).toISOString(), // 5 mins ago
+      title: 'Risk Analyst Activity',
+      description: 'High-risk factors detected in claim documentation',
+      status: 'active',
+      badge: 'Risk Analyst'
+    },
+    {
+      id: 'act-3',
+      type: 'agent_activity',
+      timestamp: new Date(now.getTime() - 8 * 60000).toISOString(), // 8 mins ago
+      title: 'Policy Checker Activity',
+      description: 'Policy coverage verified for collision damage',
+      status: 'completed',
+      badge: 'Policy Checker'
+    },
+    {
+      id: 'act-4',
+      type: 'agent_activity',
+      timestamp: new Date(now.getTime() - 12 * 60000).toISOString(), // 12 mins ago
+      title: 'Claim Assessor Activity',
+      description: 'Document inconsistencies found - Invalid assessment',
+      status: 'completed',
+      badge: 'Claim Assessor'
+    },
+    {
+      id: 'act-5',
       type: 'system',
-      timestamp: status.timestamp,
+      timestamp: new Date(now.getTime() - 15 * 60000).toISOString(), // 15 mins ago
       title: 'System Status',
-      description: status.message,
-      status: status.status,
-      badge: status.status
-    }))
-  ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      description: 'Multi-agent workflow initialized for new claim',
+      status: 'success',
+      badge: 'System'
+    }
+  ];
+};
 
-  const connectionStatus = isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Disconnected';
-  const connectionColor = isConnecting ? 'bg-yellow-500' : isConnected ? 'bg-green-500' : 'bg-red-500';
+export const RealtimeActivityFeed: React.FC = () => {
+  // Use mock data for demo purposes
+  const allActivities = generateMockActivities();
+  
+  const connectionStatus = 'Demo Mode';
+  const connectionColor = 'bg-blue-500';
 
   return (
     <Card className="h-full">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-lg">Real-time Activity</CardTitle>
+            <CardTitle className="text-lg">Recent Activity</CardTitle>
             <CardDescription>
-              Live updates from agents, workflows, and system events
+              Latest updates from agents, workflows, and system events
             </CardDescription>
           </div>
           <div className="flex items-center space-x-2">
@@ -149,9 +164,6 @@ export const RealtimeActivityFeed: React.FC = () => {
             <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
               <Activity className="h-8 w-8 mb-2" />
               <p className="text-sm">No recent activity</p>
-              {!isConnected && (
-                <p className="text-xs mt-1">Connect to see real-time updates</p>
-              )}
             </div>
           ) : (
             <div className="space-y-1">

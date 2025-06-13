@@ -4,7 +4,6 @@ import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { WebSocketStatus } from "@/components/websocket-status"
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -66,7 +65,7 @@ export function SiteHeader() {
           title = 'Feedback System'
           break
         case 'demo':
-          title = 'Feedback System'
+          title = 'Workflow Demo'
           break
         default:
           title = segment.charAt(0).toUpperCase() + segment.slice(1)
@@ -99,7 +98,6 @@ export function SiteHeader() {
           {getBreadcrumbs()}
         </Breadcrumb>
         <div className="ml-auto flex items-center gap-2">
-          <WebSocketStatus />
           <Button variant="ghost" asChild size="sm" className="hidden sm:flex">
             <a
               href="https://github.com/shadcn-ui/ui/tree/main/apps/v4/app/(examples)/dashboard"

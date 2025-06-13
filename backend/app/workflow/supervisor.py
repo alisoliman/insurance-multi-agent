@@ -169,85 +169,11 @@ def process_claim_with_supervisor(claim_data: Dict[str, Any]) -> List[Dict[str, 
     try:
         for chunk in insurance_supervisor.stream(
             {"messages": messages},
-            stream_mode="values",  # Get full state values
+            stream_mode="updates",  # Get individual node updates instead of full state
             debug=False  # Disable debug information temporarily
         ):
             step_count += 1
-
-            # Enhanced chunk processing with proper trace information
-        enhanced_chunk = {
-            "step": step_count,
-            "timestamp": __import__("datetime").datetime.now().isoformat(),
-            "raw_chunk": chunk,
-            "trace_info": {}
-        }
-
-        for node_name, node_data in chunk.items():
-            if node_name == "__end__":
-                enhanced_chunk["trace_info"]["workflow_complete"] = True
-                logger.info("Step %d - Workflow completed", step_count)
-                continue
-
-            if "messages" not in node_data:
-                continue
-
-            messages_list = node_data["messages"]
-            if not messages_list:
-                continue
-
-            last_msg = messages_list[-1]
-
-            # Extract detailed message information
-            message_info = {
-                "agent": node_name,
-                "message_count": len(messages_list),
-                "message_type": type(last_msg).__name__,
-                "role": getattr(last_msg, "role", "unknown"),
-            }
-
-            # Extract content safely
-            if hasattr(last_msg, "content"):
-                content = last_msg.content
-                if isinstance(content, str):
-                    message_info["content"] = content
-                    message_info["content_preview"] = content
-                else:
-                    message_info["content"] = str(content)
-                    message_info["content_preview"] = str(content)
-            else:
-                message_info["content"] = str(last_msg)
-                message_info["content_preview"] = str(last_msg)
-
-            # Check for tool calls in the message (with proper type checking)
-            if hasattr(last_msg, "tool_calls"):
-                tool_calls_attr = getattr(last_msg, "tool_calls", None)
-                if tool_calls_attr and isinstance(tool_calls_attr, (list, tuple)) and len(tool_calls_attr) > 0:
-                    message_info["tool_calls"] = []
-                    for tool_call in tool_calls_attr:
-                        tool_info = {
-                            "tool_name": getattr(tool_call, "name", "unknown"),
-                            "tool_id": getattr(tool_call, "id", "unknown"),
-                        }
-                        if hasattr(tool_call, "args"):
-                            tool_info["args"] = tool_call.args
-                        message_info["tool_calls"].append(tool_info)
-
-            # Check for additional message attributes
-            if hasattr(last_msg, "additional_kwargs") and last_msg.additional_kwargs:
-                message_info["additional_kwargs"] = last_msg.additional_kwargs
-
-            enhanced_chunk["trace_info"][node_name] = message_info
-
-            # Log enhanced information
-            preview = message_info.get("content_preview", "No content")
-            tool_calls_list = message_info.get('tool_calls', [])
-            tool_info = f" [Tools: {len(tool_calls_list)}]" if isinstance(
-                tool_calls_list, list) and tool_calls_list else ""
-            logger.info("Step %d - %s → %s: %s%s",
-                        step_count, node_name, message_info["role"],
-                        preview, tool_info)
-
-        chunks.append(enhanced_chunk)
+            chunks.append(chunk)
 
         logger.info("✅ Workflow completed in %d steps", step_count)
         return chunks

@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 from app.api.v1.endpoints import workflow as workflow_endpoints
@@ -9,6 +10,20 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",  # Next.js default dev port
+        "http://localhost:3001",  # Alternative dev port
+        "http://127.0.0.1:3000",  # Alternative localhost
+        "http://127.0.0.1:3001",  # Alternative localhost
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.on_event("startup")

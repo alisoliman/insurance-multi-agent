@@ -87,6 +87,11 @@ const data = {
       ],
     },
     {
+      title: "Workflow Demo",
+      url: "/demo",
+      icon: IconFileAi,
+    },
+    {
       title: "Feedback System",
       url: "/feedback/demo",
       icon: IconMessageCircle,
@@ -158,6 +163,11 @@ const data = {
     },
   ],
   documents: [
+    {
+      name: "Policy Documents",
+      url: "/documents",
+      icon: IconFileDescription,
+    },
     {
       name: "Data Library",
       url: "#",
