@@ -49,20 +49,14 @@ def _build_llm() -> AzureChatOpenAI:  # noqa: D401
     logger.info("Deployment Name: %s", deployment)
     logger.info("API Key configured: %s", "Yes" if api_key else "No")
 
-    try:
-        return AzureChatOpenAI(
+    return AzureChatOpenAI(
             azure_deployment=deployment,
             api_key=api_key,
             azure_endpoint=endpoint,
-            api_version="2024-02-15-preview",
+            api_version="2024-08-01-preview",
             temperature=0.1,
         )
-    except Exception as err:  # pragma: no cover – easier local dev without keys
-        logger.warning("Falling back to AzureChatOpenAI stub (%s)", err)
-        # Minimal stub implementing `.generate` interface to avoid crashes
-        from langchain_core.language_models.fake import FakeListLLM
-
-        return FakeListLLM(responses=["stub"])
+    
 
 
 LLM = _build_llm()

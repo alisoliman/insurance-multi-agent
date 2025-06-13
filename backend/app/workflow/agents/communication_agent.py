@@ -2,6 +2,8 @@
 from langgraph.prebuilt import create_react_agent
 
 
+
+
 def create_communication_agent(llm):  # noqa: D401
     """Return a configured Communication Agent using the shared LLM."""
     return create_react_agent(
@@ -28,4 +30,5 @@ When drafting an email:
 
 Format your response as a complete email including a Subject line and Body.""",
         name="communication_agent",
+        response_format={ "type": "json_object" }
     )

@@ -5,6 +5,7 @@ import os
 
 from app.api.v1.endpoints import workflow as workflow_endpoints
 from app.api.v1.endpoints import files as files_endpoints
+from app.api.v1.endpoints import agent as agent_endpoints
 from app.workflow.policy_search import get_policy_search
 
 # Configure logging
@@ -62,3 +63,4 @@ async def read_root() -> dict[str, str]:
 # Mount API V1 routers
 app.include_router(workflow_endpoints.router, prefix="/api/v1")
 app.include_router(files_endpoints.router, prefix="/api/v1")
+app.include_router(agent_endpoints.router, prefix="/api/v1")
