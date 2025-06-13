@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { toast } from "sonner"
-import { Shield, Copy, Download, CheckCircle, AlertCircle, Clock, FileText, Upload, X, Eye, FileImage, Code } from "lucide-react"
+import { Shield, Copy, Download, CheckCircle, AlertCircle, Clock, FileText, Upload, X, Eye, FileImage } from "lucide-react"
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -46,14 +46,22 @@ interface AssessmentResult {
   }
 }
 
+interface ImageMetadata {
+  resolution?: string
+  estimatedQuality?: string | number
+  [key: string]: string | number | undefined
+}
+
 interface ImageData {
   filename: string
   size: number
   type: string
   extractedText?: string
   analysis?: string
-  metadata?: Record<string, any>
+  metadata?: ImageMetadata
 }
+
+type ExtendedFile = File & { webkitRelativePath?: string }
 
 const claimTypes = [
   { value: "auto", label: "Auto Insurance" },
@@ -146,7 +154,7 @@ export default function AssessmentAgentDemo() {
         type: file.type,
         metadata: {
           lastModified: new Date(file.lastModified).toISOString(),
-          webkitRelativePath: (file as any).webkitRelativePath || '',
+          webkitRelativePath: (file as ExtendedFile).webkitRelativePath ?? '',
         }
       }
 
@@ -843,8 +851,8 @@ ${result.processing_notes}
                           </CardTitle>
                           <CardDescription>
                             Size: {(data.size / 1024).toFixed(1)} KB
-                            {data.metadata?.resolution && ` • Resolution: ${data.metadata.resolution}`}
-                            {data.metadata?.estimatedQuality && ` • Quality: ${data.metadata.estimatedQuality}`}
+                            {data.metadata?.resolution && ` • Resolution: ${String(data.metadata.resolution)}`}
+                            {data.metadata?.estimatedQuality && ` • Quality: ${String(data.metadata.estimatedQuality)}`}
                           </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-3">
@@ -898,7 +906,7 @@ ${result.processing_notes}
             <div className="text-center py-8 text-muted-foreground">
               <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No assessment completed yet</p>
-              <p className="text-sm">Fill out the claim form and click "Assess Claim" to get started</p>
+              <p className="text-sm">Fill out the claim form and click &quot;Assess Claim&quot; to get started</p>
             </div>
           )}
         </CardContent>

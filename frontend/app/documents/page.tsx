@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { AppSidebar } from "@/components/app-sidebar"
@@ -9,16 +9,14 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { 
   FileText, 
   Download, 
-  Eye,
   Car,
   Shield,
   Truck,
@@ -31,7 +29,7 @@ interface PolicyDocument {
   filename: string
   description: string
   type: string
-  icon: React.ComponentType<any>
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
   size?: string
 }
 
@@ -84,32 +82,32 @@ export default function DocumentsPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
 
-  const loadDocument = async (document: PolicyDocument) => {
+  const loadDocument = async (doc: PolicyDocument) => {
     setIsLoading(true)
-    setSelectedDocument(document)
+    setSelectedDocument(doc)
     
     try {
-      const response = await fetch(`/policies/${document.filename}`)
+      const response = await fetch(`/policies/${doc.filename}`)
       if (response.ok) {
         const content = await response.text()
         setDocumentContent(content)
       } else {
         setDocumentContent('Error loading document')
       }
-    } catch (error) {
+    } catch {
       setDocumentContent('Error loading document')
     } finally {
       setIsLoading(false)
     }
   }
 
-  const downloadDocument = (document: PolicyDocument) => {
-    const element = document.createElement('a')
-    element.href = `/policies/${document.filename}`
-    element.download = document.filename
-    document.body.appendChild(element)
-    element.click()
-    document.body.removeChild(element)
+  const downloadDocument = (doc: PolicyDocument) => {
+    const anchor = window.document.createElement('a')
+    anchor.href = `/policies/${doc.filename}`
+    anchor.download = doc.filename
+    window.document.body.appendChild(anchor)
+    anchor.click()
+    window.document.body.removeChild(anchor)
   }
 
   const filteredDocuments = policyDocuments.filter(doc =>

@@ -27,8 +27,8 @@ sample_claim = {
         "license_plate": "ABC123"
     },
     "supporting_images": [
-        "/Users/ali/Dev/ip/simple-insurance-multi-agent/backend/app/workflow/data/claims/invoice.png",
-        "/Users/ali/Dev/ip/simple-insurance-multi-agent/backend/app/workflow/data/claims/crash2.jpg"
+        "workflow/data/claims/invoice.png",
+        "workflow/data/claims/crash2.jpg"
     ]
 }
 

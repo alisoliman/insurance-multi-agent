@@ -21,8 +21,8 @@ const communicationFormSchema = z.object({
   claimId: z.string().min(1, "Claim ID is required"),
   policyNumber: z.string().min(1, "Policy number is required"),
   communicationType: z.string().min(1, "Communication type is required"),
-  preferredLanguage: z.string().default("en"),
-  urgencyLevel: z.string().default("normal"),
+  preferredLanguage: z.string().default("en").optional(),
+  urgencyLevel: z.string().default("normal").optional(),
   specialInstructions: z.string().optional(),
 })
 
@@ -500,7 +500,7 @@ export default function CommunicationAgentDemo() {
             <div className="text-center py-8 text-muted-foreground">
               <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No communication generated yet</p>
-              <p className="text-sm">Fill out the form and click "Generate Communication" to get started</p>
+              <p className="text-sm">Fill out the form and click &quot;Generate Communication&quot; to get started</p>
             </div>
           )}
         </CardContent>

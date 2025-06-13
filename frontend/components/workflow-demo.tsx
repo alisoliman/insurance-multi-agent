@@ -19,7 +19,6 @@ import {
   Shield,
   TrendingUp,
   MessageSquare,
-  ChevronRight,
   Users,
   Info,
   Zap,
@@ -32,7 +31,6 @@ import { getApiUrl } from "@/lib/config"
 import { 
   Avatar, 
   AvatarFallback, 
-  AvatarImage 
 } from '@/components/ui/avatar'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -68,39 +66,6 @@ interface WorkflowResult {
   success: boolean
   final_decision: string
   conversation_chronological: ConversationEntry[]
-}
-
-interface WorkflowMessage {
-  id: string
-  type: 'human' | 'ai'
-  name: string
-  content: string
-  timestamp?: string
-  metadata?: {
-    agent?: string
-    tool_calls?: Array<{
-      name: string
-      args: Record<string, any>
-      result?: any
-    }>
-    assessment?: {
-      decision: string
-      confidence: number
-      reasoning: string[]
-      factors: string[]
-    }
-    status?: string
-  }
-}
-
-interface WorkflowResponse {
-  messages: WorkflowMessage[]
-  status: string
-  metadata?: {
-    claim_id: string
-    duration?: number
-    total_agents?: number
-  }
 }
 
 // Agent configuration with icons and colors (matching backend agent names)
@@ -160,19 +125,6 @@ const getDecisionColor = (decision: string) => {
       return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800'
     default:
       return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700'
-  }
-}
-
-const getRoleIcon = (role: string) => {
-  switch (role) {
-    case 'human':
-      return <Users className="h-4 w-4" />
-    case 'ai':
-      return <MessageSquare className="h-4 w-4" />
-    case 'tool':
-      return <FileText className="h-4 w-4" />
-    default:
-      return <MessageSquare className="h-4 w-4" />
   }
 }
 
@@ -254,7 +206,8 @@ export function WorkflowDemo() {
       setAvailableClaims(data.available_claims || [])
     } catch (err) {
       console.error('Failed to fetch available claims:', err)
-      setError(`Failed to load available claims: ${err.message}`)
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      setError(`Failed to load available claims: ${message}`)
     }
   }
 
@@ -531,7 +484,7 @@ export function WorkflowDemo() {
                                     <Target className="h-3 w-3" />
                                     Key Responsibilities
                                   </h5>
-                                  <ul className="text-xs space-y-1 text-gray-700">
+                                  <ul className="text-xs space-y-1 text-gray-700 dark:text-gray-300">
                                     <li className="flex items-start gap-1">
                                       <span className="text-green-500 mt-1">•</span>
                                       <span>Verify policy status</span>
@@ -856,7 +809,7 @@ export function WorkflowDemo() {
                   Ready to Process Claims
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-4 max-w-sm">
-                  Select a claim from the left panel and click "Run Workflow" to see the multi-agent system in action.
+                  Select a claim from the left panel and click &quot;Run Workflow&quot; to see the multi-agent system in action.
                 </p>
                 <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                   <ArrowRight className="h-4 w-4 rotate-180" />

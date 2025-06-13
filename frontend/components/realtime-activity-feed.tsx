@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Activity, Bot, Workflow, Zap, CheckCircle } from 'lucide-react';
+import { Activity, Bot, Workflow, Zap } from 'lucide-react';
 
 const formatTimestamp = (timestamp: string) => {
   return new Date(timestamp).toLocaleTimeString();
