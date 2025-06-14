@@ -6,8 +6,11 @@ import {
   IconFileAi,
   IconFileDescription,
   IconInnerShadowTop,
+  IconMoon,
+  IconSun,
   IconUsers,
 } from "@tabler/icons-react"
+import { useTheme } from "next-themes"
 
 import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
@@ -21,6 +24,35 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+
+function SidebarThemeToggle() {
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark")
+  }
+
+  if (!mounted) {
+    return (
+      <SidebarMenuButton>
+        <IconSun />
+        <span>Toggle theme</span>
+      </SidebarMenuButton>
+    )
+  }
+
+  return (
+    <SidebarMenuButton onClick={toggleTheme}>
+      {theme === "dark" ? <IconSun /> : <IconMoon />}
+      <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+    </SidebarMenuButton>
+  )
+}
 
 const data = {
   navMain: [
@@ -96,6 +128,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarThemeToggle />
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   )
