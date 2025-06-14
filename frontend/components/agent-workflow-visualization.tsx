@@ -32,7 +32,7 @@ interface AgentWorkflowVisualizationProps {
 
 const AGENT_STEPS: AgentStep[] = [
   {
-    id: 'claim_assessor',
+    id: 'claim-assessor',
     name: 'Claim Assessor',
     description: 'Analyzes claim details and documentation',
     icon: <IconFileText className="h-4 w-4" />,
@@ -40,7 +40,7 @@ const AGENT_STEPS: AgentStep[] = [
     href: '/agents/claim-assessor'
   },
   {
-    id: 'policy_checker',
+    id: 'policy-checker',
     name: 'Policy Checker',
     description: 'Validates coverage and policy terms',
     icon: <IconShield className="h-4 w-4" />,
@@ -48,7 +48,7 @@ const AGENT_STEPS: AgentStep[] = [
     href: '/agents/policy-checker'
   },
   {
-    id: 'risk_analyst',
+    id: 'risk-analyst',
     name: 'Risk Analyst',
     description: 'Evaluates fraud and risk factors',
     icon: <IconTrendingUp className="h-4 w-4" />,
@@ -56,7 +56,7 @@ const AGENT_STEPS: AgentStep[] = [
     href: '/agents/risk-analyst'
   },
   {
-    id: 'communication_agent',
+    id: 'communication-agent',
     name: 'Communication Agent',
     description: 'Generates customer communications',
     icon: <IconMessage className="h-4 w-4" />,
@@ -83,7 +83,7 @@ export function AgentWorkflowVisualization({ currentAgent, showWorkflowLink = tr
           <div className="flex flex-col md:flex-row gap-4 items-center">
             {AGENT_STEPS.map((step, index) => (
               <React.Fragment key={step.id}>
-                <div className="flex flex-col items-center space-y-2 flex-1">
+                <div className="flex flex-col items-center space-y-2 flex-1 min-w-0">
                   <Link href={step.href}>
                     <div className={`
                       p-3 rounded-lg transition-all cursor-pointer
@@ -95,9 +95,9 @@ export function AgentWorkflowVisualization({ currentAgent, showWorkflowLink = tr
                       {step.icon}
                     </div>
                   </Link>
-                  <div className="text-center">
-                    <div className="font-medium text-sm">{step.name}</div>
-                    <div className="text-xs text-muted-foreground max-w-24">
+                  <div className="text-center w-full">
+                    <div className="font-medium text-sm whitespace-nowrap">{step.name}</div>
+                    <div className="text-xs text-muted-foreground px-1 leading-tight">
                       {step.description}
                     </div>
                     {currentAgent === step.id && (

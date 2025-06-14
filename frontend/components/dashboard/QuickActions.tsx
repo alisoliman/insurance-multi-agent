@@ -26,13 +26,22 @@ interface QuickAction {
 
 const quickActions: QuickAction[] = [
   {
+    title: "Multi-Agent Workflow",
+    description:
+      "Experience how AI agents collaborate to process insurance claims in real-time",
+    href: "/demo",
+    icon: <IconTestPipe className="h-5 w-5" />,
+    badge: "Full Demo",
+    badgeVariant: "default",
+  },
+  {
     title: "Claim Assessor",
     description:
       "Analyzes claim details and determines initial assessment with risk scoring",
     href: "/agents/claim-assessor",
     icon: <IconFileText className="h-5 w-5" />,
     badge: "Assessment",
-    badgeVariant: "default",
+    badgeVariant: "secondary",
   },
   {
     title: "Policy Checker",
@@ -41,7 +50,7 @@ const quickActions: QuickAction[] = [
     href: "/agents/policy-checker",
     icon: <IconShield className="h-5 w-5" />,
     badge: "Validation",
-    badgeVariant: "default",
+    badgeVariant: "secondary",
   },
   {
     title: "Risk Analyst",
@@ -59,7 +68,7 @@ const quickActions: QuickAction[] = [
     href: "/agents/communication-agent",
     icon: <IconMessage className="h-5 w-5" />,
     badge: "Communication",
-    badgeVariant: "default",
+    badgeVariant: "secondary",
   },
   {
     title: "Explainability Demo",
@@ -78,14 +87,14 @@ export function QuickActions() {
       <CardHeader>
         <div className="flex items-center gap-2">
           <IconTestPipe className="h-5 w-5" />
-          <CardTitle>Agent Testing</CardTitle>
+          <CardTitle>AI Agent Demos</CardTitle>
         </div>
         <CardDescription>
-          Test individual agents with sample data and real-time processing
+          Experience our multi-agent insurance claim processing system
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           {quickActions.map((action) => (
             <div key={action.href} className="group relative">
               <Link href={action.href}>

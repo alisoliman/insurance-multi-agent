@@ -29,6 +29,5 @@ When drafting an email:
 8. End with a professional closing.
 
 Format your response as a complete email including a Subject line and Body.""",
-        name="communication_agent",
-        response_format={ "type": "json_object" }
+        name="communication_agent"
     )

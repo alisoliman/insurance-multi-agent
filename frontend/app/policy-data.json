@@ -1,0 +1,47 @@
+[
+    {
+        "id": 1,
+        "header": "Comprehensive Auto Policy",
+        "type": "Auto Insurance",
+        "status": "Active",
+        "target": "Full Coverage",
+        "limit": "$100,000",
+        "reviewer": "Policy Admin"
+    },
+    {
+        "id": 2,
+        "header": "Commercial Auto Policy",
+        "type": "Commercial",
+        "status": "Active",
+        "target": "Business Fleet",
+        "limit": "$500,000",
+        "reviewer": "Commercial Team"
+    },
+    {
+        "id": 3,
+        "header": "High Value Vehicle Policy",
+        "type": "Premium Auto",
+        "status": "Active",
+        "target": "Luxury Vehicles",
+        "limit": "$250,000",
+        "reviewer": "Premium Team"
+    },
+    {
+        "id": 4,
+        "header": "Liability Only Policy",
+        "type": "Basic Auto",
+        "status": "Active",
+        "target": "Minimum Coverage",
+        "limit": "$50,000",
+        "reviewer": "Standard Team"
+    },
+    {
+        "id": 5,
+        "header": "Motorcycle Policy",
+        "type": "Motorcycle",
+        "status": "Active",
+        "target": "Two-Wheeler",
+        "limit": "$75,000",
+        "reviewer": "Specialty Team"
+    }
+]
