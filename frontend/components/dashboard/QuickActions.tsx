@@ -70,15 +70,6 @@ const quickActions: QuickAction[] = [
     badge: "Communication",
     badgeVariant: "secondary",
   },
-  {
-    title: "Explainability Demo",
-    description:
-      "Comprehensive AI decision transparency and human oversight interface",
-    href: "/agents/explainability",
-    icon: <IconBrain className="h-5 w-5" />,
-    badge: "Transparency",
-    badgeVariant: "secondary",
-  },
 ]
 
 export function QuickActions() {
@@ -94,7 +85,7 @@ export function QuickActions() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {quickActions.map((action) => (
             <div key={action.href} className="group relative">
               <Link href={action.href}>

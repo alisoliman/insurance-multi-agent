@@ -3,56 +3,16 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { 
-  CheckCircle2, 
-  Clock, 
-  AlertCircle, 
-  Play, 
-  Bot,
-  FileText,
-  Shield,
-  TrendingUp,
-  MessageSquare,
-  Users,
-  Info,
-  Zap,
-  Target,
-  Eye,
-  Settings,
-  ArrowRight,
-  Upload,
-  X
-} from 'lucide-react'
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { getApiUrl } from "@/lib/config"
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { 
-  Avatar, 
-  AvatarFallback, 
-} from '@/components/ui/avatar'
-import { Progress } from '@/components/ui/progress'
-import { Skeleton } from '@/components/ui/skeleton'
-import { 
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+
 import { 
   IconUsers,
   IconRefresh,
@@ -61,7 +21,6 @@ import {
   IconClock,
   IconUser,
   IconRobot,
-  IconTool,
   IconFileText,
   IconShield,
   IconTrendingUp,
@@ -141,86 +100,16 @@ const AGENT_CONFIG = {
   }
 }
 
-const getDecisionIcon = (decision: string) => {
-  switch (decision) {
-    case 'APPROVED':
-      return <CheckCircle2 className="h-5 w-5 text-green-500" />
-    case 'DENIED':
-      return <AlertCircle className="h-5 w-5 text-red-500" />
-    case 'REQUIRES_INVESTIGATION':
-      return <AlertCircle className="h-5 w-5 text-yellow-500" />
-    default:
-      return <Clock className="h-5 w-5 text-gray-500" />
-  }
-}
 
-const getDecisionColor = (decision: string) => {
-  switch (decision) {
-    case 'APPROVED':
-      return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800'
-    case 'DENIED':
-      return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800'
-    case 'REQUIRES_INVESTIGATION':
-      return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800'
-    default:
-      return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700'
-  }
-}
-
-const formatContent = (content: string) => {
-  // Hide tool calls completely
-  if (content.startsWith('TOOL_CALL:')) {
-    return null
-  }
-  
-  // Also hide content that contains tool call arrays like the one you mentioned
-  if (content.includes('transfer_back_to_supervisor') || 
-      content.includes('"type": "tool_call"') ||
-      content.match(/\[.*"tool_call".*\]/)) {
-    return null
-  }
-  
-  // Format assessment results with better structure
-  if (content.includes('Assessment:') || content.includes('FINAL ASSESSMENT:')) {
-    const lines = content.split('\n')
-    return (
-      <div className="space-y-2">
-        {lines.map((line, idx) => {
-          if (line.includes('Assessment:') || line.includes('FINAL ASSESSMENT:')) {
-            const [label, value] = line.split(':')
-            return (
-              <div key={idx} className="flex items-center gap-2">
-                <span className="font-medium">{label}:</span>
-                <Badge variant={value?.trim() === 'INVALID' ? 'destructive' : 
-                              value?.trim() === 'COVERED' ? 'default' : 'secondary'}>
-                  {value?.trim()}
-                </Badge>
-              </div>
-            )
-          }
-          return line && <p key={idx} className="text-sm">{line}</p>
-        })}
-      </div>
-    )
-  }
-  
-  return <div className="text-sm whitespace-pre-wrap">{content}</div>
-}
 
 export function WorkflowDemo() {
   const [availableClaims, setAvailableClaims] = useState<ClaimSummary[]>([])
-  const [selectedClaimId, setSelectedClaimId] = useState<string>("")
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingSamples, setIsLoadingSamples] = useState(true)
   const [workflowResult, setWorkflowResult] = useState<WorkflowResult | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [progress, setProgress] = useState(0)
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
 
-  // Derived selected claim object
-  const selectedClaim = availableClaims.find(
-    (claim) => claim.claim_id === selectedClaimId
-  )
 
   // Fetch available claims on component mount
   useEffect(() => {
@@ -322,33 +211,6 @@ export function WorkflowDemo() {
 
   const removeFile=(idx:number)=> setUploadedFiles(prev=>prev.filter((_,i)=>i!==idx))
 
-  const renderAgentAvatar = (agentName: string) => {
-    const config = AGENT_CONFIG[agentName as keyof typeof AGENT_CONFIG]
-    if (!config) {
-      return (
-        <Avatar className="h-8 w-8">
-          <AvatarFallback className="bg-gray-500 text-white text-xs">
-            {agentName.charAt(0).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-      )
-    }
-
-    const IconComponent = config.icon
-    return (
-      <Avatar className="h-8 w-8">
-        <AvatarFallback className={`${config.color} text-white text-xs`}>
-          <IconComponent className="h-4 w-4" />
-        </AvatarFallback>
-      </Avatar>
-    )
-  }
-
-  const getAgentDisplayName = (agentName: string) => {
-    const config = AGENT_CONFIG[agentName as keyof typeof AGENT_CONFIG]
-    return config?.displayName || agentName
-  }
-
   const resetDemo = () => {
     setWorkflowResult(null)
     setError(null)
@@ -357,7 +219,6 @@ export function WorkflowDemo() {
 
   const formatConversationStep = (step: ConversationEntry, index: number, isLast: boolean) => {
     const isUser = step.role === 'human'
-    const isAssistant = step.role === 'ai'
     const agentConfig = AGENT_CONFIG[step.node as keyof typeof AGENT_CONFIG]
 
     // Skip tool calls in the display
