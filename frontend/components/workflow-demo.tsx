@@ -182,7 +182,6 @@ export function WorkflowDemo() {
   const [error, setError] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
-  const [supportingDocs, setSupportingDocs] = useState<string[]>([])
 
   // Derived selected claim object
   const selectedClaim = availableClaims.find(
@@ -232,7 +231,7 @@ export function WorkflowDemo() {
         const fd=new FormData(); uploadedFiles.forEach(f=>fd.append('files',f))
         const upRes=await fetch(`${await getApiUrl()}/api/v1/files/upload`,{method:'POST',body:fd})
         if(!upRes.ok) throw new Error(`Upload failed (${upRes.status})`)
-        const upJson=await upRes.json(); paths=Array.isArray(upJson.paths)?upJson.paths:[]; setSupportingDocs(paths)
+        const upJson=await upRes.json(); paths=Array.isArray(upJson.paths)?upJson.paths:[]
       }catch(err){ console.error(err); setError('File upload failed'); }
     }
 
