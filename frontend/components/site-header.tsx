@@ -29,7 +29,8 @@ export function SiteHeader() {
       )
     }
 
-    const breadcrumbs = [
+    // Skip Dashboard breadcrumb for Agent Demos pages
+    const breadcrumbs = pathname.startsWith('/agents') ? [] : [
       <BreadcrumbItem key="home">
         <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
       </BreadcrumbItem>
@@ -71,8 +72,12 @@ export function SiteHeader() {
           title = segment.charAt(0).toUpperCase() + segment.slice(1)
       }
 
+      // Only add separator if there are already items in breadcrumbs
+      if (breadcrumbs.length > 0) {
+        breadcrumbs.push(<BreadcrumbSeparator key={`sep-${index}`} />)
+      }
+      
       breadcrumbs.push(
-        <BreadcrumbSeparator key={`sep-${index}`} />,
         <BreadcrumbItem key={segment}>
           {isLast ? (
             <BreadcrumbPage>{title}</BreadcrumbPage>
@@ -97,18 +102,7 @@ export function SiteHeader() {
         <Breadcrumb>
           {getBreadcrumbs()}
         </Breadcrumb>
-        <div className="ml-auto flex items-center gap-2">
-          <Button variant="ghost" asChild size="sm" className="hidden sm:flex">
-            <a
-              href="https://github.com/shadcn-ui/ui/tree/main/apps/v4/app/(examples)/dashboard"
-              rel="noopener noreferrer"
-              target="_blank"
-              className="dark:text-foreground"
-            >
-              GitHub
-            </a>
-          </Button>
-        </div>
+
       </div>
     </header>
   )
