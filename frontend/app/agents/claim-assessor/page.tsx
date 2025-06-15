@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import { Label } from '@/components/ui/label'
 import { 
   IconFileText,
   IconRefresh,
@@ -16,7 +17,9 @@ import {
   IconUser,
   IconRobot,
   IconTool,
-  IconBook
+  IconBook,
+  IconUpload,
+  IconX
 } from '@tabler/icons-react'
 import { toast } from 'sonner'
 import { getApiUrl } from '@/lib/config'
@@ -47,6 +50,7 @@ export default function ClaimAssessorDemo() {
   const [isLoadingSamples, setIsLoadingSamples] = useState(true)
   const [result, setResult] = useState<AssessmentResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
 
   // Fetch sample claims on component mount
   useEffect(() => {
@@ -72,18 +76,64 @@ export default function ClaimAssessorDemo() {
     fetchSampleClaims()
   }, [])
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    const allowed = ['image/jpeg', 'image/png', 'image/bmp', 'image/webp', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+    const valid = files.filter(f => {
+      if (!allowed.includes(f.type)) { 
+        toast.error(`Unsupported type: ${f.name}`)
+        return false 
+      }
+      if (f.size > 10 * 1024 * 1024) { 
+        toast.error(`File too large: ${f.name}`)
+        return false 
+      }
+      return true
+    })
+    if (valid.length > 0) {
+      setUploadedFiles(prev => [...prev, ...valid])
+      toast.success(`${valid.length} file(s) added`)
+      setError(null)
+    }
+  }
+
+  const removeFile = (idx: number) => setUploadedFiles(prev => prev.filter((_, i) => i !== idx))
+
   const runAssessment = async (claim: SampleClaim) => {
     setIsLoading(true)
     setError(null)
     
     try {
       const apiUrl = await getApiUrl()
+      
+      // Upload files first if any
+      let paths: string[] = []
+      if (uploadedFiles.length > 0) {
+        try {
+          const fd = new FormData()
+          uploadedFiles.forEach(f => fd.append('files', f))
+          const upRes = await fetch(`${apiUrl}/api/v1/files/upload`, { method: 'POST', body: fd })
+          if (!upRes.ok) throw new Error(`Upload failed (${upRes.status})`)
+          const upJson = await upRes.json()
+          paths = Array.isArray(upJson.paths) ? upJson.paths : []
+        } catch (err) { 
+          console.error(err)
+          setError('File upload failed')
+          return
+        }
+      }
+
+      // Run the assessment with or without supporting images
+      const requestBody = paths.length > 0
+        ? { claim_id: claim.claim_id, supporting_images: paths }
+        : { claim_id: claim.claim_id }
+
       const response = await fetch(`${apiUrl}/api/v1/agent/claim_assessor/run`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ claim_id: claim.claim_id }),
+        body: JSON.stringify(requestBody),
       })
 
       if (!response.ok) {
@@ -105,6 +155,7 @@ export default function ClaimAssessorDemo() {
   const resetDemo = () => {
     setResult(null)
     setError(null)
+    setUploadedFiles([])
   }
 
   const formatConversationStep = (step: { role: string; content: string }, index: number, isLast: boolean) => {
@@ -176,12 +227,36 @@ export default function ClaimAssessorDemo() {
 
     const content = lastAssistantMessage.content
     
-    // Extract assessment decision
-    const assessmentMatch = content.match(/Assessment:\s*(\w+)/i) || 
-                           content.match(/Final Assessment:\s*(\w+)/i) ||
-                           content.match(/\b(APPROVED|DENIED|INVALID|QUESTIONABLE|VALID)\b/i)
+    // Extract assessment decision - try multiple patterns in order of specificity
+    let assessment = 'PENDING'
     
-    const assessment = assessmentMatch ? assessmentMatch[1].toUpperCase() : 'PENDING'
+    // First try to find explicit assessment patterns
+    const assessmentPatterns = [
+      /Assessment:\s*(APPROVED|DENIED|INVALID|QUESTIONABLE|VALID)/i,
+      /Final Assessment:\s*(APPROVED|DENIED|INVALID|QUESTIONABLE|VALID)/i,
+      /Assessment:\s*(\w+)/i,
+      /Final Assessment:\s*(\w+)/i,
+    ]
+    
+    for (const pattern of assessmentPatterns) {
+      const match = content.match(pattern)
+      if (match && match[1]) {
+        const candidate = match[1].toUpperCase()
+        // Only accept valid assessment values
+        if (['APPROVED', 'DENIED', 'INVALID', 'QUESTIONABLE', 'VALID'].includes(candidate)) {
+          assessment = candidate
+          break
+        }
+      }
+    }
+    
+    // If no explicit assessment found, look for standalone assessment words at the end
+    if (assessment === 'PENDING') {
+      const endMatch = content.match(/\b(APPROVED|DENIED|INVALID|QUESTIONABLE|VALID)\b(?!.*\b(?:APPROVED|DENIED|INVALID|QUESTIONABLE|VALID)\b)/i)
+      if (endMatch) {
+        assessment = endMatch[1].toUpperCase()
+      }
+    }
     
     return {
       decision: assessment,
@@ -230,7 +305,7 @@ export default function ClaimAssessorDemo() {
                     <span className="font-medium text-sm">Image Analysis</span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Analyzes images to extract damage details
+                    Analyzes uploaded images to extract damage details, categorize document types, and identify key information
                   </p>
                 </div>
               </div>
@@ -264,11 +339,55 @@ export default function ClaimAssessorDemo() {
             Sample Claims
           </CardTitle>
           <CardDescription>
-            Select a sample claim to run through the claim assessor agent
+            Select a sample claim and optionally upload supporting documents to run through the claim assessor agent
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           
+          {/* File Upload Section */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Supporting Documents</Label>
+            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center hover:border-muted-foreground/50 transition-colors">
+              <IconUpload className="mx-auto h-6 w-6 text-muted-foreground" />
+              <Label htmlFor="claim-assessor-upload" className="cursor-pointer block mt-2">
+                <span className="text-sm text-primary hover:text-primary/80 transition-colors">Upload files</span>
+                <input 
+                  id="claim-assessor-upload" 
+                  type="file" 
+                  multiple 
+                  accept=".pdf,.jpg,.jpeg,.png,.bmp,.webp,.txt,.doc,.docx" 
+                  onChange={handleFileUpload} 
+                  className="sr-only"
+                  aria-label="Upload supporting documents"
+                />
+              </Label>
+              <p className="text-xs text-muted-foreground">Images or docs up to 10 MB each</p>
+            </div>
+
+            {uploadedFiles.length > 0 && (
+              <div className="space-y-1">
+                {uploadedFiles.map((f, i) => (
+                  <div key={i} className="flex items-center justify-between bg-muted/50 p-2 rounded border border-border">
+                    <div className="flex items-center space-x-2">
+                      <IconFileText className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm truncate text-foreground">{f.name}</span>
+                      <span className="text-xs text-muted-foreground">({(f.size / 1024).toFixed(1)} KB)</span>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => removeFile(i)}
+                      aria-label={`Remove ${f.name}`}
+                      title={`Remove ${f.name}`}
+                      className="hover:bg-destructive/10 rounded p-1 transition-colors"
+                    >
+                      <IconX className="h-4 w-4 text-destructive hover:text-destructive/80" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {isLoadingSamples ? (
             <div className="flex items-center justify-center py-8">
               <IconClock className="h-6 w-6 animate-spin mr-2" />
@@ -406,10 +525,20 @@ export default function ClaimAssessorDemo() {
                                  }
                                </span>
                              ) : typeof value === 'object' && value !== null ? (
-                               <div className="bg-muted/50 rounded p-2 text-xs">
-                                 <pre className="whitespace-pre-wrap">
-                                   {JSON.stringify(value, null, 2)}
-                                 </pre>
+                               <div className="bg-muted/50 rounded p-2 text-xs max-w-full">
+                                 {key === 'supporting_images' && Array.isArray(value) ? (
+                                   <div className="space-y-1">
+                                     {value.map((path: string, idx: number) => (
+                                       <div key={idx} className="text-xs text-muted-foreground break-all">
+                                         📎 {path.split('/').pop() || path}
+                                       </div>
+                                     ))}
+                                   </div>
+                                 ) : (
+                                   <pre className="whitespace-pre-wrap overflow-x-auto break-words text-wrap max-w-full">
+                                     {JSON.stringify(value, null, 2)}
+                                   </pre>
+                                 )}
                                </div>
                              ) : (
                                <span className="break-words">
