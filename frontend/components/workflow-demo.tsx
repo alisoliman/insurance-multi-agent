@@ -302,19 +302,17 @@ export function WorkflowDemo() {
     )
   }
 
-  const extractFinalDecision = () => {
-    if (!workflowResult?.final_decision) return null
+
+
+  const getLastWorkflowMessage = () => {
+    if (!workflowResult?.conversation_chronological) return null
     
-    const decision = workflowResult.final_decision.toUpperCase()
-    return {
-      decision,
-      icon: decision === 'APPROVED' ? <IconCircleCheck className="h-5 w-5 text-green-500" /> :
-            decision === 'DENIED' ? <IconAlertCircle className="h-5 w-5 text-red-500" /> :
-            <IconClock className="h-5 w-5 text-yellow-500" />,
-      color: decision === 'APPROVED' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800' :
-             decision === 'DENIED' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800' :
-             'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800'
-    }
+    // Find the last supervisor message (which should contain the final assessment)
+    const lastSupervisorMessage = workflowResult.conversation_chronological
+      .filter(step => step.node === 'supervisor' && step.role === 'ai')
+      .pop()
+    
+    return lastSupervisorMessage
   }
 
   return (
@@ -503,22 +501,40 @@ export function WorkflowDemo() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <IconCircleCheck className="h-5 w-5" />
-                  Final Decision
+                  Assessment Summary
                 </CardTitle>
+                <CardDescription>
+                  AI-powered advisory recommendation for human decision-making
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {(() => {
-                  const finalDecision = extractFinalDecision()
-                  return finalDecision ? (
-                    <div className={`rounded-lg p-4 border ${finalDecision.color} flex items-center gap-3`}>
-                      {finalDecision.icon}
-                      <div>
-                        <div className="font-medium">
-                          {finalDecision.decision.replace('_', ' ')}
-                        </div>
-                        <div className="text-sm opacity-75">
-                          Multi-agent assessment complete
-                        </div>
+                  const lastMessage = getLastWorkflowMessage()
+                  return lastMessage ? (
+                    <div className="bg-muted/30 rounded-lg p-4 border-l-4 border-primary">
+                      <div className="flex items-center gap-2 mb-3">
+                        <IconRobot className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">Final Assessment</span>
+                      </div>
+                      <div className="text-sm text-muted-foreground leading-relaxed">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
+                            ul: ({children}) => <ul className="mb-2 pl-4 space-y-1">{children}</ul>,
+                            ol: ({children}) => <ol className="mb-2 pl-4 space-y-1">{children}</ol>,
+                            li: ({children}) => <li>{children}</li>,
+                            strong: ({children}) => <strong className="font-semibold text-foreground">{children}</strong>,
+                            em: ({children}) => <em className="italic">{children}</em>,
+                            h1: ({children}) => <h1 className="text-base font-bold mb-2 text-foreground">{children}</h1>,
+                            h2: ({children}) => <h2 className="text-sm font-semibold mb-2 text-foreground">{children}</h2>,
+                            h3: ({children}) => <h3 className="text-sm font-medium mb-1 text-foreground">{children}</h3>,
+                            code: ({children}) => <code className="bg-muted px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
+                            pre: ({children}) => <pre className="bg-muted p-2 rounded text-xs overflow-x-auto">{children}</pre>,
+                          }}
+                        >
+                          {lastMessage.content}
+                        </ReactMarkdown>
                       </div>
                     </div>
                   ) : (
@@ -573,6 +589,8 @@ export function WorkflowDemo() {
                     {workflowResult.conversation_chronological
                       ?.map((step, index) => formatConversationStep(step, index, index === workflowResult.conversation_chronological.length - 1))
                       .filter(Boolean)}
+                    
+
                   </div>
                 </ScrollArea>
               ) : (
