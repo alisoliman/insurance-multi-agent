@@ -31,3 +31,8 @@ node_modules/
 tasks.json
 tasks/ 
 .cursor/mcp.json
+backend/app/workflow/data/policy_index/index.faiss
+backend/app/workflow/data/policy_index/index.faiss
+backend/app/workflow/data/index_status.json
+backend/app/workflow/data/document_metadata.json
+backend/app/workflow/data/uploaded_docs/policies/*

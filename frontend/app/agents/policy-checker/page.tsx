@@ -180,7 +180,7 @@ export default function PolicyCheckerDemo() {
     
     // Extract policy assessment decision
     const assessmentMatch = content.match(/FINAL ASSESSMENT:\s*(\w+)/i) || 
-                           content.match(/\b(COVERED|NOT_COVERED|PARTIALLY_COVERED)\b/i)
+                           content.match(/\b(COVERED|NOT_COVERED|PARTIALLY_COVERED|INSUFFICIENT_EVIDENCE)\b/i)
     
     const assessment = assessmentMatch ? assessmentMatch[1].toUpperCase() : 'PENDING'
     
@@ -247,9 +247,10 @@ export default function PolicyCheckerDemo() {
                   <Badge variant="default" className="text-xs">COVERED</Badge>
                   <Badge variant="secondary" className="text-xs">PARTIALLY_COVERED</Badge>
                   <Badge variant="destructive" className="text-xs">NOT_COVERED</Badge>
+                  <Badge variant="outline" className="text-xs">INSUFFICIENT_EVIDENCE</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Possible coverage determinations from the agent
+                  Possible coverage determinations from the agent. INSUFFICIENT_EVIDENCE indicates when relevant policy documents are not available or don&apos;t match the claim context.
                 </p>
               </div>
             </div>
@@ -372,6 +373,7 @@ export default function PolicyCheckerDemo() {
                         <Badge variant={
                           assessment.decision === 'COVERED' ? 'default' :
                           assessment.decision === 'NOT_COVERED' ? 'destructive' :
+                          assessment.decision === 'INSUFFICIENT_EVIDENCE' ? 'outline' :
                           'secondary'
                         }>
                           {assessment.decision.replace('_', ' ')}
