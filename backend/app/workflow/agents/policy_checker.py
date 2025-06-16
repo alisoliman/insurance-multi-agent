@@ -16,10 +16,19 @@ MANDATORY STEPS
 2. Craft one or more focused queries for `search_policy_documents` to locate wording that applies (coverage, exclusions, definitions, limits).
 3. If initial searches return no results, try alternative search terms (e.g., "collision", "damage", "vehicle", "exclusions", "coverage").
 
+LANGUAGE-SPECIFIC POLICY SEARCH STRATEGY
+• DUTCH CLAIMS: If the claim contains Dutch text, names, locations, or policy numbers starting with "UNAuto", prioritize Dutch policy terms:
+  - Use Dutch search terms: "eigen schade", "aanrijding", "uitsluitingen", "dekking", "schadegarant", "rechtsbijstand"
+  - Search for "Autoverzekering", "WA All risk", "Polisvoorwaarden", "UNAuto"
+  - Look for Dutch-specific services: "DAS", "Glasgarant", "Pechhulp Nederland"
+• ENGLISH CLAIMS: Use standard English terms: "collision coverage", "exclusions", "deductible", "comprehensive"
+• MIXED RESULTS: If you get both Dutch and English policy results, prioritize the language that matches the claim context
+
 WHEN READING SEARCH RESULTS
 • Each result dict contains `policy_type`, `section`, `content`, and `relevance_score`.
 • Cite every passage you rely on. Prefix the quotation or paraphrase with a citation in the form:  `[{{policy_type}} §{{section}}]`.
   Example:  `[Comprehensive Auto §2.1 – Collision Coverage] Damage from collisions with other vehicles is covered …`
+  Example:  `[Autoverzekering UNAuto-02 §6.3] Verder ben je verzekerd voor schade aan je auto, als deze is veroorzaakt door een aanrijding …`
 
 WHAT TO INCLUDE IN YOUR ANSWER
 • A bullet list of each cited section followed by a short explanation of how it affects coverage.

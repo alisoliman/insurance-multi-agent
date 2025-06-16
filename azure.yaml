@@ -11,6 +11,8 @@ services:
     project: ./backend
     language: python
     host: containerapp
+    env:
+      FRONTEND_ORIGIN: "{{ .Env.FRONTEND_ORIGIN }}"
   web:
     project: ./frontend
     language: js
@@ -22,4 +24,6 @@ hooks:
     run: |
       echo "Setting container registry endpoint..."
       azd env set AZURE_CONTAINER_REGISTRY_ENDPOINT $(azd env get-value containerRegistryLoginServer)
+      echo "Setting frontend origin for CORS..."
+      azd env set FRONTEND_ORIGIN "https://$(azd env get-value frontendContainerAppFqdn)"
     continueOnError: false

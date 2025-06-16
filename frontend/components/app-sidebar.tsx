@@ -101,6 +101,16 @@ const data = {
       url: "/documents",
       icon: IconFileDescription,
     },
+    {
+      name: "Document Management",
+      url: "/documents/manage",
+      icon: IconFileAi,
+    },
+    {
+      name: "Index Management",
+      url: "/documents/index-management",
+      icon: IconDashboard,
+    },
   ],
 }
 

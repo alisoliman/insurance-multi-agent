@@ -65,6 +65,40 @@ def get_policy_details(policy_number: str) -> Dict[str, Any]:
             "exclusions": ["Racing or competitive driving", "Commercial use"],
             "additional_coverage": [],
         },
+        "UNAuto-02-2024-567890": {
+            "policy_number": "UNAuto-02-2024-567890",
+            "policy_holder": "Jan de Vries",
+            "policy_type": "WA All risk",
+            "coverage_limits": {
+                "wettelijke_aansprakelijkheid": "unlimited",
+                "eigen_schade": 50000,
+                "diefstal": 50000,
+                "brand_storm_natuur": 50000,
+                "ruitschade": 2500,
+            },
+            "deductibles": {
+                "eigen_schade": 400,
+                "ruitreparatie": 0,
+                "ruitvervanging": 150,
+            },
+            "premium": 1450,
+            "effective_date": "2024-01-01",
+            "expiry_date": "2024-12-31",
+            "status": "active",
+            "modules": [
+                "Schade Inzittenden",
+                "Pechhulp Nederland", 
+                "Rechtsbijstand"
+            ],
+            "services": {
+                "schadegarant": True,
+                "glasgarant": True,
+                "vervangend_vervoer": True,
+                "rechtsbijstand_das": True,
+            },
+            "schadevrije_jaren": 5,
+            "korting_percentage": 45,
+        },
     }
     policy = policy_database.get(policy_number)
     if not policy:
@@ -113,6 +147,35 @@ def get_claimant_history(claimant_id: str) -> Dict[str, Any]:
                 "email": "john.smith@email.com",
                 "address": "123 Main St, Anytown, ST 12345",
             },
+        },
+        "CLM-004": {
+            "claimant_id": "CLM-004",
+            "name": "Jan de Vries",
+            "customer_since": "2019-03-01",
+            "total_claims": 1,
+            "claim_history": [
+                {
+                    "claim_id": "CLM-2022-789",
+                    "date": "2022-08-15",
+                    "type": "ruitschade",
+                    "amount_claimed": 450,
+                    "amount_paid": 450,
+                    "status": "closed",
+                    "description": "Steenslag op voorruit tijdens snelwegrit",
+                },
+            ],
+            "risk_factors": {
+                "claim_frequency": "very_low",
+                "average_claim_amount": 450,
+                "fraud_indicators": [],
+                "credit_score": "excellent",
+                "driving_record": "clean",
+            },
+            "contact_info": {
+                "phone": "+31 6 12345678",
+                "email": "jan.devries@email.nl",
+                "address": "Hoofdstraat 123, 1012 AB Amsterdam",
+            },
         }
     }
     claimant = claimant_database.get(claimant_id)
@@ -141,6 +204,23 @@ def get_vehicle_details(vin: str) -> Dict[str, Any]:
             "maintenance_records": "up_to_date",
             "recalls": [],
             "modifications": [],
+        },
+        "WVWZZZ1JZXW123456": {
+            "vin": "WVWZZZ1JZXW123456",
+            "make": "Volkswagen",
+            "model": "Golf",
+            "year": 2022,
+            "color": "Blauw",
+            "mileage": 18000,
+            "market_value": 28000,
+            "condition": "excellent",
+            "accident_history": [],
+            "maintenance_records": "up_to_date",
+            "recalls": [],
+            "modifications": [],
+            "license_plate": "12-ABC-3",
+            "apk_valid_until": "2025-01-15",
+            "insurance_category": "personenauto",
         }
     }
     vehicle = vehicle_database.get(vin)

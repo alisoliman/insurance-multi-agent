@@ -55,28 +55,28 @@ high_value_claim = {
     }
 }
 
-# Suspicious claim
-suspicious_claim = {
-    "claim_id": "CLM-2024-003",
-    "policy_number": "POL-2024-999",  # Non-existent policy
-    "claimant_id": "CLM-003",  # High-risk claimant
-    "claimant_name": "Mike Wilson",
-    "incident_date": "2024-03-01",
-    "claim_type": "Vandalism",
-    "description": "Vehicle vandalized while parked overnight. Extensive scratches and broken windows.",
-    "estimated_damage": 12000.00,
-    "location": "Unknown parking lot",
-    "police_report": False,  # Red flag
-    "photos_provided": False,  # Red flag
-    "witness_statements": "0",  # Red flag
+# Dutch auto insurance claim for policy checker demo
+dutch_auto_claim = {
+    "claim_id": "CLM-2024-004",
+    "policy_number": "UNAuto-02-2024-567890",
+    "claimant_id": "CLM-004",
+    "claimant_name": "Jan de Vries",
+    "incident_date": "2024-01-14",
+    "claim_type": "Auto Collision",
+    "description": "Aanrijding met een andere auto tijdens het uitparkeren. Ik reed achteruit uit een parkeerplaats toen een andere bestuurder plotseling van rechts kwam en tegen mijn rechterzijkant botste. De andere bestuurder beweerde dat ik niet goed had gekeken, maar ik had wel degelijk gecheckt.",
+    "estimated_damage": 3500.00,
+    "location": "Damrak 45, Amsterdam",
+    "police_report": True,
+    "photos_provided": True,
+    "witness_statements": "1",
     "vehicle_info": {
-        "vin": "UNKNOWN123456789",  # Invalid VIN
-        "make": "Unknown",
-        "model": "Unknown",
-        "year": 2020,
-        "license_plate": "XYZ999"
+        "vin": "WVWZZZ1JZXW123456",
+        "make": "Volkswagen",
+        "model": "Golf",
+        "year": 2022,
+        "license_plate": "12-ABC-3"
     }
 }
 
 # List of all sample claims for easy access
-ALL_SAMPLE_CLAIMS = [sample_claim, high_value_claim, suspicious_claim]
+ALL_SAMPLE_CLAIMS = [sample_claim, high_value_claim, dutch_auto_claim]

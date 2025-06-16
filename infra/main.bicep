@@ -86,6 +86,10 @@ module backendContainerApp 'modules/containerapp.bicep' = {
         name: 'ENVIRONMENT'
         value: 'production'
       }
+      {
+        name: 'FRONTEND_ORIGIN'
+        value: 'https://${frontendContainerAppName}.${location}.azurecontainerapps.io'
+      }
     ]
   }
   dependsOn: [

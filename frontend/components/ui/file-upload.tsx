@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Image from "next/image"
-import { Upload, X, FileImage, AlertCircle, CheckCircle } from "lucide-react"
+import { Upload, X, AlertCircle, CheckCircle, FileText, File } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -47,9 +47,28 @@ export function FileUpload({
       return `File "${file.name}" is too large. Maximum size is ${Math.round(maxSize / (1024 * 1024))}MB.`
     }
 
-    // Check file type
-    if (accept && !file.type.match(accept.replace(/\*/g, ".*"))) {
-      return `File "${file.name}" has an unsupported format.`
+    // Check file type - handle both MIME types and file extensions
+    if (accept) {
+      const mimeType = file.type.toLowerCase()
+      
+      // If accept contains file extensions (starts with .)
+      if (accept.includes('.')) {
+        const allowedExtensions = accept.split(',').map(ext => ext.trim().toLowerCase())
+        const hasValidExtension = allowedExtensions.some(ext => {
+          if (ext.startsWith('.')) {
+            return file.name.toLowerCase().endsWith(ext)
+          }
+          return false
+        })
+        
+        if (!hasValidExtension) {
+          return `File "${file.name}" has an unsupported format. Supported formats: ${allowedExtensions.join(', ')}`
+        }
+      }
+      // If accept contains MIME types
+      else if (!mimeType.match(accept.replace(/\*/g, ".*"))) {
+        return `File "${file.name}" has an unsupported format.`
+      }
     }
 
     return null
@@ -191,7 +210,8 @@ export function FileUpload({
               {dragActive ? "Drop files here" : "Click to upload or drag and drop"}
             </p>
             <p className="text-xs text-muted-foreground">
-              {accept.includes('image') ? 'Images only' : 'Files'} up to {Math.round(maxSize / (1024 * 1024))}MB each (max {maxFiles} files)
+              {accept.includes('image') ? 'Images only' : 
+               accept.includes('.pdf') ? 'PDF, Markdown, Text, and Word documents' : 'Files'} up to {Math.round(maxSize / (1024 * 1024))}MB each (max {maxFiles} files)
             </p>
           </div>
         </div>
@@ -232,7 +252,17 @@ export function FileUpload({
                       className="h-10 w-10 object-cover rounded"
                     />
                   ) : (
-                    <FileImage className="h-10 w-10 text-muted-foreground" />
+                    <div className="h-10 w-10 flex items-center justify-center">
+                      {file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf') ? (
+                        <FileText className="h-8 w-8 text-red-500" />
+                      ) : file.type.startsWith('text/') || file.name.toLowerCase().match(/\.(md|txt)$/) ? (
+                        <FileText className="h-8 w-8 text-blue-500" />
+                      ) : file.type.includes('word') || file.name.toLowerCase().match(/\.(doc|docx)$/) ? (
+                        <FileText className="h-8 w-8 text-blue-600" />
+                      ) : (
+                        <File className="h-8 w-8 text-muted-foreground" />
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -244,7 +274,11 @@ export function FileUpload({
                       {formatFileSize(file.size)}
                     </p>
                     <Badge variant="secondary" className="text-xs">
-                      {file.type.split('/')[1]?.toUpperCase() || 'FILE'}
+                      {file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf') ? 'PDF' :
+                       file.name.toLowerCase().endsWith('.md') ? 'MARKDOWN' :
+                       file.name.toLowerCase().endsWith('.txt') ? 'TEXT' :
+                       file.name.toLowerCase().match(/\.(doc|docx)$/) ? 'WORD' :
+                       file.type.split('/')[1]?.toUpperCase() || 'FILE'}
                     </Badge>
                   </div>
                 </div>

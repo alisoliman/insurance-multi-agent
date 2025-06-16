@@ -19,6 +19,8 @@ from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 
+from .pdf_processor import get_pdf_processor
+
 # Configure logger
 logger = logging.getLogger(__name__)
 
@@ -84,11 +86,34 @@ class PolicyVectorSearch:  # noqa: D101
             raise FileNotFoundError(
                 f"Policies directory not found: {self.policies_dir}")
 
-        loader = DirectoryLoader(
+        docs = []
+        
+        # Load Markdown files
+        md_loader = DirectoryLoader(
             str(self.policies_dir), glob="*.md", loader_cls=TextLoader, loader_kwargs={"encoding": "utf-8"}
         )
-        docs = loader.load()
-        logger.info("Loaded %s policy documents", len(docs))
+        md_docs = md_loader.load()
+        docs.extend(md_docs)
+        logger.info("Loaded %s markdown policy documents", len(md_docs))
+        
+        # Load PDF files
+        pdf_processor = get_pdf_processor()
+        pdf_files = list(self.policies_dir.glob("*.pdf"))
+        
+        for pdf_file in pdf_files:
+            try:
+                if pdf_processor.is_valid_pdf(pdf_file):
+                    pdf_docs = pdf_processor.pdf_to_langchain_documents(pdf_file, chunk_pages=False)
+                    docs.extend(pdf_docs)
+                    logger.info("Loaded PDF policy document: %s", pdf_file.name)
+                else:
+                    logger.warning("Skipping invalid PDF file: %s", pdf_file.name)
+            except Exception as e:
+                logger.error("Failed to load PDF %s: %s", pdf_file.name, e)
+                continue
+        
+        logger.info("Loaded %s total policy documents (%s markdown, %s PDF)", 
+                   len(docs), len(md_docs), len(pdf_files))
 
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
@@ -100,18 +125,32 @@ class PolicyVectorSearch:  # noqa: D101
 
         # annotate metadata
         for chunk in chunks:
-            filename = Path(chunk.metadata["source"]).stem
+            source_path = Path(chunk.metadata["source"])
+            filename = source_path.stem
+            file_extension = source_path.suffix.lower()
+            
+            # Set policy type based on filename
             chunk.metadata["policy_type"] = filename.replace("_", " ").title()
+            chunk.metadata["file_type"] = file_extension[1:] if file_extension else "unknown"
+            
+            # For markdown files, try to extract section information
             section = None
-            for line in chunk.page_content.split("\n"):
-                if line.startswith("## Section ") or line.startswith("### Section "):
-                    if ":" in line:
-                        section_part = line.split(":")[0]
-                        if "Section " in section_part:
-                            section = section_part.split(
-                                "Section ")[-1].strip()
-                    break
+            if file_extension == ".md":
+                for line in chunk.page_content.split("\n"):
+                    if line.startswith("## Section ") or line.startswith("### Section "):
+                        if ":" in line:
+                            section_part = line.split(":")[0]
+                            if "Section " in section_part:
+                                section = section_part.split(
+                                    "Section ")[-1].strip()
+                        break
+            
+            # For PDF files, use page information if available
+            elif file_extension == ".pdf" and "page" in chunk.metadata:
+                section = f"Page {chunk.metadata['page']}"
+            
             chunk.metadata["section"] = section or "General"
+            
         logger.info("Split into %s chunks", len(chunks))
         return chunks
 
@@ -171,6 +210,103 @@ class PolicyVectorSearch:  # noqa: D101
                 )
         logger.info("%s relevant sections for '%s'", len(out), query)
         return out
+
+    # ------------------------------------------------------------------
+    def add_document_to_index(self, document_path: str | Path) -> bool:
+        """Add a single document to the existing vector index.
+        
+        Args:
+            document_path: Path to the document file (PDF or markdown)
+            
+        Returns:
+            True if document was successfully added, False otherwise
+        """
+        if FAISS is None:
+            logger.error("FAISS not available – cannot add document to index")
+            return False
+            
+        if not self.vectorstore:
+            logger.error("Vectorstore not initialized – call create_index() first")
+            return False
+            
+        document_path = Path(document_path)
+        if not document_path.exists():
+            logger.error(f"Document not found: {document_path}")
+            return False
+            
+        try:
+            docs = []
+            file_extension = document_path.suffix.lower()
+            
+            if file_extension == ".pdf":
+                # Process PDF file
+                pdf_processor = get_pdf_processor()
+                if pdf_processor.is_valid_pdf(document_path):
+                    pdf_docs = pdf_processor.pdf_to_langchain_documents(document_path, chunk_pages=False)
+                    docs.extend(pdf_docs)
+                else:
+                    logger.error(f"Invalid PDF file: {document_path}")
+                    return False
+                    
+            elif file_extension == ".md":
+                # Process markdown file
+                loader = TextLoader(str(document_path), encoding="utf-8")
+                md_docs = loader.load()
+                docs.extend(md_docs)
+                
+            else:
+                logger.error(f"Unsupported file type: {file_extension}")
+                return False
+            
+            if not docs:
+                logger.error(f"No content extracted from document: {document_path}")
+                return False
+            
+            # Split documents into chunks
+            splitter = RecursiveCharacterTextSplitter(
+                chunk_size=1000,
+                chunk_overlap=200,
+                length_function=len,
+                separators=["\n\n", "\n", ".", "!", "?", ",", " ", ""],
+            )
+            chunks = splitter.split_documents(docs)
+            
+            # Annotate metadata
+            for chunk in chunks:
+                source_path = Path(chunk.metadata["source"])
+                filename = source_path.stem
+                file_extension = source_path.suffix.lower()
+                
+                chunk.metadata["policy_type"] = filename.replace("_", " ").title()
+                chunk.metadata["file_type"] = file_extension[1:] if file_extension else "unknown"
+                
+                # Extract section information
+                section = None
+                if file_extension == ".md":
+                    for line in chunk.page_content.split("\n"):
+                        if line.startswith("## Section ") or line.startswith("### Section "):
+                            if ":" in line:
+                                section_part = line.split(":")[0]
+                                if "Section " in section_part:
+                                    section = section_part.split("Section ")[-1].strip()
+                            break
+                elif file_extension == ".pdf" and "page" in chunk.metadata:
+                    section = f"Page {chunk.metadata['page']}"
+                
+                chunk.metadata["section"] = section or "General"
+            
+            # Add chunks to existing vectorstore
+            self.vectorstore.add_documents(chunks)
+            
+            # Save updated index
+            self.vectorstore.save_local(str(self.index_path))
+            
+            logger.info(f"Successfully added document to index: {document_path.name} ({len(chunks)} chunks)")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to add document to index {document_path}: {e}")
+            return False
 
     # ------------------------------------------------------------------
     def get_policy_summary(self, policy_type: str) -> Optional[str]:  # noqa: D401

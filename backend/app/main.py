@@ -25,17 +25,34 @@ default_dev_origins = [
     "http://127.0.0.1:3001",
 ]
 
-# If FRONTEND_ORIGIN is set (e.g., https://frontend-*.azurecontainerapps.io) use it; otherwise, fall back to dev origins.
-allow_origins = [frontend_origin] if frontend_origin else default_dev_origins
+# Azure Container Apps production origins
+azure_origins = [
+    "https://frontend-gqxcjz.redflower-818d79c8.eastus2.azurecontainerapps.io",
+]
 
-# In case no specific origin is provided for production, allow all (*) to unblock CORS, but log a warning.
-if not frontend_origin and os.getenv("ALLOW_ALL_CORS", "false").lower() == "true":
-    logging.warning("CORS is configured to allow all origins – set FRONTEND_ORIGIN for stricter policy.")
+# Determine CORS configuration
+if frontend_origin:
+    # Explicit frontend origin set
+    allow_origins = [frontend_origin]
+    allow_origin_regex = None
+    logger.info(f"CORS configured for explicit frontend origin: {frontend_origin}")
+elif os.getenv("ALLOW_ALL_CORS", "false").lower() == "true":
+    # Allow all origins (not recommended for production)
     allow_origins = ["*"]
+    allow_origin_regex = None
+    logger.warning("CORS is configured to allow all origins – set FRONTEND_ORIGIN for stricter policy.")
+else:
+    # Use development origins + regex for Azure Container Apps
+    allow_origins = default_dev_origins + azure_origins
+    allow_origin_regex = r"https://.*\.azurecontainerapps\.io"
+    logger.info(f"CORS configured for development origins: {default_dev_origins}")
+    logger.info(f"CORS configured for Azure origins: {azure_origins}")
+    logger.info(f"CORS configured with regex pattern: {allow_origin_regex}")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allow_origins,
+    allow_origin_regex=allow_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -64,3 +81,10 @@ async def read_root() -> dict[str, str]:
 app.include_router(workflow_endpoints.router, prefix="/api/v1")
 app.include_router(files_endpoints.router, prefix="/api/v1")
 app.include_router(agent_endpoints.router, prefix="/api/v1")
+
+# Import and mount new document management endpoints
+from app.api.v1.endpoints import documents as documents_endpoints
+from app.api.v1.endpoints import index_management as index_endpoints
+
+app.include_router(documents_endpoints.router, prefix="/api/v1")
+app.include_router(index_endpoints.router, prefix="/api/v1")
