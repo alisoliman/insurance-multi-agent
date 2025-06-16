@@ -88,7 +88,7 @@ module backendContainerApp 'modules/containerapp.bicep' = {
       }
       {
         name: 'FRONTEND_ORIGIN'
-        value: 'https://${frontendContainerAppName}.${location}.azurecontainerapps.io'
+        value: 'https://${frontendContainerAppName}.${containerAppsStack.outputs.containerAppsEnvironmentDefaultDomain}'
       }
     ]
   }

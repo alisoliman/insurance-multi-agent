@@ -107,3 +107,4 @@ output containerAppsEnvironmentId string = containerAppsEnvironment.id
 output containerRegistryId string = containerRegistry.id
 output containerRegistryLoginServer string = containerRegistry.properties.loginServer
 output logAnalyticsWorkspaceId string = logAnalyticsWorkspace.id
+output containerAppsEnvironmentDefaultDomain string = containerAppsEnvironment.properties.defaultDomain
