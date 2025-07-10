@@ -451,7 +451,7 @@ export default function CommunicationAgentDemo() {
                     <IconBook className="h-4 w-4" />
                     Conversation Timeline
                   </h4>
-                  <ScrollArea className="h-96">
+                  <ScrollArea className="h-[calc(100vh-28rem)] min-h-[500px] max-h-[700px]">
                     <div className="py-4">
                       {result.conversation_chronological
                         .map((step, index, array) => formatConversationStep(step, index, index === array.length - 1))

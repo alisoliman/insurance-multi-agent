@@ -584,7 +584,7 @@ export function WorkflowDemo() {
                   </div>
                 </div>
               ) : workflowResult ? (
-                <ScrollArea className="h-[600px]">
+                <ScrollArea className="h-[calc(100vh-24rem)] min-h-[500px] max-h-[800px]">
                   <div className="space-y-4 pr-4">
                     {workflowResult.conversation_chronological
                       ?.map((step, index) => formatConversationStep(step, index, index === workflowResult.conversation_chronological.length - 1))
