@@ -112,40 +112,13 @@ export interface WorkflowCompletionFeedback extends FeedbackBase {
   humanReviewRequired: boolean
 }
 
-// Feedback specifically for explainability features
-export interface ExplainabilityFeedback extends FeedbackBase {
-  type: 'explainability'
-  
-  // Feature-specific ratings
-  explanationClarity: RatingScale
-  decisionTreeUsefulness: RatingScale
-  sourceAttributionHelpfulness: RatingScale
-  agentTimelineClarity: RatingScale
-  interventionControlsEffectiveness: RatingScale
-  
-  // Feature usage
-  featuresUsed: string[] // Which explainability features were actually used
-  mostUsefulFeature?: string
-  leastUsefulFeature?: string
-  
-  // Improvement suggestions
-  missingFeatures?: string
-  improvementSuggestions?: string
-  
-  // Context
-  explainabilityContext: {
-    decisionComplexity: 'low' | 'medium' | 'high'
-    userExperience: 'novice' | 'intermediate' | 'expert'
-    primaryUseCase: string
-  }
-}
+
 
 // Union type for all feedback types
 export type FeedbackData = 
   | ImmediateAgentFeedback 
   | HumanReviewFeedback 
-  | WorkflowCompletionFeedback 
-  | ExplainabilityFeedback
+  | WorkflowCompletionFeedback
 
 // Feedback submission response
 export interface FeedbackSubmissionResponse {
@@ -178,7 +151,6 @@ export interface FeedbackConfig {
   enableImmediateFeedback: boolean
   enableHumanReviewFeedback: boolean
   enableWorkflowCompletionFeedback: boolean
-  enableExplainabilityFeedback: boolean
   
   // Trigger conditions
   lowConfidenceThreshold: number // Trigger feedback when confidence below this

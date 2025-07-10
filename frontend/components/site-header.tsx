@@ -55,9 +55,7 @@ export function SiteHeader() {
         case 'orchestrator':
           title = 'Orchestrator Agent'
           break
-        case 'explainability':
-          title = 'Explainability Demo'
-          break
+
         case 'tasks':
           title = 'Tasks'
           break
