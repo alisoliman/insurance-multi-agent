@@ -17,13 +17,12 @@ import {
   IconUser,
   IconRobot,
   IconTool,
-  IconBook,
-  IconUpload,
-  IconX
+  IconBook
 } from '@tabler/icons-react'
 import { toast } from 'sonner'
 import { getApiUrl } from '@/lib/config'
 import { AgentWorkflowVisualization } from '@/components/agent-workflow-visualization'
+import { FileUpload } from '@/components/ui/file-upload'
 
 // Sample claims from API
 interface SampleClaim {
@@ -76,28 +75,12 @@ export default function ClaimAssessorDemo() {
     fetchSampleClaims()
   }, [])
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    const allowed = ['image/jpeg', 'image/png', 'image/bmp', 'image/webp', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
-    const valid = files.filter(f => {
-      if (!allowed.includes(f.type)) { 
-        toast.error(`Unsupported type: ${f.name}`)
-        return false 
-      }
-      if (f.size > 10 * 1024 * 1024) { 
-        toast.error(`File too large: ${f.name}`)
-        return false 
-      }
-      return true
-    })
-    if (valid.length > 0) {
-      setUploadedFiles(prev => [...prev, ...valid])
-      toast.success(`${valid.length} file(s) added`)
+  const handleFilesChange = (files: File[]) => {
+    setUploadedFiles(files)
+    if (files.length > 0) {
       setError(null)
     }
   }
-
-  const removeFile = (idx: number) => setUploadedFiles(prev => prev.filter((_, i) => i !== idx))
 
   const runAssessment = async (claim: SampleClaim) => {
     setIsLoading(true)
@@ -347,45 +330,13 @@ export default function ClaimAssessorDemo() {
           {/* File Upload Section */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">Supporting Documents</Label>
-            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center hover:border-muted-foreground/50 transition-colors">
-              <IconUpload className="mx-auto h-6 w-6 text-muted-foreground" />
-              <Label htmlFor="claim-assessor-upload" className="cursor-pointer block mt-2">
-                <span className="text-sm text-primary hover:text-primary/80 transition-colors">Upload files</span>
-                <input 
-                  id="claim-assessor-upload" 
-                  type="file" 
-                  multiple 
-                  accept=".pdf,.jpg,.jpeg,.png,.bmp,.webp,.txt,.doc,.docx" 
-                  onChange={handleFileUpload} 
-                  className="sr-only"
-                  aria-label="Upload supporting documents"
-                />
-              </Label>
-              <p className="text-xs text-muted-foreground">Images or docs up to 10 MB each</p>
-            </div>
-
-            {uploadedFiles.length > 0 && (
-              <div className="space-y-1">
-                {uploadedFiles.map((f, i) => (
-                  <div key={i} className="flex items-center justify-between bg-muted/50 p-2 rounded border border-border">
-                    <div className="flex items-center space-x-2">
-                      <IconFileText className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm truncate text-foreground">{f.name}</span>
-                      <span className="text-xs text-muted-foreground">({(f.size / 1024).toFixed(1)} KB)</span>
-                    </div>
-                    <button 
-                      type="button" 
-                      onClick={() => removeFile(i)}
-                      aria-label={`Remove ${f.name}`}
-                      title={`Remove ${f.name}`}
-                      className="hover:bg-destructive/10 rounded p-1 transition-colors"
-                    >
-                      <IconX className="h-4 w-4 text-destructive hover:text-destructive/80" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+            <FileUpload
+              onFilesChange={handleFilesChange}
+              value={uploadedFiles}
+              accept=".pdf,.jpg,.jpeg,.png,.bmp,.webp,.txt,.doc,.docx"
+              maxFiles={10}
+              maxSize={10 * 1024 * 1024} // 10MB
+            />
           </div>
 
           {isLoadingSamples ? (

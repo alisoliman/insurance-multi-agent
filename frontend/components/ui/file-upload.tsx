@@ -2,11 +2,12 @@
 
 import * as React from "react"
 import Image from "next/image"
-import { Upload, X, AlertCircle, CheckCircle, FileText, File } from "lucide-react"
+import { Upload, X, AlertCircle, CheckCircle, FileText, File, Eye, ZoomIn } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 interface FileUploadProps {
   onFilesChange: (files: File[]) => void
@@ -34,6 +35,7 @@ export function FileUpload({
   const [files, setFiles] = React.useState<FileWithPreview[]>(value)
   const [dragActive, setDragActive] = React.useState(false)
   const [errors, setErrors] = React.useState<string[]>([])
+  const [selectedImage, setSelectedImage] = React.useState<{ src: string; name: string } | null>(null)
   const inputRef = React.useRef<HTMLInputElement>(null)
 
   // Update files when value prop changes
@@ -244,23 +246,34 @@ export function FileUpload({
                 {/* File Icon/Preview */}
                 <div className="flex-shrink-0">
                   {file.preview ? (
-                    <Image
-                      src={file.preview}
-                      alt={file.name}
-                      width={40}
-                      height={40}
-                      className="h-10 w-10 object-cover rounded"
-                    />
+                    <div 
+                      className="relative group cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedImage({ src: file.preview!, name: file.name })
+                      }}
+                    >
+                      <Image
+                        src={file.preview}
+                        alt={file.name}
+                        width={80}
+                        height={80}
+                        className="h-20 w-20 object-cover rounded transition-transform hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center pointer-events-none">
+                        <ZoomIn className="h-6 w-6 text-white" />
+                      </div>
+                    </div>
                   ) : (
-                    <div className="h-10 w-10 flex items-center justify-center">
+                    <div className="h-20 w-20 flex items-center justify-center">
                       {file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf') ? (
-                        <FileText className="h-8 w-8 text-red-500" />
+                        <FileText className="h-12 w-12 text-red-500" />
                       ) : file.type.startsWith('text/') || file.name.toLowerCase().match(/\.(md|txt)$/) ? (
-                        <FileText className="h-8 w-8 text-blue-500" />
+                        <FileText className="h-12 w-12 text-blue-500" />
                       ) : file.type.includes('word') || file.name.toLowerCase().match(/\.(doc|docx)$/) ? (
-                        <FileText className="h-8 w-8 text-blue-600" />
+                        <FileText className="h-12 w-12 text-blue-600" />
                       ) : (
-                        <File className="h-8 w-8 text-muted-foreground" />
+                        <File className="h-12 w-12 text-muted-foreground" />
                       )}
                     </div>
                   )}
@@ -305,6 +318,31 @@ export function FileUpload({
           </div>
         </div>
       )}
+
+      {/* Image Modal */}
+      <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+          <DialogHeader className="p-6 pb-2">
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              {selectedImage?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="px-6 pb-6">
+            {selectedImage && (
+              <div className="relative w-full h-[70vh] rounded-lg overflow-hidden bg-muted">
+                <Image
+                  src={selectedImage.src}
+                  alt={selectedImage.name}
+                  fill
+                  className="object-contain"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 70vw"
+                />
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 } 
