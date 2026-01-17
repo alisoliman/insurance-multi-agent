@@ -9,26 +9,42 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Tuple, Type
+
+from pydantic import BaseModel
 
 from app.workflow.registry import AGENTS
+from app.models.agent_outputs import (
+    ClaimAssessment,
+    CoverageVerification,
+    RiskAssessment,
+    CustomerCommunication,
+)
 
 logger = logging.getLogger(__name__)
+
+# Mapping from agent name to their structured output Pydantic model
+AGENT_RESPONSE_FORMATS: Dict[str, Type[BaseModel]] = {
+    "claim_assessor": ClaimAssessment,
+    "policy_checker": CoverageVerification,
+    "risk_analyst": RiskAssessment,
+    "communication_agent": CustomerCommunication,
+}
 
 
 class UnknownAgentError(ValueError):
     """Raised when a requested agent name does not exist in the registry."""
 
 
-async def run(agent_name: str, claim_data: Dict[str, Any]) -> List[Dict[str, Any]]:  # noqa: D401
-    """Run *one* agent on the claim data and return its message list.
+async def run(agent_name: str, claim_data: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], Optional[Dict[str, Any]]]:  # noqa: D401
+    """Run *one* agent on the claim data and return its message list and structured output.
 
     Args:
         agent_name: Key in ``app.workflow.registry.AGENTS``.
         claim_data: Claim dict already merged/cleaned by the endpoint.
 
     Returns:
-        The full message list including tool calls and responses.
+        Tuple of (message list, structured_output dict or None).
     """
 
     logger.info("🚀 Starting single-agent run: %s", agent_name)
@@ -41,14 +57,30 @@ async def run(agent_name: str, claim_data: Dict[str, Any]) -> List[Dict[str, Any
     # Build the task string (same pattern supervisor uses)
     task = "Please process this insurance claim:\n\n" + json.dumps(claim_data, indent=2)
 
-    # Run the agent asynchronously
-    result = await agent.run(task)
+    # Get the response format for structured output (if available for this agent)
+    response_format = AGENT_RESPONSE_FORMATS.get(agent_name)
+    
+    # Run the agent with optional structured output format
+    if response_format:
+        options = {"response_format": response_format}
+        result = await agent.run(task, options=options)
+    else:
+        result = await agent.run(task)
     
     # Extract full message history from the AgentResponse
     messages: List[Dict[str, Any]] = []
+    structured_output: Optional[Dict[str, Any]] = None
     
     # Add the initial user message
     messages.append({"role": "user", "content": task})
+    
+    # Check for structured output (Pydantic model) in result.value
+    if response_format and hasattr(result, 'value') and result.value is not None:
+        structured_output = result.value.model_dump()
+        logger.info("✅ Agent %s returned structured output: %s", agent_name, type(result.value).__name__)
+    elif hasattr(result, 'value') and isinstance(result.value, BaseModel):
+        structured_output = result.value.model_dump()
+        logger.info("✅ Agent %s returned structured output: %s", agent_name, type(result.value).__name__)
     
     # Get messages from the AgentResponse
     if hasattr(result, 'to_dict'):
@@ -87,4 +119,4 @@ async def run(agent_name: str, claim_data: Dict[str, Any]) -> List[Dict[str, Any
         messages.append({"role": "assistant", "content": response_text})
 
     logger.info("✅ Single-agent run finished: %s messages", len(messages))
-    return messages
+    return messages, structured_output

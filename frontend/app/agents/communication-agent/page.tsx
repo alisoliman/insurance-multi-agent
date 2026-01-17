@@ -13,16 +13,16 @@ import {
   IconCircleCheck,
   IconAlertCircle,
   IconClock,
-  IconUser,
-  IconRobot,
-  IconTool,
   IconBook,
   IconMail,
-  IconFileText
+  IconFileText,
+  IconTool
 } from '@tabler/icons-react'
 import { toast } from 'sonner'
 import { getApiUrl } from '@/lib/config'
 import { AgentWorkflowVisualization } from '@/components/agent-workflow-visualization'
+import { CustomerCommunicationCard, ToolCallCard, ConversationStep } from '@/components/agent-outputs'
+import { isCustomerCommunication, CustomerCommunication, ToolCall, AgentOutput } from '@/types/agent-outputs'
 
 // Sample claims from API
 interface SampleClaim {
@@ -41,6 +41,7 @@ interface CommunicationResult {
     role: string
     content: string
   }>
+  structured_output?: AgentOutput
 }
 
 export default function CommunicationAgentDemo() {
@@ -109,65 +110,9 @@ export default function CommunicationAgentDemo() {
     setError(null)
   }
 
-  const formatConversationStep = (step: { role: string; content: string }, index: number, isLast: boolean) => {
-    // Handle both LangChain naming ('human'/'ai') and OpenAI naming ('user'/'assistant')
-    const isUser = step.role === 'human' || step.role === 'user'
-    const isAssistant = step.role === 'ai' || step.role === 'assistant'
-    const isTool = step.role === 'tool'
-
-    // Skip legacy TOOL_CALL format (no longer used)
-    if (step.content.startsWith('TOOL_CALL:')) {
-      return null
-    }
-
-    return (
-      <div key={index} className="relative">
-        <div className="flex gap-4">
-          {/* Timeline connector */}
-          <div className="flex flex-col items-center">
-            <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center border-2 ${
-              isUser ? 'bg-blue-100 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800' :
-              isAssistant ? 'bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800' :
-              'bg-orange-100 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800'
-            }`}>
-              {isUser ? (
-                <IconUser className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              ) : isAssistant ? (
-                <IconRobot className="h-5 w-5 text-green-600 dark:text-green-400" />
-              ) : (
-                <IconTool className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-              )}
-            </div>
-            {/* Connecting line */}
-            {!isLast && (
-              <div className="w-0.5 h-8 bg-border mt-2"></div>
-            )}
-          </div>
-          
-          {/* Content */}
-          <div className="flex-1 pb-8">
-            <div className="flex items-center gap-2 mb-2">
-              <Badge variant={isUser ? 'secondary' : isAssistant ? 'default' : 'outline'}>
-                {isUser ? 'User' : isAssistant ? 'Communication Agent' : 'Tool Response'}
-              </Badge>
-              <span className="text-xs text-muted-foreground">
-                Step {index + 1}
-              </span>
-            </div>
-            
-            <div className={`rounded-lg p-4 shadow-sm ${
-              isUser ? 'bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800' :
-              isAssistant ? 'bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800' :
-              'bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800'
-            }`}>
-              <div className="text-sm whitespace-pre-wrap leading-relaxed">
-                {step.content}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
+  // Helper to determine if a conversation step should be skipped
+  const shouldSkipStep = (step: { role: string; content: string }) => {
+    return step.content.startsWith('TOOL_CALL:')
   }
 
   const extractEmailContent = (conversation: Array<{ role: string; content: string }>) => {
@@ -378,30 +323,60 @@ export default function CommunicationAgentDemo() {
 
             {result && (
               <div className="space-y-6">
-                {/* Email Preview */}
-                {(() => {
-                  const emailContent = extractEmailContent(result.conversation_chronological)
-                  return emailContent && (
-                    <div className="bg-muted/50 rounded-lg p-4">
-                      <div className="flex items-center gap-2 mb-4">
-                        <IconMail className="h-5 w-5 text-blue-500" />
-                        <span className="font-medium">Generated Email</span>
-                      </div>
-                      <div className="bg-white dark:bg-gray-900 rounded-lg border p-4 space-y-3">
-                        <div className="border-b pb-2">
-                          <div className="text-sm text-muted-foreground">Subject:</div>
-                          <div className="font-medium">{emailContent.subject}</div>
+                {/* Structured Output Card - New Style */}
+                {result.structured_output?.structured_output && 
+                 isCustomerCommunication(result.structured_output.structured_output) ? (
+                  <CustomerCommunicationCard 
+                    output={result.structured_output.structured_output as CustomerCommunication}
+                    className="shadow-md"
+                  />
+                ) : (
+                  /* Fallback: Legacy Email Preview */
+                  (() => {
+                    const emailContent = extractEmailContent(result.conversation_chronological)
+                    return emailContent && (
+                      <div className="bg-muted/50 rounded-lg p-4 border-l-4 border-l-yellow-500">
+                        <div className="flex items-center gap-2 mb-4">
+                          <IconMail className="h-5 w-5 text-blue-500" />
+                          <span className="font-medium">Generated Email</span>
+                          <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-700">
+                            Unstructured
+                          </Badge>
                         </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-2">Body:</div>
-                          <div className="text-sm whitespace-pre-wrap leading-relaxed">
-                            {emailContent.body}
+                        <div className="bg-white dark:bg-gray-900 rounded-lg border p-4 space-y-3">
+                          <div className="border-b pb-2">
+                            <div className="text-sm text-muted-foreground">Subject:</div>
+                            <div className="font-medium">{emailContent.subject}</div>
+                          </div>
+                          <div>
+                            <div className="text-sm text-muted-foreground mb-2">Body:</div>
+                            <div className="text-sm whitespace-pre-wrap leading-relaxed">
+                              {emailContent.body}
+                            </div>
                           </div>
                         </div>
                       </div>
+                    )
+                  })()
+                )}
+
+                {/* Tool Calls Section */}
+                {result.structured_output?.tool_calls && result.structured_output.tool_calls.length > 0 && (
+                  <div>
+                    <h4 className="font-medium mb-3 flex items-center gap-2">
+                      <IconTool className="h-4 w-4" />
+                      Tool Calls
+                      <Badge variant="secondary" className="text-xs">
+                        {result.structured_output.tool_calls.length}
+                      </Badge>
+                    </h4>
+                    <div className="space-y-2">
+                      {result.structured_output.tool_calls.map((toolCall: ToolCall, idx: number) => (
+                        <ToolCallCard key={toolCall.id || idx} toolCall={toolCall} defaultExpanded={true} />
+                      ))}
                     </div>
-                  )
-                })()}
+                  </div>
+                )}
 
                 {/* Claim Data Visualization */}
                 <div>
@@ -457,8 +432,16 @@ export default function CommunicationAgentDemo() {
                   <ScrollArea className="h-[calc(100vh-28rem)] min-h-[500px] max-h-[700px]">
                     <div className="py-4">
                       {result.conversation_chronological
-                        .map((step, index, array) => formatConversationStep(step, index, index === array.length - 1))
-                        .filter(Boolean)}
+                        .filter(step => !shouldSkipStep(step))
+                        .map((step, index, filteredArray) => (
+                          <ConversationStep
+                            key={index}
+                            step={{ role: step.role, content: step.content }}
+                            stepNumber={index + 1}
+                            isLast={index === filteredArray.length - 1}
+                            agentName="communication_agent"
+                          />
+                        ))}
                     </div>
                   </ScrollArea>
                 </div>

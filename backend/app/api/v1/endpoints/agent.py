@@ -13,7 +13,7 @@ from typing import Any, List
 
 from fastapi import APIRouter, HTTPException
 
-from app.models.claim import ClaimIn
+from app.models.claim import ClaimIn, AgentOutputOut
 from app.models.agent import AgentRunOut
 from app.services.single_agent import run as run_single_agent, UnknownAgentError
 from app.api.v1.endpoints.workflow import (
@@ -53,18 +53,29 @@ async def agent_run(agent_name: str, claim: ClaimIn):  # noqa: D401
         # ------------------------------------------------------------------
         # 2. Run the agent graph
         # ------------------------------------------------------------------
-        raw_msgs: List[Any] = await run_single_agent(agent_name, claim_data)
+        raw_msgs, structured_output = await run_single_agent(agent_name, claim_data)
 
         # ------------------------------------------------------------------
         # 3. Serialize messages for JSON response
         # ------------------------------------------------------------------
         chronological = [_serialize_msg(agent_name, m, include_node=False) for m in raw_msgs]
 
+        # ------------------------------------------------------------------
+        # 4. Build structured output response if available
+        # ------------------------------------------------------------------
+        agent_output = None
+        if structured_output is not None:
+            agent_output = AgentOutputOut(
+                agent_name=agent_name,
+                structured_output=structured_output,
+            )
+
         return AgentRunOut(
             success=True,
             agent_name=agent_name,
             claim_body=claim_data,
             conversation_chronological=chronological,
+            structured_output=agent_output,
         )
 
     except UnknownAgentError as err:
