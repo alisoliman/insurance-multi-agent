@@ -14,20 +14,45 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { FileUpload } from '@/components/ui/file-upload'
 
+// Import new agent output components
+import {
+  ClaimAssessmentCard,
+  CoverageVerificationCard,
+  RiskAssessmentCard,
+  CustomerCommunicationCard,
+  FinalAssessmentCard,
+  ToolCallCard,
+  ConversationStep,
+} from '@/components/agent-outputs'
+import {
+  WorkflowResult,
+  AgentOutput,
+  isClaimAssessment,
+  isCoverageVerification,
+  isRiskAssessment,
+  isCustomerCommunication,
+  isFinalAssessment,
+  ClaimAssessment,
+  CoverageVerification,
+  RiskAssessment,
+  CustomerCommunication,
+  FinalAssessment,
+  ToolCall,
+} from '@/types/agent-outputs'
+
 import { 
   IconUsers,
   IconRefresh,
-  IconCircleCheck,
   IconAlertCircle,
   IconClock,
-  IconUser,
   IconRobot,
   IconFileText,
   IconShield,
   IconTrendingUp,
   IconMessage,
   IconPlayerPlay,
-  IconEye
+  IconEye,
+  IconFileOff
 } from '@tabler/icons-react'
 
 interface ClaimSummary {
@@ -42,12 +67,6 @@ interface ConversationEntry {
   role: string
   content: string
   node: string
-}
-
-interface WorkflowResult {
-  success: boolean
-  final_decision: string
-  conversation_chronological: ConversationEntry[]
 }
 
 // Agent configuration with icons and colors (matching backend agent names)
@@ -99,7 +118,36 @@ const AGENT_CONFIG = {
   }
 }
 
+// Helper function to check if any agent has tool calls
+function hasAnyToolCalls(agentOutputs: Record<string, AgentOutput>): boolean {
+  return Object.values(agentOutputs).some(
+    (output) => output.tool_calls && output.tool_calls.length > 0
+  )
+}
 
+// Fallback component for raw/unstructured output
+function RawOutputFallback({ agentName, content }: { agentName: string; content: string }) {
+  return (
+    <Card className="border-l-4 border-l-yellow-500">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium">{agentName}</CardTitle>
+          <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-700 dark:text-yellow-400">
+            <IconFileOff className="h-3 w-3 mr-1" />
+            Unstructured
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="text-sm text-muted-foreground prose prose-sm max-w-none dark:prose-invert">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {content}
+          </ReactMarkdown>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 export function WorkflowDemo() {
   const [availableClaims, setAvailableClaims] = useState<ClaimSummary[]>([])
@@ -206,103 +254,12 @@ export function WorkflowDemo() {
     setUploadedFiles([])
   }
 
-  const formatConversationStep = (step: ConversationEntry, index: number, isLast: boolean) => {
-    // Handle both LangChain naming ('human') and OpenAI naming ('user')
-    const isUser = step.role === 'human' || step.role === 'user'
-    const agentConfig = AGENT_CONFIG[step.node as keyof typeof AGENT_CONFIG]
-
-    // Skip legacy TOOL_CALL format and internal handoff messages
-    if (step.content.startsWith('TOOL_CALL:') || 
-        step.content.includes('transfer_back_to_supervisor') || 
-        step.content.includes('"type": "tool_call"') ||
-        step.content.match(/\[.*"tool_call".*\]/)) {
-      return null
-    }
-
-    return (
-      <div key={index} className="relative">
-        <div className="flex gap-4">
-          {/* Timeline connector */}
-          <div className="flex flex-col items-center">
-            <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center border-2 ${
-              agentConfig ? agentConfig.bgColor + ' ' + agentConfig.borderColor :
-              isUser ? 'bg-blue-100 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800' :
-              'bg-gray-100 dark:bg-gray-900/30 border-gray-200 dark:border-gray-800'
-            }`}>
-              {agentConfig ? (
-                <agentConfig.icon className={`h-5 w-5 ${agentConfig.color}`} />
-              ) : isUser ? (
-                <IconUser className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              ) : (
-                <IconRobot className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-              )}
-            </div>
-            {/* Connecting line */}
-            {!isLast && (
-              <div className="w-0.5 h-8 bg-border mt-2"></div>
-            )}
-          </div>
-          
-          {/* Content */}
-          <div className="flex-1 pb-8">
-            <div className="flex items-center gap-2 mb-2">
-              <Badge variant={isUser ? 'secondary' : 'default'}>
-                {agentConfig ? agentConfig.displayName : isUser ? 'User' : step.node}
-              </Badge>
-              <span className="text-xs text-muted-foreground">
-                Step {index + 1}
-              </span>
-            </div>
-            
-            <div className={`rounded-lg p-4 shadow-sm border ${
-              agentConfig ? agentConfig.bgColor + ' ' + agentConfig.borderColor :
-              isUser ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' :
-              'bg-gray-50 dark:bg-gray-950/30 border-gray-200 dark:border-gray-800'
-            }`}>
-              <div className="text-sm leading-relaxed prose prose-sm max-w-none dark:prose-invert prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-pre:bg-muted prose-pre:text-foreground">
-                <ReactMarkdown 
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    // Custom components for better styling
-                    h1: ({children}) => <h1 className="text-lg font-semibold mb-2 text-foreground">{children}</h1>,
-                    h2: ({children}) => <h2 className="text-base font-semibold mb-2 text-foreground">{children}</h2>,
-                    h3: ({children}) => <h3 className="text-sm font-semibold mb-1 text-foreground">{children}</h3>,
-                    p: ({children}) => <p className="mb-2 text-foreground">{children}</p>,
-                    ul: ({children}) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
-                    ol: ({children}) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
-                    li: ({children}) => <li className="text-foreground">{children}</li>,
-                    strong: ({children}) => <strong className="font-semibold text-foreground">{children}</strong>,
-                    em: ({children}) => <em className="italic text-foreground">{children}</em>,
-                    code: ({children}) => <code className="bg-muted px-1 py-0.5 rounded text-xs font-mono text-foreground">{children}</code>,
-                    pre: ({children}) => <pre className="bg-muted p-3 rounded-md overflow-x-auto text-xs font-mono text-foreground">{children}</pre>,
-                    blockquote: ({children}) => <blockquote className="border-l-4 border-muted-foreground/25 pl-4 italic text-muted-foreground">{children}</blockquote>,
-                    a: ({href, children}) => <a href={href} className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">{children}</a>,
-                    table: ({children}) => <div className="overflow-x-auto"><table className="min-w-full border-collapse border border-border">{children}</table></div>,
-                    th: ({children}) => <th className="border border-border bg-muted px-2 py-1 text-left font-semibold">{children}</th>,
-                    td: ({children}) => <td className="border border-border px-2 py-1">{children}</td>,
-                  }}
-                >
-                  {step.content}
-                </ReactMarkdown>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-
-
-  const getLastWorkflowMessage = () => {
-    if (!workflowResult?.conversation_chronological) return null
-    
-    // Find the last supervisor message (which should contain the final assessment)
-    const lastSupervisorMessage = workflowResult.conversation_chronological
-      .filter(step => step.node === 'supervisor' && step.role === 'ai')
-      .pop()
-    
-    return lastSupervisorMessage
+  // Helper to determine if a conversation step should be skipped
+  const shouldSkipStep = (step: ConversationEntry) => {
+    return step.content.startsWith('TOOL_CALL:') || 
+           step.content.includes('transfer_back_to_supervisor') || 
+           step.content.includes('"type": "tool_call"') ||
+           step.content.match(/\[.*"tool_call".*\]/)
   }
 
   return (
@@ -452,67 +409,114 @@ export function WorkflowDemo() {
 
       {/* Results Section */}
       {(isLoading || workflowResult) && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Final Decision Card */}
-          {workflowResult && (
-            <Card className="lg:col-span-1">
+        <div className="space-y-6">
+          {/* Final Assessment Card - Displayed prominently at top when available */}
+          {workflowResult?.agent_outputs?.synthesizer?.structured_output && 
+           isFinalAssessment(workflowResult.agent_outputs.synthesizer.structured_output) && (
+            <FinalAssessmentCard 
+              output={workflowResult.agent_outputs.synthesizer.structured_output as FinalAssessment}
+              className="shadow-lg"
+            />
+          )}
+
+          {/* Agent Output Cards Grid */}
+          {workflowResult?.agent_outputs && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Claim Assessor Output */}
+              {workflowResult.agent_outputs.claim_assessor?.structured_output && 
+               isClaimAssessment(workflowResult.agent_outputs.claim_assessor.structured_output) ? (
+                <ClaimAssessmentCard 
+                  output={workflowResult.agent_outputs.claim_assessor.structured_output as ClaimAssessment}
+                />
+              ) : workflowResult.agent_outputs.claim_assessor?.raw_text && (
+                <RawOutputFallback 
+                  agentName="Claim Assessor"
+                  content={workflowResult.agent_outputs.claim_assessor.raw_text}
+                />
+              )}
+
+              {/* Policy Checker Output */}
+              {workflowResult.agent_outputs.policy_checker?.structured_output && 
+               isCoverageVerification(workflowResult.agent_outputs.policy_checker.structured_output) ? (
+                <CoverageVerificationCard 
+                  output={workflowResult.agent_outputs.policy_checker.structured_output as CoverageVerification}
+                />
+              ) : workflowResult.agent_outputs.policy_checker?.raw_text && (
+                <RawOutputFallback 
+                  agentName="Policy Checker"
+                  content={workflowResult.agent_outputs.policy_checker.raw_text}
+                />
+              )}
+
+              {/* Risk Analyst Output */}
+              {workflowResult.agent_outputs.risk_analyst?.structured_output && 
+               isRiskAssessment(workflowResult.agent_outputs.risk_analyst.structured_output) ? (
+                <RiskAssessmentCard 
+                  output={workflowResult.agent_outputs.risk_analyst.structured_output as RiskAssessment}
+                />
+              ) : workflowResult.agent_outputs.risk_analyst?.raw_text && (
+                <RawOutputFallback 
+                  agentName="Risk Analyst"
+                  content={workflowResult.agent_outputs.risk_analyst.raw_text}
+                />
+              )}
+
+              {/* Communication Agent Output */}
+              {workflowResult.agent_outputs.communication_agent?.structured_output && 
+               isCustomerCommunication(workflowResult.agent_outputs.communication_agent.structured_output) ? (
+                <CustomerCommunicationCard 
+                  output={workflowResult.agent_outputs.communication_agent.structured_output as CustomerCommunication}
+                />
+              ) : workflowResult.agent_outputs.communication_agent?.raw_text && (
+                <RawOutputFallback 
+                  agentName="Communication Agent"
+                  content={workflowResult.agent_outputs.communication_agent.raw_text}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Tool Calls Section - Collapsible per agent */}
+          {workflowResult?.agent_outputs && hasAnyToolCalls(workflowResult.agent_outputs) && (
+            <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <IconCircleCheck className="h-5 w-5" />
-                  Assessment Summary
-                </CardTitle>
-                <CardDescription>
-                  AI-powered advisory recommendation for human decision-making
-                </CardDescription>
+                <CardTitle className="text-base">Tool Calls</CardTitle>
+                <CardDescription>Tools invoked by agents during processing</CardDescription>
               </CardHeader>
-              <CardContent>
-                {(() => {
-                  const lastMessage = getLastWorkflowMessage()
-                  return lastMessage ? (
-                    <div className="bg-muted/30 rounded-lg p-4 border-l-4 border-primary">
-                      <div className="flex items-center gap-2 mb-3">
-                        <IconRobot className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm font-medium">Final Assessment</span>
+              <CardContent className="space-y-4">
+                {Object.entries(workflowResult.agent_outputs).map(([agentName, agentOutput]) => {
+                  if (!agentOutput.tool_calls || agentOutput.tool_calls.length === 0) return null
+                  const config = AGENT_CONFIG[agentName as keyof typeof AGENT_CONFIG]
+                  return (
+                    <div key={agentName} className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        {config && <config.icon className={`h-4 w-4 ${config.color}`} />}
+                        <span className="text-sm font-medium">
+                          {config?.displayName || agentName}
+                        </span>
+                        <Badge variant="secondary" className="text-xs">
+                          {agentOutput.tool_calls.length} call{agentOutput.tool_calls.length !== 1 ? 's' : ''}
+                        </Badge>
                       </div>
-                      <div className="text-sm text-muted-foreground leading-relaxed">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={{
-                            p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
-                            ul: ({children}) => <ul className="mb-2 pl-4 space-y-1">{children}</ul>,
-                            ol: ({children}) => <ol className="mb-2 pl-4 space-y-1">{children}</ol>,
-                            li: ({children}) => <li>{children}</li>,
-                            strong: ({children}) => <strong className="font-semibold text-foreground">{children}</strong>,
-                            em: ({children}) => <em className="italic">{children}</em>,
-                            h1: ({children}) => <h1 className="text-base font-bold mb-2 text-foreground">{children}</h1>,
-                            h2: ({children}) => <h2 className="text-sm font-semibold mb-2 text-foreground">{children}</h2>,
-                            h3: ({children}) => <h3 className="text-sm font-medium mb-1 text-foreground">{children}</h3>,
-                            code: ({children}) => <code className="bg-muted px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
-                            pre: ({children}) => <pre className="bg-muted p-2 rounded text-xs overflow-x-auto">{children}</pre>,
-                          }}
-                        >
-                          {lastMessage.content}
-                        </ReactMarkdown>
+                      <div className="space-y-2 ml-6">
+                        {agentOutput.tool_calls.map((toolCall: ToolCall, idx: number) => (
+                          <ToolCallCard key={toolCall.id || idx} toolCall={toolCall} defaultExpanded={true} />
+                        ))}
                       </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-4 text-muted-foreground">
-                      <IconClock className="h-8 w-8 mx-auto mb-2" />
-                      <p>Processing workflow...</p>
                     </div>
                   )
-                })()}
+                })}
               </CardContent>
             </Card>
           )}
 
-          {/* Conversation Timeline */}
-          <Card className={workflowResult ? "lg:col-span-2" : "lg:col-span-3"}>
+          {/* Legacy Conversation Timeline (collapsed by default, for debugging) */}
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Agent Conversation</CardTitle>
+                <CardTitle>Agent Conversation Trace</CardTitle>
                 <CardDescription>
-                  {isLoading ? 'Agents are collaborating on claim analysis...' : 'Multi-agent workflow conversation trace'}
+                  {isLoading ? 'Agents are collaborating on claim analysis...' : 'Raw conversation history for debugging'}
                 </CardDescription>
               </div>
               {workflowResult && (
@@ -545,8 +549,15 @@ export function WorkflowDemo() {
                 <ScrollArea className="h-[calc(100vh-24rem)] min-h-[500px] max-h-[800px]">
                   <div className="space-y-4 pr-4">
                     {workflowResult.conversation_chronological
-                      ?.map((step, index) => formatConversationStep(step, index, index === workflowResult.conversation_chronological.length - 1))
-                      .filter(Boolean)}
+                      ?.filter(step => !shouldSkipStep(step))
+                      .map((step, index, filteredArray) => (
+                        <ConversationStep 
+                          key={index}
+                          step={{ role: step.role, content: step.content, node: step.node }}
+                          stepNumber={index + 1}
+                          isLast={index === filteredArray.length - 1}
+                        />
+                      ))}
                     
 
                   </div>

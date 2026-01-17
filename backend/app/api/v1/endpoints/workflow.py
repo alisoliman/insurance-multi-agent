@@ -5,9 +5,10 @@ from fastapi import APIRouter, HTTPException
 import re
 from typing import Any
 
-from app.models.claim import ClaimIn, ClaimOut
+from app.models.claim import ClaimIn, ClaimOut, AgentOutputOut, ToolCallOut
 from app.services.claim_processing import run as run_workflow
 from app.sample_data import ALL_SAMPLE_CLAIMS
+from typing import Dict, List, Optional
 
 router = APIRouter(tags=["workflow"])
 
@@ -83,6 +84,7 @@ async def workflow_run(claim: ClaimIn):  # noqa: D401
         # ------------------------------------------------------------------
         chronological: list[dict[str, str]] = []
         seen_lengths: dict[str, int] = {}
+        agent_outputs: Dict[str, AgentOutputOut] = {}  # NEW: collect structured outputs
 
         # Run the async workflow and get all chunks
         chunks = await run_workflow(claim_data)
@@ -93,6 +95,11 @@ async def workflow_run(claim: ClaimIn):  # noqa: D401
             for node_name, node_data in chunk.items():
                 if node_name == "__end__":
                     continue
+
+                # Extract structured_output if present (T006)
+                structured_output = None
+                if isinstance(node_data, dict):
+                    structured_output = node_data.get("structured_output")
 
                 # Handle different data structures
                 if isinstance(node_data, list):
@@ -112,6 +119,26 @@ async def workflow_run(claim: ClaimIn):  # noqa: D401
                     chronological.append(_serialize_msg(node_name, msg))
 
                 seen_lengths[node_name] = len(msgs)
+                
+                # Collect structured output for this agent (T006)
+                if structured_output is not None:
+                    # Get raw text from last assistant message as fallback
+                    raw_text = None
+                    for msg in reversed(msgs):
+                        msg_role = msg.get("role", "") if isinstance(msg, dict) else getattr(msg, "role", "")
+                        if isinstance(msg_role, dict):
+                            msg_role = msg_role.get("value", "")
+                        if msg_role == "assistant":
+                            msg_content = msg.get("content", "") if isinstance(msg, dict) else getattr(msg, "content", "")
+                            raw_text = str(msg_content)[:500] if msg_content else None
+                            break
+                    
+                    agent_outputs[node_name] = AgentOutputOut(
+                        agent_name=node_name,
+                        structured_output=structured_output,
+                        tool_calls=None,  # TODO: extract tool calls in future
+                        raw_text=raw_text
+                    )
 
         # ------------------------------------------------------------------
         # 3. Extract final decision from chronological messages
@@ -126,12 +153,13 @@ async def workflow_run(claim: ClaimIn):  # noqa: D401
                 break
 
         # ------------------------------------------------------------------
-        # 4. Return response with chronological stream only
+        # 4. Return response with chronological stream and agent_outputs
         # ------------------------------------------------------------------
         return ClaimOut(
             success=True,
             final_decision=final_decision,
             conversation_chronological=chronological,
+            agent_outputs=agent_outputs if agent_outputs else None,  # NEW: include structured outputs
         )
 
     except Exception as exc:

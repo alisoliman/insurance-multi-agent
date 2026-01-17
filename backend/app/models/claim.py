@@ -1,6 +1,34 @@
 """Pydantic schemas for claim workflow endpoints."""
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
+
+
+# ---------------------------------------------------------------------------
+# Agent Output Models for API Response (T004-T005)
+# ---------------------------------------------------------------------------
+
+
+class ToolCallOut(BaseModel):
+    """Serialized tool call for API response."""
+    id: str
+    name: str
+    arguments: Dict[str, Any]
+    result: Optional[Any] = None
+    error: Optional[str] = None
+    duration_ms: Optional[int] = None
+
+
+class AgentOutputOut(BaseModel):
+    """Serialized agent output for API response."""
+    agent_name: str
+    structured_output: Optional[Dict[str, Any]] = None
+    tool_calls: Optional[List[ToolCallOut]] = None
+    raw_text: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# Request/Response Models
+# ---------------------------------------------------------------------------
 
 
 class ClaimIn(BaseModel):
@@ -43,6 +71,8 @@ class ClaimIn(BaseModel):
 
 
 class ClaimOut(BaseModel):
+    """Response model for workflow execution."""
     success: bool = True
     final_decision: Optional[str] = None
-    conversation_chronological: Optional[list[Dict[str, str]]] = None
+    conversation_chronological: Optional[List[Dict[str, str]]] = None
+    agent_outputs: Optional[Dict[str, AgentOutputOut]] = None  # NEW: structured outputs per agent
