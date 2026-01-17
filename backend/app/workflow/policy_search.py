@@ -2,9 +2,8 @@
 """
 Policy Document Vector Search Utility
 
-Adapted from the original `langgraph_insurance.policy_search` so the backend
-remains self-contained. Requires `faiss-cpu`, `langchain_openai`, and related
-dependencies already listed in `pyproject.toml`.
+Provides vector-based semantic search for insurance policy documents.
+Uses Azure OpenAI embeddings and FAISS for efficient similarity search.
 """
 from __future__ import annotations
 
@@ -16,7 +15,7 @@ from typing import Any, Dict, List, Optional
 
 from langchain_openai import AzureOpenAIEmbeddings
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 
 from .pdf_processor import get_pdf_processor
@@ -49,19 +48,6 @@ class PolicyVectorSearch:  # noqa: D101
         self.embeddings: AzureOpenAIEmbeddings | None = None
         self.vectorstore: FAISS | None = None
         self._init_embeddings()
-
-        # Fallback for legacy path (before data migrated out of langgraph_insurance)
-        if not self.policies_dir.exists():
-            legacy = Path(__file__).resolve(
-            ).parents[2] / "langgraph_insurance/data/policies"
-            if legacy.exists():
-                self.policies_dir = legacy
-
-        if not self.index_path.exists():
-            legacy_idx = Path(__file__).resolve(
-            ).parents[2] / "langgraph_insurance/data/policy_index"
-            if legacy_idx.exists():
-                self.index_path = legacy_idx
 
     # ------------------------------------------------------------------
     def _init_embeddings(self):

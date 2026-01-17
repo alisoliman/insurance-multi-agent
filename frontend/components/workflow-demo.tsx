@@ -207,10 +207,11 @@ export function WorkflowDemo() {
   }
 
   const formatConversationStep = (step: ConversationEntry, index: number, isLast: boolean) => {
-    const isUser = step.role === 'human'
+    // Handle both LangChain naming ('human') and OpenAI naming ('user')
+    const isUser = step.role === 'human' || step.role === 'user'
     const agentConfig = AGENT_CONFIG[step.node as keyof typeof AGENT_CONFIG]
 
-    // Skip tool calls in the display
+    // Skip legacy TOOL_CALL format and internal handoff messages
     if (step.content.startsWith('TOOL_CALL:') || 
         step.content.includes('transfer_back_to_supervisor') || 
         step.content.includes('"type": "tool_call"') ||

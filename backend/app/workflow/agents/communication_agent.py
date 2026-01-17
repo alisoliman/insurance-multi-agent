@@ -1,15 +1,9 @@
 """Communication Agent factory."""
-from langgraph.prebuilt import create_react_agent
+from agent_framework import ChatAgent
+from agent_framework.azure import AzureOpenAIChatClient
 
 
-
-
-def create_communication_agent(llm):  # noqa: D401
-    """Return a configured Communication Agent using the shared LLM."""
-    return create_react_agent(
-        model=llm,
-        tools=[],  # email generation only needs language model
-        prompt="""You are a communication specialist responsible for drafting clear, professional emails to insurance customers.
+COMMUNICATION_AGENT_PROMPT = """You are a communication specialist responsible for drafting clear, professional emails to insurance customers.
 
 Your responsibilities:
 - Draft emails requesting missing information from customers.
@@ -28,6 +22,21 @@ When drafting an email:
 7. Offer contact information for questions.
 8. End with a professional closing.
 
-Format your response as a complete email including a Subject line and Body.""",
-        name="communication_agent"
+Format your response as a complete email including a Subject line and Body."""
+
+
+def create_communication_agent(chat_client: AzureOpenAIChatClient) -> ChatAgent:  # noqa: D401
+    """Return a configured Communication Agent.
+
+    Args:
+        chat_client: An instantiated AzureOpenAIChatClient shared by the app.
+    
+    Returns:
+        ChatAgent: Configured communication agent.
+    """
+    return ChatAgent(
+        chat_client=chat_client,
+        name="communication_agent",
+        instructions=COMMUNICATION_AGENT_PROMPT,
+        tools=[],  # email generation only needs language model
     )

@@ -110,10 +110,12 @@ export default function PolicyCheckerDemo() {
   }
 
   const formatConversationStep = (step: { role: string; content: string }, index: number, isLast: boolean) => {
-    const isUser = step.role === 'human'
-    const isAssistant = step.role === 'ai'
+    // Handle both LangChain naming ('human'/'ai') and OpenAI naming ('user'/'assistant')
+    const isUser = step.role === 'human' || step.role === 'user'
+    const isAssistant = step.role === 'ai' || step.role === 'assistant'
+    const isTool = step.role === 'tool'
 
-    // Skip tool calls in the display
+    // Skip legacy TOOL_CALL format (no longer used)
     if (step.content.startsWith('TOOL_CALL:')) {
       return null
     }
@@ -170,8 +172,9 @@ export default function PolicyCheckerDemo() {
 
   const extractFinalAssessment = (conversation: Array<{ role: string; content: string }>) => {
     // Find the last assistant message which should contain the final assessment
+    // Handle both LangChain naming ('ai') and OpenAI naming ('assistant')
     const lastAssistantMessage = conversation
-      .filter(step => step.role === 'ai' && !step.content.startsWith('TOOL_CALL:'))
+      .filter(step => (step.role === 'ai' || step.role === 'assistant') && !step.content.startsWith('TOOL_CALL:'))
       .pop()
 
     if (!lastAssistantMessage) return null

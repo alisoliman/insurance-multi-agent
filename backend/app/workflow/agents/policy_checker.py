@@ -1,15 +1,11 @@
 """Policy Checker agent factory."""
-from langgraph.prebuilt import create_react_agent
+from agent_framework import ChatAgent
+from agent_framework.azure import AzureOpenAIChatClient
 
 from ..tools import get_policy_details, search_policy_documents
 
 
-def create_policy_checker_agent(llm):  # noqa: D401
-    """Return a configured Policy Checker agent using the shared LLM."""
-    return create_react_agent(
-        model=llm,
-        tools=[get_policy_details, search_policy_documents],
-        prompt="""You are a policy-verification specialist. Your task is to decide whether the reported loss is covered under the customer's policy.
+POLICY_CHECKER_PROMPT = """You are a policy-verification specialist. Your task is to decide whether the reported loss is covered under the customer's policy.
 
 MANDATORY STEPS
 1. Call `get_policy_details` to confirm the policy is in-force and gather limits / deductibles.
@@ -32,7 +28,7 @@ INSUFFICIENT EVIDENCE DETECTION
 WHEN READING SEARCH RESULTS
 • Each result dict contains `policy_type`, `section`, `content`, and `relevance_score`.
 • EVALUATE RELEVANCE: Check if the search results actually relate to the claim context (language, policy type, coverage area).
-• Cite every passage you rely on. Prefix the quotation or paraphrase with a citation in the form:  `[{{policy_type}} §{{section}}]`.
+• Cite every passage you rely on. Prefix the quotation or paraphrase with a citation in the form:  `[{policy_type} §{section}]`.
   Example:  `[Comprehensive Auto §2.1 – Collision Coverage] Damage from collisions with other vehicles is covered …`
   Example:  `[Autoverzekering UNAuto-02 §6.3] Verder ben je verzekerd voor schade aan je auto, als deze is veroorzaakt door een aanrijding …`
 
@@ -55,6 +51,21 @@ RULES
 • If you find relevant policy sections that match the claim context, proceed with normal coverage assessment.
 • Do NOT hallucinate policy language; only quote or paraphrase returned passages.
 • Be concise yet complete.
-""",
+"""
+
+
+def create_policy_checker_agent(chat_client: AzureOpenAIChatClient) -> ChatAgent:  # noqa: D401
+    """Return a configured Policy Checker agent.
+
+    Args:
+        chat_client: An instantiated AzureOpenAIChatClient shared by the app.
+    
+    Returns:
+        ChatAgent: Configured policy checker agent.
+    """
+    return ChatAgent(
+        chat_client=chat_client,
         name="policy_checker",
+        instructions=POLICY_CHECKER_PROMPT,
+        tools=[get_policy_details, search_policy_documents],
     )

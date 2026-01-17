@@ -1,15 +1,11 @@
 """Risk Analyst agent factory."""
-from langgraph.prebuilt import create_react_agent
+from agent_framework import ChatAgent
+from agent_framework.azure import AzureOpenAIChatClient
 
 from ..tools import get_claimant_history
 
 
-def create_risk_analyst_agent(llm):  # noqa: D401
-    """Return a configured Risk Analyst agent using the shared LLM."""
-    return create_react_agent(
-        model=llm,
-        tools=[get_claimant_history],
-        prompt="""You are a risk analyst specializing in fraud detection and risk assessment for insurance claims.
+RISK_ANALYST_PROMPT = """You are a risk analyst specializing in fraud detection and risk assessment for insurance claims.
 
 Your responsibilities:
 - Analyze claimant history and claim frequency patterns.
@@ -20,6 +16,21 @@ Your responsibilities:
 
 Use the `get_claimant_history` tool when you have a claimant ID to analyze risk factors.
 Focus on objective risk factors and provide evidence-based assessments.
-End your assessment with risk level: LOW_RISK, MEDIUM_RISK, or HIGH_RISK.""",
+End your assessment with risk level: LOW_RISK, MEDIUM_RISK, or HIGH_RISK."""
+
+
+def create_risk_analyst_agent(chat_client: AzureOpenAIChatClient) -> ChatAgent:  # noqa: D401
+    """Return a configured Risk Analyst agent.
+
+    Args:
+        chat_client: An instantiated AzureOpenAIChatClient shared by the app.
+    
+    Returns:
+        ChatAgent: Configured risk analyst agent.
+    """
+    return ChatAgent(
+        chat_client=chat_client,
         name="risk_analyst",
+        instructions=RISK_ANALYST_PROMPT,
+        tools=[get_claimant_history],
     )

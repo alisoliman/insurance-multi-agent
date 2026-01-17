@@ -53,7 +53,7 @@ async def agent_run(agent_name: str, claim: ClaimIn):  # noqa: D401
         # ------------------------------------------------------------------
         # 2. Run the agent graph
         # ------------------------------------------------------------------
-        raw_msgs: List[Any] = run_single_agent(agent_name, claim_data)
+        raw_msgs: List[Any] = await run_single_agent(agent_name, claim_data)
 
         # ------------------------------------------------------------------
         # 3. Serialize messages for JSON response

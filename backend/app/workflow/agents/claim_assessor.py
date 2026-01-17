@@ -1,19 +1,11 @@
 """Claim Assessor agent factory."""
-from langgraph.prebuilt import create_react_agent
+from agent_framework import ChatAgent
+from agent_framework.azure import AzureOpenAIChatClient
 
 from ..tools import get_vehicle_details, analyze_image
 
 
-def create_claim_assessor_agent(llm):  # noqa: D401
-    """Return a configured Claim Assessor agent.
-
-    Args:
-        llm: An instantiated LangChain LLM shared by the app.
-    """
-    return create_react_agent(
-        model=llm,
-        tools=[get_vehicle_details, analyze_image],
-        prompt="""You are a claim assessor specializing in damage evaluation and cost assessment.
+CLAIM_ASSESSOR_PROMPT = """You are a claim assessor specializing in damage evaluation and cost assessment.
 
 Your responsibilities:
 - Evaluate the consistency between incident description and claimed damage.
@@ -30,6 +22,21 @@ CRITICAL: When you receive a claim with "supporting_images" field containing ima
 Use the `get_vehicle_details` tool when you have a VIN number to validate damage estimates.
 
 Provide detailed assessments with specific cost justifications that incorporate vehicle details and insights derived from images.
-End your assessment with: VALID, QUESTIONABLE, or INVALID.""",
+End your assessment with: VALID, QUESTIONABLE, or INVALID."""
+
+
+def create_claim_assessor_agent(chat_client: AzureOpenAIChatClient) -> ChatAgent:  # noqa: D401
+    """Return a configured Claim Assessor agent.
+
+    Args:
+        chat_client: An instantiated AzureOpenAIChatClient shared by the app.
+    
+    Returns:
+        ChatAgent: Configured claim assessor agent.
+    """
+    return ChatAgent(
+        chat_client=chat_client,
         name="claim_assessor",
+        instructions=CLAIM_ASSESSOR_PROMPT,
+        tools=[get_vehicle_details, analyze_image],
     )

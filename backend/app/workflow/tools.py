@@ -4,10 +4,12 @@ Insurance Claim Processing Tools
 
 This module contains all the tools used by the multi-agent insurance claim processing system.
 These tools provide access to policy details, claimant history, and vehicle information.
+
+Tools use Annotated type hints with Pydantic Field for Microsoft Agent Framework compatibility.
 """
 
-from typing import Dict, Any, List
-from langchain_core.tools import tool
+from typing import Dict, Any, List, Annotated
+from pydantic import Field
 from .policy_search import get_policy_search  # changed to relative import
 import os
 import base64
@@ -17,9 +19,13 @@ import json
 logger = logging.getLogger(__name__)
 
 
-@tool
-def get_policy_details(policy_number: str) -> Dict[str, Any]:
-    """Retrieve detailed policy information for a given policy number."""
+def get_policy_details(
+    policy_number: Annotated[str, Field(description="The policy number to retrieve details for")]
+) -> Dict[str, Any]:
+    """Retrieve detailed policy information for a given policy number.
+    
+    Returns coverage limits, deductibles, exclusions, and status.
+    """
     # Simulated policy database (full dataset from original file)
     policy_database = {
         "POL-2024-001": {
@@ -106,9 +112,13 @@ def get_policy_details(policy_number: str) -> Dict[str, Any]:
     return policy
 
 
-@tool
-def get_claimant_history(claimant_id: str) -> Dict[str, Any]:
-    """Retrieve historical claim information for a given claimant."""
+def get_claimant_history(
+    claimant_id: Annotated[str, Field(description="The claimant ID to look up claim history for")]
+) -> Dict[str, Any]:
+    """Retrieve historical claim information for a given claimant.
+    
+    Returns previous claims, fraud indicators, and risk factors.
+    """
     claimant_database = {
         "CLM-001": {
             "claimant_id": "CLM-001",
@@ -184,9 +194,13 @@ def get_claimant_history(claimant_id: str) -> Dict[str, Any]:
     return claimant
 
 
-@tool
-def get_vehicle_details(vin: str) -> Dict[str, Any]:
-    """Retrieve vehicle information for a given VIN number."""
+def get_vehicle_details(
+    vin: Annotated[str, Field(description="The VIN number to look up vehicle information for")]
+) -> Dict[str, Any]:
+    """Retrieve vehicle information for a given VIN number.
+    
+    Returns vehicle make, model, year, value, and specifications.
+    """
     vehicle_database = {
         "1HGBH41JXMN109186": {
             "vin": "1HGBH41JXMN109186",
@@ -229,9 +243,14 @@ def get_vehicle_details(vin: str) -> Dict[str, Any]:
     return vehicle
 
 
-@tool
-def search_policy_documents(query: str) -> Dict[str, Any]:
-    """Search through all policy documents to find relevant information."""
+def search_policy_documents(
+    query: Annotated[str, Field(description="Search query for policy documents")],
+    top_k: Annotated[int, Field(description="Number of results to return")] = 5
+) -> Dict[str, Any]:
+    """Search through all policy documents to find relevant information.
+    
+    Returns matching policy sections with relevance scores.
+    """
     try:
         policy_search = get_policy_search()
 
@@ -244,7 +263,7 @@ def search_policy_documents(query: str) -> Dict[str, Any]:
             }
 
         search_results = policy_search.search_policies(
-            query, k=5, score_threshold=0.3)
+            query, k=top_k, score_threshold=0.3)
 
         if not search_results:
             return {
@@ -273,22 +292,16 @@ def search_policy_documents(query: str) -> Dict[str, Any]:
         return {"status": "error", "message": f"Search failed: {str(e)}", "query": query}
 
 
-@tool
-def analyze_image(image_path: str) -> Dict[str, Any]:
+def analyze_image(
+    image_path: Annotated[str, Field(description="Path or URL to the image file to analyze")]
+) -> Dict[str, Any]:
     """Analyze an image using the Azure OpenAI multimodal model.
 
     The model is asked to (a) classify the image into one of three categories —
     ``claim_form``, ``invoice``, or ``damage_photo`` — and (b) extract any
-    relevant structured data it can confidently identify. The response **must**
-    be valid JSON so downstream agents can parse it easily.
-
-    Args:
-        image_path: Path to a local image file (jpg, png, etc.).
-
-    Returns:
-        Dictionary with keys:
-        ``status`` (success|error), ``category``, ``data_extracted`` (may be
-        nested JSON), and optional ``raw_response``.
+    relevant structured data it can confidently identify.
+    
+    Returns extracted text and visual analysis from the image.
     """
 
     if not os.path.exists(image_path):
@@ -378,7 +391,7 @@ def analyze_image(image_path: str) -> Dict[str, Any]:
         return {"status": "error", "message": str(e)}
 
 
-# Convenience lists
+# Convenience lists - plain functions (no longer LangChain tools)
 ALL_TOOLS: List = [
     get_policy_details,
     get_claimant_history,
@@ -386,4 +399,4 @@ ALL_TOOLS: List = [
     search_policy_documents,
     analyze_image,
 ]
-TOOLS_BY_NAME = {t.name: t for t in ALL_TOOLS}
+TOOLS_BY_NAME = {f.__name__: f for f in ALL_TOOLS}
