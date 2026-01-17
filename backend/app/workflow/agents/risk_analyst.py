@@ -16,7 +16,13 @@ Your responsibilities:
 
 Use the `get_claimant_history` tool when you have a claimant ID to analyze risk factors.
 Focus on objective risk factors and provide evidence-based assessments.
-End your assessment with risk level: LOW_RISK, MEDIUM_RISK, or HIGH_RISK."""
+
+OUTPUT FORMAT:
+Your response will be automatically parsed into a structured format. Provide:
+- risk_level: Your overall risk classification - must be exactly one of: LOW_RISK, MEDIUM_RISK, or HIGH_RISK
+- risk_score: A numeric score from 0-100 (higher = more risk)
+- fraud_indicators: A list of specific fraud indicators you identified (can be empty if none)
+- analysis: Your detailed risk analysis explanation"""
 
 
 def create_risk_analyst_agent(chat_client: AzureOpenAIChatClient) -> ChatAgent:  # noqa: D401

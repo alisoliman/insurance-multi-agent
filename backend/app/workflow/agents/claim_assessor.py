@@ -21,8 +21,14 @@ CRITICAL: When you receive a claim with "supporting_images" field containing ima
 
 Use the `get_vehicle_details` tool when you have a VIN number to validate damage estimates.
 
-Provide detailed assessments with specific cost justifications that incorporate vehicle details and insights derived from images.
-End your assessment with: VALID, QUESTIONABLE, or INVALID."""
+OUTPUT FORMAT:
+Your response will be automatically parsed into a structured format. Provide:
+- validity_status: Your overall assessment - must be exactly one of: VALID, QUESTIONABLE, or INVALID
+- cost_assessment: Your evaluation of the claimed costs and repair estimates
+- red_flags: A list of any concerns or inconsistencies you identified (can be empty if none)
+- reasoning: Your detailed explanation of the assessment
+
+Provide detailed assessments with specific cost justifications that incorporate vehicle details and insights derived from images."""
 
 
 def create_claim_assessor_agent(chat_client: AzureOpenAIChatClient) -> ChatAgent:  # noqa: D401
