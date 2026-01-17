@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ClaimAssessment",
+  "description": "Structured output from the Claim Assessor agent",
+  "type": "object",
+  "properties": {
+    "validity_status": {
+      "type": "string",
+      "enum": ["VALID", "QUESTIONABLE", "INVALID"],
+      "description": "Overall assessment of claim validity"
+    },
+    "cost_assessment": {
+      "type": "string",
+      "description": "Evaluation of claimed costs and repair estimates"
+    },
+    "red_flags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of identified concerns or inconsistencies"
+    },
+    "reasoning": {
+      "type": "string",
+      "description": "Detailed explanation of the assessment"
+    }
+  },
+  "required": ["validity_status", "cost_assessment", "red_flags", "reasoning"]
+}

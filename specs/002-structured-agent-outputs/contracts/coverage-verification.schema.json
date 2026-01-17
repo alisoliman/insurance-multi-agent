@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CoverageVerification",
+  "description": "Structured output from the Policy Checker agent",
+  "type": "object",
+  "properties": {
+    "coverage_status": {
+      "type": "string",
+      "enum": ["COVERED", "NOT_COVERED", "PARTIALLY_COVERED", "INSUFFICIENT_EVIDENCE"],
+      "description": "Coverage determination"
+    },
+    "cited_sections": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Policy sections cited in determination"
+    },
+    "coverage_details": {
+      "type": "string",
+      "description": "Detailed explanation of coverage analysis"
+    }
+  },
+  "required": ["coverage_status", "cited_sections", "coverage_details"]
+}

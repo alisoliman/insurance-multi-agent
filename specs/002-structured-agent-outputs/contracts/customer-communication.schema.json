@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CustomerCommunication",
+  "description": "Structured output from the Communication Agent",
+  "type": "object",
+  "properties": {
+    "subject": {
+      "type": "string",
+      "description": "Email subject line"
+    },
+    "body": {
+      "type": "string",
+      "description": "Email body content"
+    },
+    "requested_items": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Specific items/documents requested from customer"
+    }
+  },
+  "required": ["subject", "body", "requested_items"]
+}

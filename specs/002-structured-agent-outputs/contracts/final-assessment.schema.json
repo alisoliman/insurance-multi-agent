@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FinalAssessment",
+  "description": "Structured output from the Synthesizer agent",
+  "type": "object",
+  "properties": {
+    "recommendation": {
+      "type": "string",
+      "enum": ["APPROVE", "DENY", "INVESTIGATE"],
+      "description": "Overall recommendation"
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["HIGH", "MEDIUM", "LOW"],
+      "description": "Confidence level in recommendation"
+    },
+    "summary": {
+      "type": "string",
+      "description": "Executive summary of all findings"
+    },
+    "key_findings": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Most important findings from all agents"
+    },
+    "next_steps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Recommended actions for claims processor"
+    }
+  },
+  "required": ["recommendation", "confidence", "summary", "key_findings", "next_steps"]
+}

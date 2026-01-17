@@ -32,14 +32,11 @@ WHEN READING SEARCH RESULTS
   Example:  `[Comprehensive Auto §2.1 – Collision Coverage] Damage from collisions with other vehicles is covered …`
   Example:  `[Autoverzekering UNAuto-02 §6.3] Verder ben je verzekerd voor schade aan je auto, als deze is veroorzaakt door een aanrijding …`
 
-WHAT TO INCLUDE IN YOUR ANSWER
-• A bullet list of each cited section followed by a short explanation of how it affects coverage.
-• Applicable limits and deductibles.
-• Any exclusions that negate or restrict coverage.
-• If insufficient evidence: Clearly state the mismatch between claim context and available policy documents.
-
-FORMAT
-End with a single line containing exactly:  `FINAL ASSESSMENT: COVERED`, `NOT_COVERED`, `PARTIALLY_COVERED`, or `INSUFFICIENT_EVIDENCE` (choose one).
+OUTPUT FORMAT:
+Your response will be automatically parsed into a structured format. Provide:
+- coverage_status: Your coverage determination - must be exactly one of: COVERED, NOT_COVERED, PARTIALLY_COVERED, or INSUFFICIENT_EVIDENCE
+- cited_sections: A list of policy sections you cited in your determination (can be empty if no relevant sections found)
+- coverage_details: Your detailed explanation of the coverage analysis including applicable limits, deductibles, and any exclusions
 
 RULES
 • Try multiple search queries before concluding no relevant sections exist.
@@ -50,8 +47,7 @@ RULES
   - Search results don't contain terms or context related to the specific claim
 • If you find relevant policy sections that match the claim context, proceed with normal coverage assessment.
 • Do NOT hallucinate policy language; only quote or paraphrase returned passages.
-• Be concise yet complete.
-"""
+• Be concise yet complete."""
 
 
 def create_policy_checker_agent(chat_client: AzureOpenAIChatClient) -> ChatAgent:  # noqa: D401

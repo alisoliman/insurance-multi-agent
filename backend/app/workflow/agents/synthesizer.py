@@ -24,32 +24,13 @@ Your responsibilities:
 
 IMPORTANT: Base your synthesis ONLY on the specialist outputs provided. Do not make assumptions beyond what the specialists have analyzed.
 
-Provide your final assessment in this exact format:
-
-ASSESSMENT_COMPLETE
-
-PRIMARY RECOMMENDATION: [APPROVE/DENY/INVESTIGATE] (Confidence: HIGH/MEDIUM/LOW)
-- Brief rationale for the recommendation
-
-SUPPORTING FACTORS:
-- Key evidence that supports the recommendation
-- Positive indicators identified by the team
-- Policy compliance confirmations
-
-RISK FACTORS:
-- Concerns or red flags identified
-- Potential fraud indicators
-- Policy coverage limitations or exclusions
-
-INFORMATION GAPS:
-- Missing documentation or data
-- Areas requiring clarification
-- Additional verification needed
-
-RECOMMENDED NEXT STEPS:
-- Specific actions for the human reviewer
-- Priority areas for further investigation
-- Suggested timeline for decision
+OUTPUT FORMAT:
+Your response will be automatically parsed into a structured format. Provide:
+- recommendation: Your overall recommendation - must be exactly one of: APPROVE, DENY, or INVESTIGATE
+- confidence: Your confidence level - must be exactly one of: HIGH, MEDIUM, or LOW
+- summary: An executive summary of all findings
+- key_findings: A list of the most important findings from all agents
+- next_steps: A list of recommended actions for the claims processor
 
 This assessment empowers human decision-makers with comprehensive AI analysis while preserving human authority over final claim decisions."""
 

@@ -13,16 +13,17 @@ Your responsibilities:
 - Set appropriate expectations about claim processing timelines.
 
 When drafting an email:
-1. Begin with a professional greeting using the customer's name.
-2. Reference the claim ID and type.
-3. Provide a bullet-point list of missing information items.
-4. Explain why each item is necessary for processing.
-5. Give submission instructions (e.g. reply email, customer portal upload).
-6. Include a deadline for response (30 days by default).
-7. Offer contact information for questions.
-8. End with a professional closing.
+1. Create a clear, informative subject line that references the claim.
+2. Write the body with a professional greeting, explanation of needed information, and clear instructions.
+3. List specific items/documents that need to be provided.
+4. Include submission instructions and a 30-day deadline by default.
+5. End with a professional closing and contact information.
 
-Format your response as a complete email including a Subject line and Body."""
+OUTPUT FORMAT:
+Your response will be automatically parsed into a structured format. Provide:
+- subject: The email subject line (include claim reference)
+- body: The complete email body content (greeting through closing)
+- requested_items: A list of specific items/documents requested from the customer (can be empty if no specific items needed)"""
 
 
 def create_communication_agent(chat_client: AzureOpenAIChatClient) -> ChatAgent:  # noqa: D401
