@@ -12,6 +12,16 @@ export { RiskAssessmentCard } from "./risk-assessment-card"
 export { CustomerCommunicationCard } from "./customer-communication-card"
 export { FinalAssessmentCard } from "./final-assessment-card"
 
+// Workflow summary for viewers (Feature 005 - US6)
+export { 
+  WorkflowSummary, 
+  KeyMetric, 
+  RiskScoreDisplay, 
+  CoverageStatusDisplay,
+  DecisionDisplay,
+  AGENT_ROLE_DESCRIPTIONS,
+} from "./workflow-summary"
+
 // Tool call visualization
 export { ToolCallCard } from "./tool-call-card"
 

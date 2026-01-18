@@ -50,7 +50,17 @@ router = APIRouter(prefix="/scenarios", tags=["scenarios"])
 async def generate_scenario(
     request: ScenarioGenerationRequest,
 ) -> GeneratedScenario:
-    """Generate a new demo scenario using AI."""
+    """Generate a new demo scenario using AI.
+    
+    This endpoint handles complete E2E synthetic data generation:
+    1. Generate scenario via Azure OpenAI
+    2. Create vehicle record in database (for get_vehicle_details tool)
+    3. Create policy record in database (for get_policy_details tool)
+    4. Index policy in FAISS (for semantic search)
+    
+    After generation, the scenario is immediately usable in agent demos
+    without needing to be saved first.
+    """
     logger.info(
         f"Generating scenario: locale={request.locale.value}, "
         f"claim_type={request.claim_type.value}, complexity={request.complexity.value}, "
@@ -63,8 +73,73 @@ async def generate_scenario(
         
         logger.info(f"Generated scenario: {scenario.id} - {scenario.name}")
         
+        # =====================================================================
+        # Feature 005: Create vehicle record for immediate agent tool access
+        # =====================================================================
+        if scenario.claim.vehicle_info:
+            try:
+                from app.db.vehicle_repo import create_vehicle, get_vehicle_by_vin, VehicleCreate
+                
+                vi = scenario.claim.vehicle_info
+                existing = await get_vehicle_by_vin(vi.vin)
+                if not existing:
+                    vehicle_create = VehicleCreate(
+                        vin=vi.vin,
+                        scenario_id=scenario.id,
+                        policy_number=scenario.claim.policy_number,
+                        make=vi.make,
+                        model=vi.model,
+                        year=vi.year,
+                        license_plate=vi.license_plate,
+                        color=getattr(vi, 'color', None),
+                        vehicle_type=getattr(vi, 'vehicle_type', None),
+                    )
+                    await create_vehicle(vehicle_create)
+                    logger.info(f"Created vehicle record: {vi.vin}")
+            except Exception as e:
+                logger.warning(f"Could not create vehicle record: {e}")
+        
+        # =====================================================================
+        # Feature 005: Create policy record for immediate agent tool access
+        # =====================================================================
+        try:
+            from app.db.policy_repo import create_policy, get_policy_by_policy_number, PolicyCreate
+            
+            existing = await get_policy_by_policy_number(scenario.policy.policy_number)
+            if not existing:
+                # Extract coverage info from generated policy
+                policy = scenario.policy
+                customer_info = scenario.claim.customer_info
+                vehicle_info = scenario.claim.vehicle_info
+                
+                policy_create = PolicyCreate(
+                    policy_number=policy.policy_number,
+                    scenario_id=scenario.id,
+                    policy_type=policy.policy_type,
+                    coverage_types=policy.coverage_types,
+                    coverage_limits={
+                        "collision": policy.coverage_limits.collision,
+                        "comprehensive": policy.coverage_limits.comprehensive,
+                        "liability": policy.coverage_limits.liability_per_accident,
+                    },
+                    deductible=policy.deductibles.collision,
+                    premium=policy.premium_amount,
+                    effective_date=policy.effective_date,
+                    expiration_date=policy.expiration_date,
+                    customer_name=customer_info.name if customer_info else scenario.claim.claimant_name,
+                    customer_email=customer_info.email if customer_info else None,
+                    customer_phone=customer_info.phone if customer_info else None,
+                    vin=vehicle_info.vin if vehicle_info else None,
+                )
+                await create_policy(policy_create)
+                logger.info(f"Created policy record: {policy.policy_number}")
+        except Exception as e:
+            logger.warning(f"Could not create policy record: {e}")
+        
+        # =====================================================================
         # Add generated policy to FAISS index for policy checker agent
-        # This enables the workflow to find coverage information for the generated claim
+        # This enables semantic search for coverage information
+        # =====================================================================
         try:
             policy_search = get_policy_search()
             policy_number = scenario.policy.policy_number
@@ -73,7 +148,7 @@ async def generate_scenario(
             success = policy_search.add_policy_from_text(
                 policy_number=policy_number,
                 policy_type=policy_type,
-                markdown_content=scenario.policy.policy_document_markdown,
+                markdown_content=scenario.policy.markdown_content,
             )
             if success:
                 logger.info(f"Added generated policy {policy_number} to FAISS index")
@@ -138,7 +213,13 @@ async def list_scenarios(
 async def save_scenario(
     request: SaveScenarioRequest,
 ) -> SavedScenarioSummary:
-    """Save a generated scenario to the database."""
+    """Save a generated scenario to the database.
+    
+    Also creates vehicle and policy records for workflow agent lookups.
+    """
+    from app.db.vehicle_repo import VehicleCreate, create_vehicle
+    from app.db.policy_repo import PolicyCreate, create_policy
+    
     logger.info(f"Saving scenario: {request.name}")
     
     async with get_db_connection() as db:
@@ -151,7 +232,64 @@ async def save_scenario(
                 detail={"error": "already_exists", "message": "Scenario with this ID already exists"},
             )
         
-        return await repo.create(request.scenario, request.name)
+        result = await repo.create(request.scenario, request.name)
+    
+    # Create vehicle record if this is an auto claim with vehicle info (T011)
+    scenario = request.scenario
+    if scenario.claim.vehicle_info:
+        try:
+            vi = scenario.claim.vehicle_info
+            vehicle_create = VehicleCreate(
+                vin=vi.vin,
+                scenario_id=scenario.id,
+                policy_number=scenario.policy.policy_number,
+                make=vi.make,
+                model=vi.model,
+                year=vi.year,
+                license_plate=vi.license_plate,
+            )
+            await create_vehicle(vehicle_create)
+            logger.info(f"Created vehicle record: VIN={vi.vin}")
+        except Exception as e:
+            # Don't fail the save if vehicle creation fails
+            logger.warning(f"Failed to create vehicle record: {e}")
+    
+    # Create policy record for workflow lookups (T012)
+    try:
+        policy = scenario.policy
+        limits = policy.coverage_limits
+        coverage_limits_dict = {
+            "collision": limits.collision,
+            "comprehensive": limits.comprehensive,
+            "liability_per_person": limits.liability_per_person,
+            "liability_per_accident": limits.liability_per_accident,
+            "property_damage": limits.property_damage,
+            "medical_payments": limits.medical_payments,
+        }
+        coverage_types = list(coverage_limits_dict.keys())
+        
+        policy_create = PolicyCreate(
+            policy_number=policy.policy_number,
+            scenario_id=scenario.id,
+            policy_type=policy.policy_type,
+            coverage_types=coverage_types,
+            coverage_limits=coverage_limits_dict,
+            deductible=policy.deductibles.collision,
+            premium=1200.0,  # Default premium for demo
+            effective_date=policy.effective_date,
+            expiration_date=policy.expiration_date,
+            customer_name=scenario.claim.claimant_name,
+            customer_email=scenario.claim.customer_info.email if scenario.claim.customer_info else None,
+            customer_phone=scenario.claim.customer_info.phone if scenario.claim.customer_info else None,
+            vin=scenario.claim.vehicle_info.vin if scenario.claim.vehicle_info else None,
+        )
+        await create_policy(policy_create)
+        logger.info(f"Created policy record: {policy.policy_number}")
+    except Exception as e:
+        # Don't fail the save if policy creation fails
+        logger.warning(f"Failed to create policy record: {e}")
+    
+    return result
 
 
 @router.get(
@@ -214,6 +352,9 @@ async def delete_scenario(
     scenario_id: str,
 ) -> None:
     """Delete a saved scenario."""
+    from app.db.vehicle_repo import delete_vehicle_by_scenario_id
+    from app.db.policy_repo import delete_policy_by_scenario_id
+    
     # Validate UUID format
     try:
         UUID(scenario_id)
@@ -232,3 +373,71 @@ async def delete_scenario(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"error": "not_found", "message": "Scenario not found"},
             )
+    
+    # Also clean up vehicle and policy records
+    await delete_vehicle_by_scenario_id(scenario_id)
+    await delete_policy_by_scenario_id(scenario_id)
+
+
+# =============================================================================
+# Feature 005: Vehicle and Policy Lookup Endpoints (T015-T016)
+# =============================================================================
+
+@router.get(
+    "/vehicles/{vin}",
+    response_model=dict,
+    responses={
+        404: {"model": ErrorResponse, "description": "Vehicle not found"},
+    },
+    summary="Get vehicle by VIN",
+    description="Retrieve vehicle details for a VIN from generated scenarios",
+)
+async def get_vehicle_by_vin(vin: str) -> dict:
+    """Get vehicle details by VIN."""
+    from app.db.vehicle_repo import get_vehicle_by_vin as repo_get_vehicle
+    
+    vehicle = await repo_get_vehicle(vin)
+    if not vehicle:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "not_found", "message": f"Vehicle with VIN {vin} not found"},
+        )
+    
+    return vehicle.model_dump()
+
+
+@router.get(
+    "/policies/{policy_number}",
+    response_model=dict,
+    responses={
+        404: {"model": ErrorResponse, "description": "Policy not found"},
+    },
+    summary="Get policy by policy number",
+    description="Retrieve policy details from generated scenarios",
+)
+async def get_policy_by_number(policy_number: str) -> dict:
+    """Get policy details by policy number."""
+    from app.db.policy_repo import get_policy_by_policy_number
+    
+    policy = await get_policy_by_policy_number(policy_number)
+    if not policy:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "not_found", "message": f"Policy {policy_number} not found"},
+        )
+    
+    return policy.model_dump()
+
+
+@router.get(
+    "/policies/{policy_number}/coverage/{coverage_type}",
+    response_model=dict,
+    summary="Check coverage for a policy",
+    description="Quick check for coverage type and limit - used by Policy Checker agent",
+)
+async def check_policy_coverage(policy_number: str, coverage_type: str) -> dict:
+    """Quick coverage check for Policy Checker agent."""
+    from app.db.policy_repo import check_coverage
+    
+    result = await check_coverage(policy_number, coverage_type)
+    return result

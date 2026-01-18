@@ -25,8 +25,46 @@ def get_policy_details(
     """Retrieve detailed policy information for a given policy number.
     
     Returns coverage limits, deductibles, exclusions, and status.
+    First checks the dynamic policy_repo (for generated scenarios), then falls back to
+    the simulated policy database for static demo policies.
     """
-    # Simulated policy database (full dataset from original file)
+    import asyncio
+    
+    # First, try to get policy from the policy_repo (generated scenarios)
+    try:
+        from app.db.policy_repo import get_policy_by_policy_number
+        
+        # Run async function in sync context
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # We're in an async context, need to handle differently
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, get_policy_by_policy_number(policy_number))
+                policy_record = future.result()
+        else:
+            policy_record = loop.run_until_complete(get_policy_by_policy_number(policy_number))
+        
+        if policy_record:
+            logger.info(f"Found policy {policy_number} in policy_repo (generated scenario)")
+            return {
+                "policy_number": policy_record.policy_number,
+                "policy_holder": policy_record.customer_name,
+                "policy_type": policy_record.policy_type,
+                "coverage_limits": policy_record.coverage_limits,
+                "deductibles": {"collision": policy_record.deductible, "comprehensive": 250},
+                "premium": policy_record.premium,
+                "effective_date": policy_record.effective_date,
+                "expiry_date": policy_record.expiration_date,
+                "status": "active",
+                "exclusions": ["Racing or competitive driving", "Commercial use", "Intentional damage"],
+                "additional_coverage": [],
+                "source": "generated_scenario",
+            }
+    except Exception as e:
+        logger.debug(f"Could not look up policy in policy_repo: {e}")
+    
+    # Fall back to simulated policy database (full dataset from original file)
     policy_database = {
         "POL-2024-001": {
             "policy_number": "POL-2024-001",
@@ -108,7 +146,13 @@ def get_policy_details(
     }
     policy = policy_database.get(policy_number)
     if not policy:
-        return {"error": f"Policy {policy_number} not found in database"}
+        # Return INSUFFICIENT_EVIDENCE-friendly response (T013)
+        logger.info(f"Policy {policy_number} not found - returning insufficient evidence indicator")
+        return {
+            "error": f"Policy {policy_number} not found in database",
+            "insufficient_evidence": True,
+            "suggestion": "The policy may need to be re-indexed or generated scenario was not saved",
+        }
     return policy
 
 
@@ -118,7 +162,33 @@ def get_claimant_history(
     """Retrieve historical claim information for a given claimant.
     
     Returns previous claims, fraud indicators, and risk factors.
+    For generated scenarios (CLT-xxx IDs), returns a default new customer profile.
     """
+    # Check if this is a generated scenario claimant (T029)
+    if claimant_id.startswith("CLT-"):
+        logger.info(f"Generated scenario claimant {claimant_id} - returning new customer profile")
+        return {
+            "claimant_id": claimant_id,
+            "name": "Generated Scenario Customer",
+            "customer_since": "2024-01-01",
+            "total_claims": 0,
+            "claim_history": [],
+            "risk_factors": {
+                "claim_frequency": "new_customer",
+                "average_claim_amount": 0,
+                "fraud_indicators": [],
+                "credit_score": "unknown",
+                "driving_record": "unknown",
+            },
+            "contact_info": {
+                "phone": "N/A",
+                "email": "N/A",
+                "address": "N/A",
+            },
+            "note": "This is a new customer from a generated demo scenario with no prior claim history.",
+            "source": "generated_scenario",
+        }
+    
     claimant_database = {
         "CLM-001": {
             "claimant_id": "CLM-001",
@@ -200,7 +270,49 @@ def get_vehicle_details(
     """Retrieve vehicle information for a given VIN number.
     
     Returns vehicle make, model, year, value, and specifications.
+    First checks the dynamic vehicle_repo (for generated scenarios), then falls back
+    to the simulated vehicle database for static demo vehicles.
     """
+    import asyncio
+    
+    # First, try to get vehicle from the vehicle_repo (generated scenarios)
+    try:
+        from app.db.vehicle_repo import get_vehicle_by_vin
+        
+        # Run async function in sync context
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # We're in an async context, need to handle differently
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, get_vehicle_by_vin(vin))
+                vehicle_record = future.result()
+        else:
+            vehicle_record = loop.run_until_complete(get_vehicle_by_vin(vin))
+        
+        if vehicle_record:
+            logger.info(f"Found vehicle {vin} in vehicle_repo (generated scenario)")
+            return {
+                "vin": vehicle_record.vin,
+                "make": vehicle_record.make,
+                "model": vehicle_record.model,
+                "year": vehicle_record.year,
+                "license_plate": vehicle_record.license_plate,
+                "color": vehicle_record.color or "Unknown",
+                "vehicle_type": vehicle_record.vehicle_type or "personenauto",
+                "mileage": 20000,  # Default for generated
+                "market_value": 25000,  # Default for generated
+                "condition": "good",
+                "accident_history": [],
+                "maintenance_records": "up_to_date",
+                "recalls": [],
+                "modifications": [],
+                "source": "generated_scenario",
+            }
+    except Exception as e:
+        logger.debug(f"Could not look up vehicle in vehicle_repo: {e}")
+    
+    # Fall back to simulated vehicle database
     vehicle_database = {
         "1HGBH41JXMN109186": {
             "vin": "1HGBH41JXMN109186",
@@ -239,6 +351,7 @@ def get_vehicle_details(
     }
     vehicle = vehicle_database.get(vin)
     if not vehicle:
+        logger.info(f"Vehicle {vin} not found - returning not found response")
         return {"error": f"Vehicle with VIN {vin} not found in database"}
     return vehicle
 

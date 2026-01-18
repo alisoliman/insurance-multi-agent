@@ -34,6 +34,47 @@ CREATE TABLE IF NOT EXISTS saved_scenarios (
 CREATE INDEX IF NOT EXISTS idx_scenarios_locale ON saved_scenarios(locale);
 CREATE INDEX IF NOT EXISTS idx_scenarios_claim_type ON saved_scenarios(claim_type);
 CREATE INDEX IF NOT EXISTS idx_scenarios_created_at ON saved_scenarios(created_at DESC);
+
+-- Vehicles table for auto claims (Feature 005)
+CREATE TABLE IF NOT EXISTS vehicles (
+    vin TEXT PRIMARY KEY,
+    scenario_id TEXT NOT NULL,
+    policy_number TEXT NOT NULL,
+    make TEXT NOT NULL,
+    model TEXT NOT NULL,
+    year INTEGER NOT NULL,
+    license_plate TEXT NOT NULL,
+    color TEXT,
+    vehicle_type TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (scenario_id) REFERENCES saved_scenarios(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_vehicles_policy_number ON vehicles(policy_number);
+CREATE INDEX IF NOT EXISTS idx_vehicles_scenario_id ON vehicles(scenario_id);
+
+-- Policies table for workflow lookups (Feature 005)
+CREATE TABLE IF NOT EXISTS policies (
+    policy_number TEXT PRIMARY KEY,
+    scenario_id TEXT NOT NULL,
+    policy_type TEXT NOT NULL,
+    coverage_types TEXT NOT NULL,
+    coverage_limits TEXT NOT NULL,
+    deductible REAL NOT NULL,
+    premium REAL NOT NULL,
+    effective_date TEXT NOT NULL,
+    expiration_date TEXT NOT NULL,
+    customer_name TEXT NOT NULL,
+    customer_email TEXT,
+    customer_phone TEXT,
+    vin TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (scenario_id) REFERENCES saved_scenarios(id) ON DELETE CASCADE,
+    FOREIGN KEY (vin) REFERENCES vehicles(vin) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_policies_scenario_id ON policies(scenario_id);
+CREATE INDEX IF NOT EXISTS idx_policies_customer ON policies(customer_name);
 """
 
 

@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { SavedScenarioSummary } from "@/lib/scenario-api";
-import { ClaimType, Complexity, getLocaleConfig, formatCurrency } from "@/lib/locale-config";
+import { ClaimType, getLocaleConfig, formatCurrency } from "@/lib/locale-config";
 
 interface ScenarioCardProps {
   scenario: SavedScenarioSummary;

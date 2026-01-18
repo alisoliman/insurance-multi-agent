@@ -20,9 +20,9 @@ import {
   CoverageVerificationCard,
   RiskAssessmentCard,
   CustomerCommunicationCard,
-  FinalAssessmentCard,
   ToolCallCard,
   ConversationStep,
+  WorkflowSummary,
 } from '@/components/agent-outputs'
 import {
   WorkflowResult,
@@ -31,12 +31,10 @@ import {
   isCoverageVerification,
   isRiskAssessment,
   isCustomerCommunication,
-  isFinalAssessment,
   ClaimAssessment,
   CoverageVerification,
   RiskAssessment,
   CustomerCommunication,
-  FinalAssessment,
   ToolCall,
 } from '@/types/agent-outputs'
 
@@ -45,6 +43,17 @@ import { ScenarioGeneratorModal } from '@/components/scenario-generator'
 import { SavedScenariosList } from '@/components/saved-scenarios'
 import { GeneratedScenario, SavedScenarioSummary, saveScenario, getScenario, getErrorMessage } from '@/lib/scenario-api'
 import { formatCurrency } from '@/lib/locale-config'
+
+// Import documentation hint component (Feature 005)
+import { DocumentationHint, getDocumentationHintType } from '@/components/ai-elements/documentation-hint'
+
+// Import scenario preview components (Feature 005 - US5)
+import { 
+  LocaleFlag, 
+  ClaimTypeBadge, 
+  ComplexityBadge,
+  ScenarioPreviewExpanded,
+} from '@/components/ai-elements/scenario-preview'
 
 import { 
   IconUsers,
@@ -172,12 +181,24 @@ export function WorkflowDemo() {
   const [availableClaims, setAvailableClaims] = useState<ClaimSummary[]>([])
   const [generatedScenarios, setGeneratedScenarios] = useState<GeneratedScenario[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [showLoadingIndicator, setShowLoadingIndicator] = useState(false) // T040: 500ms delay threshold
   const [isLoadingSamples, setIsLoadingSamples] = useState(true)
   const [workflowResult, setWorkflowResult] = useState<WorkflowResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [savedScenariosRefreshTrigger, setSavedScenariosRefreshTrigger] = useState(0)
   const [savingScenarioId, setSavingScenarioId] = useState<string | null>(null)
+
+  // T040: Show loading indicator after 500ms delay to avoid flickering on fast responses
+  useEffect(() => {
+    let timer: NodeJS.Timeout
+    if (isLoading) {
+      timer = setTimeout(() => setShowLoadingIndicator(true), 500)
+    } else {
+      setShowLoadingIndicator(false)
+    }
+    return () => clearTimeout(timer)
+  }, [isLoading])
 
   // Handle newly generated scenario
   const handleScenarioGenerated = (scenario: GeneratedScenario) => {
@@ -481,17 +502,18 @@ export function WorkflowDemo() {
                   >
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm font-medium">
-                          {scenario.name}
-                        </CardTitle>
-                        <div className="flex gap-1">
-                          <Badge variant="outline" className="text-xs bg-purple-100 dark:bg-purple-900/30">
-                            {scenario.locale}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            {scenario.claim.claim_type}
-                          </Badge>
+                        <div className="flex items-center gap-2">
+                          {/* Locale Flag (T033) */}
+                          <LocaleFlag locale={scenario.locale} />
+                          <CardTitle className="text-sm font-medium">
+                            {scenario.name}
+                          </CardTitle>
                         </div>
+                      </div>
+                      {/* Badges row (T033, T034) */}
+                      <div className="flex gap-1 flex-wrap mt-1">
+                        <ClaimTypeBadge claimType={scenario.claim.claim_type} />
+                        <ComplexityBadge scenario={scenario} />
                       </div>
                       <CardDescription className="text-xs">
                         {scenario.claim.claimant_name}
@@ -508,6 +530,19 @@ export function WorkflowDemo() {
                         <p className="text-xs text-muted-foreground line-clamp-2">
                           {scenario.claim.description}
                         </p>
+                        {/* Documentation Hint (Feature 005) - T024 */}
+                        <DocumentationHint
+                          type={getDocumentationHintType(
+                            scenario.claim.photos_provided ?? false,
+                            scenario.claim.police_report ?? false,
+                            scenario.claim.witness_statements ?? "none"
+                          )}
+                          photosProvided={scenario.claim.photos_provided}
+                          policeReport={scenario.claim.police_report}
+                          witnessStatements={scenario.claim.witness_statements}
+                        />
+                        {/* Scenario Preview Expansion (T032) */}
+                        <ScenarioPreviewExpanded scenario={scenario} />
                         <div className="flex gap-2 mt-3">
                           <Button
                             onClick={() => runWorkflow(scenarioToClaimSummary(scenario))}
@@ -633,15 +668,11 @@ export function WorkflowDemo() {
       </Card>
 
       {/* Results Section */}
-      {(isLoading || workflowResult) && (
+      {(showLoadingIndicator || workflowResult) && (
         <div className="space-y-6">
-          {/* Final Assessment Card - Displayed prominently at top when available */}
-          {workflowResult?.agent_outputs?.synthesizer?.structured_output && 
-           isFinalAssessment(workflowResult.agent_outputs.synthesizer.structured_output) && (
-            <FinalAssessmentCard 
-              output={workflowResult.agent_outputs.synthesizer.structured_output as FinalAssessment}
-              className="shadow-lg"
-            />
+          {/* Workflow Summary for Viewers (T037-T039) */}
+          {workflowResult && (
+            <WorkflowSummary result={workflowResult} />
           )}
 
           {/* Agent Output Cards Grid */}
@@ -752,7 +783,7 @@ export function WorkflowDemo() {
               )}
             </CardHeader>
             <CardContent>
-              {isLoading ? (
+              {showLoadingIndicator ? (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
                     <IconClock className="h-4 w-4 animate-spin" />
