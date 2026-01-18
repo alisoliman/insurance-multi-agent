@@ -63,20 +63,29 @@ async def workflow_run(claim: ClaimIn):  # noqa: D401
         # ------------------------------------------------------------------
         # 1. Decide whether to load sample claim or use provided data
         # ------------------------------------------------------------------
-        # Load sample data if claim_id provided and matches sample claim
-        if claim.claim_id:
+        # Check if this is a sample claim request (only claim_id provided)
+        # or a full claim data request (other fields like policy_number, claimant_name provided)
+        if claim.is_sample_claim_request():
+            # Only claim_id provided - look up in sample claims
             claim_data = get_sample_claim_by_id(claim.claim_id)
-
-            # Merge/override with any additional fields supplied in request (e.g., supporting_documents)
-            override_data = {
-                k: v for k, v in claim.model_dump(by_alias=True, exclude_none=True).items()
-                if k != "claim_id"
-            }
-
-            # Apply overrides (including supporting_images) on top of sample claim
-            claim_data.update(override_data)
+        elif claim.claim_id and claim.policy_number:
+            # Full claim data provided (e.g., from generated scenarios)
+            claim_data = claim.to_dict()
+        elif claim.claim_id:
+            # claim_id with some overrides - try to load sample and merge
+            try:
+                claim_data = get_sample_claim_by_id(claim.claim_id)
+                # Merge/override with any additional fields supplied in request
+                override_data = {
+                    k: v for k, v in claim.model_dump(by_alias=True, exclude_none=True).items()
+                    if k != "claim_id"
+                }
+                claim_data.update(override_data)
+            except HTTPException:
+                # claim_id not found in samples - use provided data as-is
+                claim_data = claim.to_dict()
         else:
-            # Full claim provided without loading sample
+            # Full claim provided without claim_id
             claim_data = claim.to_dict()
 
         # ------------------------------------------------------------------

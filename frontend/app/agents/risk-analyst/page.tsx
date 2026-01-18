@@ -23,6 +23,7 @@ import { getApiUrl } from '@/lib/config'
 import { AgentWorkflowVisualization } from '@/components/agent-workflow-visualization'
 import { RiskAssessmentCard, ToolCallCard, ConversationStep } from '@/components/agent-outputs'
 import { isRiskAssessment, RiskAssessment, ToolCall, AgentOutput } from '@/types/agent-outputs'
+import { ScenarioSelector, FullClaimData } from '@/components/scenario-selector'
 
 // Sample claims from API
 interface SampleClaim {
@@ -108,6 +109,37 @@ export default function RiskAnalystDemo() {
   const resetDemo = () => {
     setResult(null)
     setError(null)
+  }
+
+  // Run risk analysis with full claim data (for generated scenarios)
+  const runRiskAnalysisWithFullClaim = async (claim: FullClaimData) => {
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      const apiUrl = await getApiUrl()
+      const response = await fetch(`${apiUrl}/api/v1/agent/risk_analyst/run`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(claim),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data: RiskAnalysisResult = await response.json()
+      setResult(data)
+      toast.success('Risk analysis completed successfully!')
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      setError(errorMessage)
+      toast.error('Risk analysis failed: ' + errorMessage)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   // Helper to determine if a conversation step should be skipped
@@ -200,21 +232,34 @@ export default function RiskAnalystDemo() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <IconShieldCheck className="h-5 w-5" />
-            Sample Claims
+            Select a Claim
           </CardTitle>
           <CardDescription>
-            Select a sample claim to run through the risk analyst agent
+            Generate a new scenario or select a sample claim to run through the risk analyst agent
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           
-          {isLoadingSamples ? (
-            <div className="flex items-center justify-center py-8">
-              <IconClock className="h-6 w-6 animate-spin mr-2" />
-              <span>Loading sample claims...</span>
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-3">
+          {/* Generated Scenarios Section */}
+          <div className="space-y-3">
+            <ScenarioSelector
+              onSelectScenario={runRiskAnalysisWithFullClaim}
+              disabled={isLoading}
+            />
+          </div>
+
+          <Separator />
+
+          {/* Sample Claims Section */}
+          <div className="space-y-3">
+            <span className="text-sm font-medium">Sample Claims</span>
+            {isLoadingSamples ? (
+              <div className="flex items-center justify-center py-8">
+                <IconClock className="h-6 w-6 animate-spin mr-2" />
+                <span>Loading sample claims...</span>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {sampleClaims.map((claim) => (
                 <Card
                   key={claim.claim_id}
@@ -258,8 +303,7 @@ export default function RiskAnalystDemo() {
                 </Card>
               ))}
             </div>
-          )}
-
+          )}          </div>
           {result && (
             <div className="pt-4">
               <Button variant="outline" onClick={resetDemo} className="w-full">

@@ -40,6 +40,12 @@ import {
   ToolCall,
 } from '@/types/agent-outputs'
 
+// Import scenario generator
+import { ScenarioGeneratorModal } from '@/components/scenario-generator'
+import { SavedScenariosList } from '@/components/saved-scenarios'
+import { GeneratedScenario, SavedScenarioSummary, saveScenario, getScenario, getErrorMessage } from '@/lib/scenario-api'
+import { formatCurrency } from '@/lib/locale-config'
+
 import { 
   IconUsers,
   IconRefresh,
@@ -52,7 +58,10 @@ import {
   IconMessage,
   IconPlayerPlay,
   IconEye,
-  IconFileOff
+  IconFileOff,
+  IconSparkles,
+  IconDeviceFloppy,
+  IconFolder,
 } from '@tabler/icons-react'
 
 interface ClaimSummary {
@@ -61,6 +70,16 @@ interface ClaimSummary {
   claim_type: string
   estimated_damage: number
   description: string
+  // Additional fields for generated scenarios
+  policy_number?: string
+  claimant_id?: string
+  incident_date?: string
+  location?: string
+  police_report?: boolean
+  photos_provided?: boolean
+  witness_statements?: string
+  vehicle_info?: Record<string, unknown>
+  customer_info?: Record<string, unknown>
 }
 
 interface ConversationEntry {
@@ -151,11 +170,90 @@ function RawOutputFallback({ agentName, content }: { agentName: string; content:
 
 export function WorkflowDemo() {
   const [availableClaims, setAvailableClaims] = useState<ClaimSummary[]>([])
+  const [generatedScenarios, setGeneratedScenarios] = useState<GeneratedScenario[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingSamples, setIsLoadingSamples] = useState(true)
   const [workflowResult, setWorkflowResult] = useState<WorkflowResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
+  const [savedScenariosRefreshTrigger, setSavedScenariosRefreshTrigger] = useState(0)
+  const [savingScenarioId, setSavingScenarioId] = useState<string | null>(null)
+
+  // Handle newly generated scenario
+  const handleScenarioGenerated = (scenario: GeneratedScenario) => {
+    setGeneratedScenarios(prev => [scenario, ...prev])
+    toast.success(`Generated scenario: ${scenario.name}`)
+  }
+
+  // Handle saving a generated scenario
+  const handleSaveScenario = async (scenario: GeneratedScenario) => {
+    setSavingScenarioId(scenario.id)
+    try {
+      await saveScenario({
+        scenario,
+        name: scenario.name,
+      })
+      toast.success(`Saved: ${scenario.name}`)
+      // Remove from generated list (it's now saved)
+      setGeneratedScenarios(prev => prev.filter(s => s.id !== scenario.id))
+      // Refresh the saved scenarios list
+      setSavedScenariosRefreshTrigger(prev => prev + 1)
+    } catch (err) {
+      toast.error(getErrorMessage(err))
+    } finally {
+      setSavingScenarioId(null)
+    }
+  }
+
+  // Handle using a saved scenario
+  const handleUseSavedScenario = async (summary: SavedScenarioSummary) => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      // Fetch the full scenario to get claim details
+      const fullScenario = await getScenario(summary.id)
+      // Run workflow with the saved scenario's full claim data
+      const claim: ClaimSummary = {
+        claim_id: fullScenario.claim.claim_id,
+        policy_number: fullScenario.claim.policy_number,
+        claimant_id: fullScenario.claim.claimant_id,
+        claimant_name: fullScenario.claim.claimant_name,
+        incident_date: fullScenario.claim.incident_date,
+        claim_type: fullScenario.claim.claim_type,
+        description: fullScenario.claim.description,
+        estimated_damage: fullScenario.claim.estimated_damage,
+        location: fullScenario.claim.location,
+        police_report: fullScenario.claim.police_report,
+        photos_provided: fullScenario.claim.photos_provided,
+        witness_statements: fullScenario.claim.witness_statements,
+        vehicle_info: fullScenario.claim.vehicle_info as Record<string, unknown> | undefined,
+        customer_info: fullScenario.claim.customer_info as Record<string, unknown> | undefined,
+      }
+      await runWorkflowWithClaim(claim)
+    } catch (err) {
+      toast.error(getErrorMessage(err))
+      setIsLoading(false)
+    }
+  }
+
+  // Convert generated scenario to ClaimSummary format for running workflow
+  // Includes all fields needed for the backend to process without looking up sample claims
+  const scenarioToClaimSummary = (scenario: GeneratedScenario): ClaimSummary => ({
+    claim_id: scenario.claim.claim_id,
+    policy_number: scenario.claim.policy_number,
+    claimant_id: scenario.claim.claimant_id,
+    claimant_name: scenario.claim.claimant_name,
+    incident_date: scenario.claim.incident_date,
+    claim_type: scenario.claim.claim_type,
+    description: scenario.claim.description,
+    estimated_damage: scenario.claim.estimated_damage,
+    location: scenario.claim.location,
+    police_report: scenario.claim.police_report,
+    photos_provided: scenario.claim.photos_provided,
+    witness_statements: scenario.claim.witness_statements,
+    vehicle_info: scenario.claim.vehicle_info as Record<string, unknown> | undefined,
+    customer_info: scenario.claim.customer_info as Record<string, unknown> | undefined,
+  })
 
 
   // Fetch available claims on component mount
@@ -192,6 +290,10 @@ export function WorkflowDemo() {
     setIsLoading(true)
     setError(null)
     
+    await runWorkflowWithClaim(claim)
+  }
+
+  const runWorkflowWithClaim = async (claim: ClaimSummary) => {
     try {
       const apiUrl = await getApiUrl()
       
@@ -212,10 +314,22 @@ export function WorkflowDemo() {
         }
       }
 
-      // Run the workflow with or without supporting images
-      const requestBody = paths.length > 0
-        ? { claim_id: claim.claim_id, supporting_images: paths }
-        : { claim_id: claim.claim_id }
+      // Determine if this is a generated scenario (has policy_number) or sample claim
+      // For generated scenarios, send full claim data
+      // For sample claims (no policy_number), just send claim_id
+      let requestBody: Record<string, unknown>
+      if (claim.policy_number) {
+        // Full claim data from generated scenario
+        requestBody = { ...claim }
+        if (paths.length > 0) {
+          requestBody.supporting_images = paths
+        }
+      } else {
+        // Sample claim - just send claim_id
+        requestBody = paths.length > 0
+          ? { claim_id: claim.claim_id, supporting_images: paths }
+          : { claim_id: claim.claim_id }
+      }
 
       const response = await fetch(`${apiUrl}/api/v1/workflow/run`, {
         method: 'POST',
@@ -314,13 +428,26 @@ export function WorkflowDemo() {
       {/* Sample Claims Selection */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <IconFileText className="h-5 w-5" />
-            Sample Claims
-          </CardTitle>
-          <CardDescription>
-            Select a sample claim and optionally upload supporting documents to run through the multi-agent workflow
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <IconFileText className="h-5 w-5" />
+                Sample Claims
+              </CardTitle>
+              <CardDescription>
+                Select a sample claim and optionally upload supporting documents to run through the multi-agent workflow
+              </CardDescription>
+            </div>
+            <ScenarioGeneratorModal
+              onScenarioGenerated={handleScenarioGenerated}
+              trigger={
+                <Button variant="outline" className="gap-2">
+                  <IconSparkles className="h-4 w-4" />
+                  Generate New Scenario
+                </Button>
+              }
+            />
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           
@@ -333,6 +460,104 @@ export function WorkflowDemo() {
               accept=".pdf,.jpg,.jpeg,.png,.bmp,.webp,.txt,.doc,.docx"
               maxFiles={10}
               maxSize={10 * 1024 * 1024} // 10MB
+            />
+          </div>
+
+          {/* Generated Scenarios Section */}
+          {generatedScenarios.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <IconSparkles className="h-4 w-4 text-purple-500" />
+                <Label className="text-sm font-medium">AI-Generated Scenarios</Label>
+                <Badge variant="secondary" className="text-xs">
+                  {generatedScenarios.length}
+                </Badge>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {generatedScenarios.map((scenario) => (
+                  <Card
+                    key={scenario.id}
+                    className="cursor-pointer hover:shadow-md transition-shadow border-2 border-purple-200 dark:border-purple-800 hover:border-purple-400 dark:hover:border-purple-600 bg-purple-50/50 dark:bg-purple-900/10"
+                  >
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm font-medium">
+                          {scenario.name}
+                        </CardTitle>
+                        <div className="flex gap-1">
+                          <Badge variant="outline" className="text-xs bg-purple-100 dark:bg-purple-900/30">
+                            {scenario.locale}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {scenario.claim.claim_type}
+                          </Badge>
+                        </div>
+                      </div>
+                      <CardDescription className="text-xs">
+                        {scenario.claim.claimant_name}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="space-y-2">
+                        <div className="text-sm">
+                          <span className="font-medium text-green-600 dark:text-green-400">
+                            {formatCurrency(scenario.claim.estimated_damage, scenario.locale)}
+                          </span>
+                          <span className="text-muted-foreground text-xs ml-1">estimated</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {scenario.claim.description}
+                        </p>
+                        <div className="flex gap-2 mt-3">
+                          <Button
+                            onClick={() => runWorkflow(scenarioToClaimSummary(scenario))}
+                            disabled={isLoading || savingScenarioId === scenario.id}
+                            className="flex-1"
+                            size="sm"
+                            variant="secondary"
+                          >
+                            {isLoading ? (
+                              <>
+                                <IconClock className="h-4 w-4 animate-spin mr-2" />
+                                Processing...
+                              </>
+                            ) : (
+                              <>
+                                <IconPlayerPlay className="h-4 w-4 mr-2" />
+                                Run
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            onClick={() => handleSaveScenario(scenario)}
+                            disabled={savingScenarioId === scenario.id || isLoading}
+                            size="sm"
+                            variant="outline"
+                          >
+                            {savingScenarioId === scenario.id ? (
+                              <IconClock className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <IconDeviceFloppy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Saved Scenarios Section */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <IconFolder className="h-4 w-4 text-amber-500" />
+              <Label className="text-sm font-medium">Saved Scenarios</Label>
+            </div>
+            <SavedScenariosList
+              onUseScenario={handleUseSavedScenario}
+              refreshTrigger={savedScenariosRefreshTrigger}
             />
           </div>
 

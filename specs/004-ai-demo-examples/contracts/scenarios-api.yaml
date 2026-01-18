@@ -1,0 +1,572 @@
+openapi: 3.1.0
+info:
+  title: Scenario Generation API
+  description: API endpoints for AI-powered demo scenario generation
+  version: 1.0.0
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+paths:
+  /scenarios/generate:
+    post:
+      summary: Generate a new demo scenario
+      description: |
+        Uses Azure OpenAI to generate a complete insurance claim scenario 
+        including claim data and matching policy document. Supports both 
+        parameter-based generation (locale + claim type + complexity) and 
+        custom natural language descriptions.
+      operationId: generateScenario
+      tags:
+        - scenarios
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScenarioGenerationRequest'
+            examples:
+              parameterBased:
+                summary: Generate from parameters
+                value:
+                  locale: "DE"
+                  claim_type: "auto"
+                  complexity: "moderate"
+              customDescription:
+                summary: Generate from description
+                value:
+                  locale: "NL"
+                  custom_description: "A delivery van in Rotterdam damaged two parked cars during a storm"
+      responses:
+        '200':
+          description: Scenario generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneratedScenario'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Generation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /scenarios:
+    get:
+      summary: List saved scenarios
+      description: Retrieve all saved scenarios, optionally filtered by locale or claim type
+      operationId: listScenarios
+      tags:
+        - scenarios
+      parameters:
+        - name: locale
+          in: query
+          schema:
+            $ref: '#/components/schemas/Locale'
+          description: Filter by locale
+        - name: claim_type
+          in: query
+          schema:
+            $ref: '#/components/schemas/ClaimType'
+          description: Filter by claim type
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+          description: Maximum number of results
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Pagination offset
+      responses:
+        '200':
+          description: List of saved scenarios
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenarioListResponse'
+    
+    post:
+      summary: Save a generated scenario
+      description: Persist a generated scenario to the database for later reuse
+      operationId: saveScenario
+      tags:
+        - scenarios
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveScenarioRequest'
+      responses:
+        '201':
+          description: Scenario saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedScenarioSummary'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /scenarios/{scenario_id}:
+    get:
+      summary: Get a saved scenario by ID
+      description: Retrieve full details of a saved scenario
+      operationId: getScenario
+      tags:
+        - scenarios
+      parameters:
+        - name: scenario_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Scenario UUID
+      responses:
+        '200':
+          description: Scenario details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedScenario'
+        '404':
+          description: Scenario not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    delete:
+      summary: Delete a saved scenario
+      description: Remove a saved scenario from the database
+      operationId: deleteScenario
+      tags:
+        - scenarios
+      parameters:
+        - name: scenario_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Scenario UUID
+      responses:
+        '204':
+          description: Scenario deleted successfully
+        '404':
+          description: Scenario not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /scenarios/templates:
+    get:
+      summary: Get preset scenario templates
+      description: Retrieve list of preset regional templates for quick scenario generation
+      operationId: getTemplates
+      tags:
+        - scenarios
+      responses:
+        '200':
+          description: List of preset templates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateListResponse'
+
+components:
+  schemas:
+    Locale:
+      type: string
+      enum: [US, UK, DE, NL, FR, ES, JP, AU]
+      description: Supported locale codes
+
+    ClaimType:
+      type: string
+      enum: [auto, home, health, life, commercial]
+      description: Insurance claim types
+
+    Complexity:
+      type: string
+      enum: [simple, moderate, complex]
+      description: Scenario complexity levels
+
+    ScenarioGenerationRequest:
+      type: object
+      required:
+        - locale
+      properties:
+        locale:
+          $ref: '#/components/schemas/Locale'
+        claim_type:
+          $ref: '#/components/schemas/ClaimType'
+          default: auto
+        complexity:
+          $ref: '#/components/schemas/Complexity'
+          default: moderate
+        custom_description:
+          type: string
+          maxLength: 2000
+          description: |
+            Free-form description for custom scenario generation.
+            When provided, claim_type and complexity are inferred from the description.
+      description: |
+        Either provide claim_type + complexity for parameter-based generation,
+        or custom_description for AI-inferred generation. Locale is always required.
+
+    GeneratedClaim:
+      type: object
+      required:
+        - claim_id
+        - policy_number
+        - claimant_id
+        - claimant_name
+        - incident_date
+        - claim_type
+        - description
+        - estimated_damage
+        - location
+      properties:
+        claim_id:
+          type: string
+          pattern: '^CLM-\d{4}-\d{3,6}$'
+          example: "CLM-2026-001"
+        policy_number:
+          type: string
+          example: "POL-DE-2026-123456"
+        claimant_id:
+          type: string
+          example: "CLM-001"
+        claimant_name:
+          type: string
+          maxLength: 100
+          example: "Hans Müller"
+        incident_date:
+          type: string
+          format: date
+          example: "2026-01-15"
+        claim_type:
+          type: string
+          example: "Auto Collision"
+        description:
+          type: string
+          maxLength: 2000
+          description: Incident description in local language
+          example: "Auffahrunfall an einer Ampel. Heckschaden am Fahrzeug."
+        estimated_damage:
+          type: number
+          format: float
+          minimum: 0
+          example: 4500.00
+        location:
+          type: string
+          example: "Hauptstraße 123, 80331 München"
+        police_report:
+          type: boolean
+          default: false
+        photos_provided:
+          type: boolean
+          default: false
+        witness_statements:
+          type: string
+          example: "2"
+        vehicle_info:
+          $ref: '#/components/schemas/VehicleInfo'
+        customer_info:
+          $ref: '#/components/schemas/CustomerInfo'
+
+    VehicleInfo:
+      type: object
+      required:
+        - vin
+        - make
+        - model
+        - year
+        - license_plate
+      properties:
+        vin:
+          type: string
+          example: "WVWZZZ1JZXW123456"
+        make:
+          type: string
+          example: "Volkswagen"
+        model:
+          type: string
+          example: "Golf"
+        year:
+          type: integer
+          minimum: 1900
+          maximum: 2100
+          example: 2023
+        license_plate:
+          type: string
+          example: "M-AB 1234"
+
+    CustomerInfo:
+      type: object
+      required:
+        - name
+        - email
+        - phone
+      properties:
+        name:
+          type: string
+          example: "Hans Müller"
+        email:
+          type: string
+          format: email
+          example: "hans.mueller@email.de"
+        phone:
+          type: string
+          example: "+49 89 12345678"
+
+    GeneratedPolicy:
+      type: object
+      required:
+        - policy_number
+        - policy_type
+        - coverage_type
+        - coverage_limits
+        - deductibles
+        - exclusions
+        - effective_date
+        - expiration_date
+        - markdown_content
+      properties:
+        policy_number:
+          type: string
+          example: "POL-DE-2026-123456"
+        policy_type:
+          type: string
+          example: "Vollkasko-Versicherung"
+        coverage_type:
+          type: string
+          example: "Comprehensive Auto"
+        coverage_limits:
+          $ref: '#/components/schemas/CoverageLimits'
+        deductibles:
+          $ref: '#/components/schemas/Deductibles'
+        exclusions:
+          type: array
+          items:
+            type: string
+          example: ["Racing events", "Commercial use", "Intentional damage"]
+        effective_date:
+          type: string
+          format: date
+          example: "2025-01-01"
+        expiration_date:
+          type: string
+          format: date
+          example: "2026-12-31"
+        markdown_content:
+          type: string
+          description: Full policy document in markdown format
+
+    CoverageLimits:
+      type: object
+      properties:
+        collision:
+          type: number
+          example: 50000
+        comprehensive:
+          type: number
+          example: 50000
+        liability_per_person:
+          type: number
+          example: 100000
+        liability_per_accident:
+          type: number
+          example: 300000
+        property_damage:
+          type: number
+          example: 100000
+        medical_payments:
+          type: number
+          example: 10000
+
+    Deductibles:
+      type: object
+      properties:
+        collision:
+          type: number
+          example: 500
+        comprehensive:
+          type: number
+          example: 250
+
+    GeneratedScenario:
+      type: object
+      required:
+        - id
+        - name
+        - locale
+        - claim_type
+        - complexity
+        - claim
+        - policy
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          example: "German Auto Claim - Munich"
+        locale:
+          $ref: '#/components/schemas/Locale'
+        claim_type:
+          $ref: '#/components/schemas/ClaimType'
+        complexity:
+          $ref: '#/components/schemas/Complexity'
+        claim:
+          $ref: '#/components/schemas/GeneratedClaim'
+        policy:
+          $ref: '#/components/schemas/GeneratedPolicy'
+        created_at:
+          type: string
+          format: date-time
+
+    SaveScenarioRequest:
+      type: object
+      required:
+        - name
+        - scenario
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          description: User-provided name for the saved scenario
+          example: "Munich Demo - Auto Collision"
+        scenario:
+          $ref: '#/components/schemas/GeneratedScenario'
+
+    SavedScenario:
+      allOf:
+        - $ref: '#/components/schemas/GeneratedScenario'
+        - type: object
+          properties:
+            updated_at:
+              type: string
+              format: date-time
+              nullable: true
+
+    SavedScenarioSummary:
+      type: object
+      required:
+        - id
+        - name
+        - locale
+        - claim_type
+        - complexity
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        locale:
+          $ref: '#/components/schemas/Locale'
+        claim_type:
+          $ref: '#/components/schemas/ClaimType'
+        complexity:
+          $ref: '#/components/schemas/Complexity'
+        estimated_damage:
+          type: number
+          description: Claim estimated damage for display
+        created_at:
+          type: string
+          format: date-time
+
+    ScenarioListResponse:
+      type: object
+      required:
+        - scenarios
+        - total
+      properties:
+        scenarios:
+          type: array
+          items:
+            $ref: '#/components/schemas/SavedScenarioSummary'
+        total:
+          type: integer
+          description: Total count of matching scenarios
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    PresetTemplate:
+      type: object
+      required:
+        - id
+        - name
+        - locale
+        - claim_type
+        - complexity
+      properties:
+        id:
+          type: string
+          example: "dutch-auto"
+        name:
+          type: string
+          example: "Dutch Auto Claim"
+        locale:
+          $ref: '#/components/schemas/Locale'
+        claim_type:
+          $ref: '#/components/schemas/ClaimType'
+        complexity:
+          $ref: '#/components/schemas/Complexity'
+        description:
+          type: string
+          example: "Auto collision scenario in the Netherlands"
+
+    TemplateListResponse:
+      type: object
+      required:
+        - templates
+      properties:
+        templates:
+          type: array
+          items:
+            $ref: '#/components/schemas/PresetTemplate'
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          example: "validation_error"
+        message:
+          type: string
+          example: "Invalid locale specified"
+        details:
+          type: object
+          additionalProperties: true
+          description: Additional error context
+
+tags:
+  - name: scenarios
+    description: Demo scenario generation and management
