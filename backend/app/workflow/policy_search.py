@@ -295,6 +295,75 @@ class PolicyVectorSearch:  # noqa: D101
             return False
 
     # ------------------------------------------------------------------
+    def add_policy_from_text(self, policy_number: str, policy_type: str, markdown_content: str) -> bool:
+        """Add a policy document from text content to the vector index.
+        
+        This is used for dynamically generated policies that don't exist as files.
+        
+        Args:
+            policy_number: Unique policy identifier
+            policy_type: Type of policy (e.g., "Comprehensive Auto")
+            markdown_content: Policy document content in markdown format
+            
+        Returns:
+            True if policy was successfully added, False otherwise
+        """
+        if FAISS is None:
+            logger.error("FAISS not available – cannot add policy to index")
+            return False
+            
+        if not self.vectorstore:
+            logger.error("Vectorstore not initialized – call create_index() first")
+            return False
+            
+        try:
+            # Create a document from the markdown content
+            doc = Document(
+                page_content=markdown_content,
+                metadata={
+                    "source": f"generated/{policy_number}.md",
+                    "policy_number": policy_number,
+                    "generated": True,
+                }
+            )
+            
+            # Split document into chunks
+            splitter = RecursiveCharacterTextSplitter(
+                chunk_size=1000,
+                chunk_overlap=200,
+                length_function=len,
+                separators=["\n\n", "\n", ".", "!", "?", ",", " ", ""],
+            )
+            chunks = splitter.split_documents([doc])
+            
+            # Annotate metadata for each chunk
+            for chunk in chunks:
+                chunk.metadata["policy_type"] = policy_type
+                chunk.metadata["file_type"] = "md"
+                chunk.metadata["generated"] = True
+                
+                # Extract section information from markdown headers
+                section = None
+                for line in chunk.page_content.split("\n"):
+                    if line.startswith("## "):
+                        section = line[3:].strip()
+                        break
+                chunk.metadata["section"] = section or "General"
+            
+            # Add chunks to existing vectorstore
+            self.vectorstore.add_documents(chunks)
+            
+            # Don't persist to disk for generated policies (they're session-only)
+            # This keeps the index clean and avoids accumulating generated policies
+            
+            logger.info(f"Added generated policy to index: {policy_number} ({len(chunks)} chunks)")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to add generated policy to index: {e}")
+            return False
+
+    # ------------------------------------------------------------------
     def get_policy_summary(self, policy_type: str) -> Optional[str]:  # noqa: D401
         if not self.vectorstore:
             raise ValueError(

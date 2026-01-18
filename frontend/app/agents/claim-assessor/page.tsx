@@ -23,6 +23,7 @@ import { AgentWorkflowVisualization } from '@/components/agent-workflow-visualiz
 import { FileUpload } from '@/components/ui/file-upload'
 import { ClaimAssessmentCard, ToolCallCard, ConversationStep } from '@/components/agent-outputs'
 import { isClaimAssessment, ClaimAssessment, ToolCall, AgentOutput } from '@/types/agent-outputs'
+import { ScenarioSelector, FullClaimData } from '@/components/scenario-selector'
 
 // Sample claims from API
 interface SampleClaim {
@@ -140,6 +141,58 @@ export default function ClaimAssessorDemo() {
     setResult(null)
     setError(null)
     setUploadedFiles([])
+  }
+
+  // Run assessment with full claim data (for generated scenarios)
+  const runAssessmentWithFullClaim = async (claim: FullClaimData) => {
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      const apiUrl = await getApiUrl()
+      
+      // Upload files first if any
+      let paths: string[] = []
+      if (uploadedFiles.length > 0) {
+        try {
+          const fd = new FormData()
+          uploadedFiles.forEach(f => fd.append('files', f))
+          const upRes = await fetch(`${apiUrl}/api/v1/files/upload`, { method: 'POST', body: fd })
+          if (!upRes.ok) throw new Error(`Upload failed (${upRes.status})`)
+          const upJson = await upRes.json()
+          paths = Array.isArray(upJson.paths) ? upJson.paths : []
+        } catch (err) { 
+          console.error(err)
+          setError('File upload failed')
+          return
+        }
+      }
+
+      // Send full claim data
+      const requestBody = { ...claim, ...(paths.length > 0 ? { supporting_images: paths } : {}) }
+
+      const response = await fetch(`${apiUrl}/api/v1/agent/claim_assessor/run`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data: AssessmentResult = await response.json()
+      setResult(data)
+      toast.success('Assessment completed successfully!')
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      setError(errorMessage)
+      toast.error('Assessment failed: ' + errorMessage)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   // Helper to determine if a conversation step should be skipped
@@ -267,10 +320,10 @@ export default function ClaimAssessorDemo() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <IconFileText className="h-5 w-5" />
-            Sample Claims
+            Select a Claim
           </CardTitle>
           <CardDescription>
-            Select a sample claim and optionally upload supporting documents to run through the claim assessor agent
+            Generate a new scenario or select a sample claim, then optionally upload supporting documents to run through the claim assessor agent
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -287,57 +340,71 @@ export default function ClaimAssessorDemo() {
             />
           </div>
 
-          {isLoadingSamples ? (
-            <div className="flex items-center justify-center py-8">
-              <IconClock className="h-6 w-6 animate-spin mr-2" />
-              <span>Loading sample claims...</span>
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-3">
-              {sampleClaims.map((claim) => (
-                <Card
-                  key={claim.claim_id}
-                  className="cursor-pointer hover:shadow-md transition-shadow"
-                >
-                  <CardContent className="p-4 h-full">
-                    <div className="flex flex-col h-full">
-                      <div className="flex items-center justify-between mb-3">
-                        <Badge variant="secondary" className="text-xs">
-                          {claim.claim_id}
-                        </Badge>
-                        <span className="text-lg font-semibold text-green-600">
-                          ${claim.estimated_damage.toLocaleString()}
-                        </span>
+          {/* Generated Scenarios Section */}
+          <div className="space-y-3">
+            <ScenarioSelector
+              onSelectScenario={runAssessmentWithFullClaim}
+              disabled={isLoading}
+            />
+          </div>
+
+          <Separator />
+
+          {/* Sample Claims Section */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Sample Claims</Label>
+            {isLoadingSamples ? (
+              <div className="flex items-center justify-center py-8">
+                <IconClock className="h-6 w-6 animate-spin mr-2" />
+                <span>Loading sample claims...</span>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {sampleClaims.map((claim) => (
+                  <Card
+                    key={claim.claim_id}
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                  >
+                    <CardContent className="p-4 h-full">
+                      <div className="flex flex-col h-full">
+                        <div className="flex items-center justify-between mb-3">
+                          <Badge variant="secondary" className="text-xs">
+                            {claim.claim_id}
+                          </Badge>
+                          <span className="text-lg font-semibold text-green-600">
+                            ${claim.estimated_damage.toLocaleString()}
+                          </span>
+                        </div>
+                        
+                        <div className="mb-3">
+                          <h3 className="font-medium text-base mb-1">
+                            {claim.claim_type}
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Claimant: {claim.claimant_name}
+                          </p>
+                        </div>
+                        
+                        <div className="text-xs text-muted-foreground leading-relaxed flex-grow mb-4">
+                          {claim.description}
+                        </div>
+                        
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          disabled={isLoading}
+                          className="w-full mt-auto"
+                          onClick={() => runAssessment(claim)}
+                        >
+                          {isLoading ? 'Processing...' : 'Analyze Claim'}
+                        </Button>
                       </div>
-                      
-                      <div className="mb-3">
-                        <h3 className="font-medium text-base mb-1">
-                          {claim.claim_type}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          Claimant: {claim.claimant_name}
-                        </p>
-                      </div>
-                      
-                      <div className="text-xs text-muted-foreground leading-relaxed flex-grow mb-4">
-                        {claim.description}
-                      </div>
-                      
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        disabled={isLoading}
-                        className="w-full mt-auto"
-                        onClick={() => runAssessment(claim)}
-                      >
-                        {isLoading ? 'Processing...' : 'Analyze Claim'}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
 
           {result && (
             <div className="pt-4">

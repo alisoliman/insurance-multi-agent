@@ -85,6 +85,8 @@ app.include_router(agent_endpoints.router, prefix="/api/v1")
 # Import and mount new document management endpoints
 from app.api.v1.endpoints import documents as documents_endpoints
 from app.api.v1.endpoints import index_management as index_endpoints
+from app.api.v1.endpoints import scenarios as scenarios_endpoints
 
 app.include_router(documents_endpoints.router, prefix="/api/v1")
 app.include_router(index_endpoints.router, prefix="/api/v1")
+app.include_router(scenarios_endpoints.router, prefix="/api/v1")
