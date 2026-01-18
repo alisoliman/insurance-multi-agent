@@ -61,13 +61,29 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize policy search index on startup."""
+    """Initialize policy search index and re-index saved policies on startup."""
     logger.info("🚀 Initializing policy search index...")
     try:
         policy_search = get_policy_search()
         logger.info("✅ Policy search index initialized successfully")
     except Exception as e:
         logger.error("❌ Failed to initialize policy search index: %s", e)
+        # Don't raise - let the app start but log the error
+    
+    # Re-index policies from saved scenarios (Feature 005)
+    logger.info("🔄 Re-indexing policies from saved scenarios...")
+    try:
+        from app.db.database import init_db
+        from app.services.scenario_generator import reindex_saved_policies
+        
+        # Ensure database tables exist (including new vehicles/policies tables)
+        await init_db()
+        
+        # Re-index all saved policies into FAISS
+        indexed_count = await reindex_saved_policies()
+        logger.info(f"✅ Re-indexed {indexed_count} policies from saved scenarios")
+    except Exception as e:
+        logger.error("❌ Failed to re-index saved policies: %s", e)
         # Don't raise - let the app start but log the error
 
 # Root

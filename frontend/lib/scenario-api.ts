@@ -18,12 +18,14 @@ export interface VehicleInfo {
   model: string;
   year: number;
   license_plate: string;
+  mileage?: number; // Added for Feature 005 - US5 preview
 }
 
 export interface CustomerInfo {
   name: string;
   email: string;
   phone: string;
+  address?: string; // Added for Feature 005 - US5 preview
 }
 
 export interface CoverageLimits {

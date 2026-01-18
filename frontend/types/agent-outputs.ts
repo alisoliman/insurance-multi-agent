@@ -45,12 +45,15 @@ export enum Confidence {
 // Structured Output Models
 // =============================================================================
 
-// Claim Assessor output
+// Claim Assessor output - extended for Feature 005
 export interface ClaimAssessment {
   validity_status: ValidityStatus | string;
   cost_assessment: string;
   red_flags: string[];
   reasoning: string;
+  // Additional fields for workflow summary (Feature 005)
+  estimated_repair_cost?: number;
+  damage_severity?: string;
 }
 
 // Policy Checker output
@@ -58,6 +61,10 @@ export interface CoverageVerification {
   coverage_status: CoverageStatus | string;
   cited_sections: string[];
   coverage_details: string;
+  // Additional fields for workflow summary (Feature 005)
+  policy_details?: string;
+  coverage_explanation?: string;
+  applicable_exclusions?: string[];
 }
 
 // Risk Analyst output
@@ -66,6 +73,8 @@ export interface RiskAssessment {
   risk_score: number; // 0-100
   fraud_indicators: string[];
   analysis: string;
+  // Additional fields for workflow summary (Feature 005)
+  risk_factors?: string[];
 }
 
 // Communication Agent output

@@ -1,9 +1,10 @@
 """
 AI-powered scenario generation service using Azure OpenAI.
 
-Based on research.md from specs/004-ai-demo-examples/
+Based on research.md from specs/004-ai-demo-examples/ and 005-complete-demo-pipeline/
 """
 
+import asyncio
 import json
 import logging
 import random
@@ -12,18 +13,21 @@ from typing import Optional
 from uuid import uuid4
 
 from openai import AzureOpenAI
+from pydantic import ValidationError
 
 from app.core.config import get_settings
 from app.models.scenario import (
     ClaimType,
     Complexity,
     CoverageLimits,
+    CustomerInfo,
     Deductibles,
     GeneratedClaim,
     GeneratedPolicy,
     GeneratedScenario,
     Locale,
     PresetTemplate,
+    ScenarioGenerationOutput,
     ScenarioGenerationRequest,
     VehicleInfo,
 )
@@ -286,59 +290,16 @@ The user has provided this description. Incorporate these specific details:
 
 """
 
-    base_prompt += """## Output Format
-Generate a JSON object with the following structure:
+    base_prompt += """## Output Requirements
+Generate realistic, culturally appropriate data following the schema exactly.
 
-```json
-{
-  "claim": {
-    "claimant_name": "Full name in local format",
-    "incident_date": "YYYY-MM-DD (recent date)",
-    "claim_type": "Descriptive type like 'Auto Collision' or 'Water Damage'",
-    "description": "Detailed description IN THE LOCAL LANGUAGE",
-    "estimated_damage": 5000.00,
-    "location": "Full address in local format",
-    "police_report": true/false,
-    "photos_provided": true/false,
-    "witness_statements": "number or 'none'",
-    "vehicle_info": {
-      "vin": "Valid VIN format",
-      "make": "Car manufacturer",
-      "model": "Car model",
-      "year": 2023,
-      "license_plate": "Locale-appropriate format"
-    },
-    "customer_info": {
-      "name": "Customer name",
-      "email": "email@example.com",
-      "phone": "Locale-appropriate phone format"
-    }
-  },
-  "policy": {
-    "policy_type": "Type like 'Comprehensive Auto' or 'Homeowners'",
-    "coverage_type": "Coverage category",
-    "coverage_limits": {
-      "collision": 50000,
-      "comprehensive": 50000,
-      "liability_per_person": 100000,
-      "liability_per_accident": 300000,
-      "property_damage": 100000,
-      "medical_payments": 10000
-    },
-    "deductibles": {
-      "collision": 500,
-      "comprehensive": 250
-    },
-    "exclusions": ["List", "of", "exclusions"],
-    "effective_date": "YYYY-MM-DD (past date)",
-    "expiration_date": "YYYY-MM-DD (future date)"
-  },
-  "scenario_name": "Short descriptive name for this scenario"
-}
-```
-
-Generate realistic, culturally appropriate data. The claim description MUST be in the local language.
-Only include vehicle_info for auto claims. For other claim types, omit it or set to null.
+Key requirements:
+- The claim description MUST be in the local language (German for Germany, Dutch for Netherlands, etc.)
+- Only include vehicle_info for auto claims. For other claim types, set it to null.
+- Include customer_info for all scenarios.
+- Use realistic addresses, phone numbers, and names for the locale.
+- Ensure policy dates are sensible (effective in past, expiration in future).
+- Estimated damage should match the complexity level specified.
 """
 
     return base_prompt
@@ -410,6 +371,9 @@ All claims must be reported within 30 days of the incident.
 class ScenarioGenerator:
     """Service for generating insurance claim scenarios using Azure OpenAI."""
 
+    # T044: Limit concurrent API calls to prevent rate limiting
+    _generation_semaphore = asyncio.Semaphore(3)  # Max 3 concurrent generations
+
     def __init__(self):
         settings = get_settings()
         
@@ -428,14 +392,20 @@ class ScenarioGenerator:
     async def generate(
         self,
         request: ScenarioGenerationRequest,
-        max_retries: int = 2,
+        max_retries: int = 3,
     ) -> GeneratedScenario:
         """
-        Generate a complete insurance scenario.
+        Generate a complete insurance scenario using SDK structured outputs.
+        
+        Uses client.beta.chat.completions.parse() with Pydantic model for
+        type-safe generation with automatic validation.
+        
+        T044: Uses semaphore to limit concurrent generation requests and
+        prevent API rate limiting.
         
         Args:
             request: Generation request with locale, claim_type, complexity, etc.
-            max_retries: Maximum number of retry attempts on failure
+            max_retries: Maximum number of retry attempts on failure (default: 3)
             
         Returns:
             Complete generated scenario with claim and policy
@@ -446,6 +416,16 @@ class ScenarioGenerator:
         if not self.client:
             raise ValueError("Azure OpenAI not configured")
 
+        # T044: Acquire semaphore to limit concurrent API calls
+        async with self._generation_semaphore:
+            return await self._generate_internal(request, max_retries)
+
+    async def _generate_internal(
+        self,
+        request: ScenarioGenerationRequest,
+        max_retries: int,
+    ) -> GeneratedScenario:
+        """Internal generation logic with retry handling."""
         # Use inference for custom descriptions to improve context
         effective_locale = request.locale
         effective_claim_type = request.claim_type
@@ -490,34 +470,45 @@ class ScenarioGenerator:
                 logger.info(
                     f"Generating scenario (attempt {attempt + 1}/{max_retries + 1}): "
                     f"locale={effective_locale.value}, claim_type={effective_claim_type.value}, "
-                    f"complexity={effective_complexity.value}"
+                    f"complexity={effective_complexity.value}, using_structured_output=True"
                 )
 
-                # Call Azure OpenAI with JSON mode
-                response = self.client.chat.completions.create(
+                # Use SDK structured outputs with Pydantic model
+                response = self.client.beta.chat.completions.parse(
                     model=self.deployment,
                     messages=[
                         {
                             "role": "system",
-                            "content": "You are an insurance scenario generator. Always respond with valid JSON.",
+                            "content": "You are an insurance scenario generator. Generate realistic insurance claim scenarios for demo applications.",
                         },
                         {"role": "user", "content": prompt},
                     ],
-                    response_format={"type": "json_object"},
+                    response_format=ScenarioGenerationOutput,
                     temperature=0.8,
                     max_tokens=2000,
                 )
 
-                # Parse the response
-                content = response.choices[0].message.content
-                if not content:
-                    raise ValueError("Empty response from Azure OpenAI")
-
-                data = json.loads(content)
+                # Get the parsed Pydantic model directly
+                parsed_output = response.choices[0].message.parsed
                 
-                # Create the scenario from parsed data
-                return self._build_scenario(data, effective_request)
+                if not parsed_output:
+                    # Check if there was a refusal
+                    if response.choices[0].message.refusal:
+                        raise ValueError(f"Model refused: {response.choices[0].message.refusal}")
+                    raise ValueError("Empty parsed response from Azure OpenAI")
 
+                logger.info(
+                    f"Successfully parsed ScenarioGenerationOutput: "
+                    f"scenario_name='{parsed_output.scenario_name}', "
+                    f"claim_type='{parsed_output.claim.claim_type}'"
+                )
+                
+                # Create the scenario from parsed Pydantic model
+                return self._build_scenario_from_structured(parsed_output, effective_request)
+
+            except ValidationError as e:
+                last_error = f"Pydantic validation error: {e}"
+                logger.warning(f"Attempt {attempt + 1} failed: {last_error}")
             except json.JSONDecodeError as e:
                 last_error = f"Invalid JSON response: {e}"
                 logger.warning(f"Attempt {attempt + 1} failed: {last_error}")
@@ -526,6 +517,112 @@ class ScenarioGenerator:
                 logger.warning(f"Attempt {attempt + 1} failed: {last_error}")
 
         raise ValueError(f"Failed to generate scenario after {max_retries + 1} attempts: {last_error}")
+
+    def _build_scenario_from_structured(
+        self,
+        output: ScenarioGenerationOutput,
+        request: ScenarioGenerationRequest,
+    ) -> GeneratedScenario:
+        """Build a GeneratedScenario from SDK structured output."""
+        # Generate unique IDs
+        scenario_id = str(uuid4())
+        year = datetime.now().year
+        claim_id = f"CLM-{year}-{random.randint(100, 999999):06d}"
+        policy_number = f"POL-{request.locale.value}-{year}-{random.randint(100000, 999999)}"
+        claimant_id = f"CLT-{random.randint(100, 999):03d}"
+
+        claim_data = output.claim
+        policy_data = output.policy
+
+        # Build vehicle info if present and claim is auto
+        vehicle_info = None
+        if request.claim_type == ClaimType.AUTO and claim_data.vehicle_info:
+            vi = claim_data.vehicle_info
+            vehicle_info = VehicleInfo(
+                vin=vi.vin or f"WVWZZZ1JZXW{random.randint(100000, 999999)}",
+                make=vi.make or "Unknown",
+                model=vi.model or "Unknown",
+                year=vi.year or year - 2,
+                license_plate=vi.license_plate or "XXX-000",
+            )
+
+        # Build customer info if present
+        customer_info = None
+        if claim_data.customer_info:
+            ci = claim_data.customer_info
+            customer_info = CustomerInfo(
+                name=ci.name,
+                email=ci.email,
+                phone=ci.phone,
+            )
+
+        # Build the claim
+        claim = GeneratedClaim(
+            claim_id=claim_id,
+            policy_number=policy_number,
+            claimant_id=claimant_id,
+            claimant_name=claim_data.claimant_name or "Unknown Claimant",
+            incident_date=claim_data.incident_date or datetime.now().strftime("%Y-%m-%d"),
+            claim_type=claim_data.claim_type or request.claim_type.value.title(),
+            description=claim_data.description or "Insurance claim description",
+            estimated_damage=float(claim_data.estimated_damage or 5000),
+            location=claim_data.location or "Unknown location",
+            police_report=claim_data.police_report or False,
+            photos_provided=claim_data.photos_provided or False,
+            witness_statements=str(claim_data.witness_statements or "none"),
+            vehicle_info=vehicle_info,
+            customer_info=customer_info,
+        )
+
+        # Build coverage limits from structured data
+        limits = policy_data.coverage_limits
+        coverage_limits = CoverageLimits(
+            collision=limits.collision,
+            comprehensive=limits.comprehensive,
+            liability_per_person=limits.liability_per_person,
+            liability_per_accident=limits.liability_per_accident,
+            property_damage=limits.property_damage,
+            medical_payments=limits.medical_payments,
+        )
+
+        # Build deductibles from structured data
+        deducts = policy_data.deductibles
+        deductibles = Deductibles(
+            collision=deducts.collision,
+            comprehensive=deducts.comprehensive,
+        )
+
+        # Use dates from structured output with sensible defaults
+        effective_date = policy_data.effective_date or (datetime.now() - timedelta(days=180)).strftime("%Y-%m-%d")
+        expiration_date = policy_data.expiration_date or (datetime.now() + timedelta(days=185)).strftime("%Y-%m-%d")
+
+        # Build the policy (without markdown first)
+        policy = GeneratedPolicy(
+            policy_number=policy_number,
+            policy_type=policy_data.policy_type or f"Comprehensive {request.claim_type.value.title()}",
+            coverage_type=policy_data.coverage_type or request.claim_type.value.title(),
+            coverage_limits=coverage_limits,
+            deductibles=deductibles,
+            exclusions=policy_data.exclusions or ["Racing", "Intentional damage", "War"],
+            effective_date=effective_date,
+            expiration_date=expiration_date,
+            markdown_content="",  # Placeholder, will be set below
+        )
+
+        # Generate policy markdown
+        policy.markdown_content = generate_policy_markdown(policy, claim, request.locale)
+
+        # Build and return the complete scenario
+        return GeneratedScenario(
+            id=scenario_id,
+            name=output.scenario_name or f"{request.locale.value} {request.claim_type.value.title()} Claim",
+            locale=request.locale,
+            claim_type=request.claim_type,
+            complexity=request.complexity,
+            claim=claim,
+            policy=policy,
+            created_at=datetime.utcnow(),
+        )
 
     def _build_scenario(
         self,
@@ -644,3 +741,97 @@ def get_scenario_generator() -> ScenarioGenerator:
     if _generator is None:
         _generator = ScenarioGenerator()
     return _generator
+
+
+async def reindex_saved_policies() -> int:
+    """
+    Re-index all saved scenario policies into the FAISS vector store.
+    
+    This function should be called on application startup to ensure
+    all previously saved policies are searchable by the Policy Checker agent.
+    
+    Returns:
+        Number of policies successfully indexed
+    """
+    from app.db.policy_repo import list_all_policies
+    from app.workflow.policy_search import get_policy_search
+    
+    logger.info("Starting policy re-indexing from saved scenarios...")
+    
+    try:
+        policies = await list_all_policies()
+        
+        if not policies:
+            logger.info("No saved policies to re-index")
+            return 0
+        
+        policy_search = get_policy_search()
+        indexed_count = 0
+        
+        for policy in policies:
+            try:
+                # Generate markdown content for the policy
+                from app.models.scenario import CoverageLimits, Deductibles, GeneratedPolicy, GeneratedClaim, Locale
+                
+                # Reconstruct CoverageLimits from dict
+                coverage_limits = CoverageLimits(
+                    collision=policy.coverage_limits.get("collision", 50000),
+                    comprehensive=policy.coverage_limits.get("comprehensive", 50000),
+                    liability_per_person=policy.coverage_limits.get("liability_per_person", 100000),
+                    liability_per_accident=policy.coverage_limits.get("liability_per_accident", 300000),
+                    property_damage=policy.coverage_limits.get("property_damage", 100000),
+                    medical_payments=policy.coverage_limits.get("medical_payments", 10000),
+                )
+                
+                # Create a minimal GeneratedPolicy for markdown generation
+                gen_policy = GeneratedPolicy(
+                    policy_number=policy.policy_number,
+                    policy_type=policy.policy_type,
+                    coverage_type=policy.policy_type,  # Reuse policy_type as coverage_type
+                    coverage_limits=coverage_limits,
+                    deductibles=Deductibles(collision=policy.deductible, comprehensive=250),
+                    exclusions=["Racing", "Intentional damage", "War"],
+                    effective_date=policy.effective_date,
+                    expiration_date=policy.expiration_date,
+                    markdown_content="",  # Will be generated
+                )
+                
+                # Create a minimal claim for markdown generation
+                gen_claim = GeneratedClaim(
+                    claim_id=f"CLM-TEMP-{policy.policy_number}",
+                    policy_number=policy.policy_number,
+                    claimant_id="CLT-TEMP",
+                    claimant_name=policy.customer_name,
+                    incident_date=policy.effective_date,
+                    claim_type=policy.policy_type,
+                    description="Temporary claim for policy indexing",
+                    estimated_damage=0,
+                    location="N/A",
+                )
+                
+                # Generate markdown
+                markdown_content = generate_policy_markdown(gen_policy, gen_claim, Locale.US)
+                
+                # Add to vector index
+                success = policy_search.add_policy_from_text(
+                    policy_number=policy.policy_number,
+                    policy_type=policy.policy_type,
+                    markdown_content=markdown_content,
+                )
+                
+                if success:
+                    indexed_count += 1
+                    logger.debug(f"Indexed policy: {policy.policy_number}")
+                else:
+                    logger.warning(f"Failed to index policy: {policy.policy_number}")
+                    
+            except Exception as e:
+                logger.error(f"Error indexing policy {policy.policy_number}: {e}")
+                continue
+        
+        logger.info(f"Policy re-indexing complete: {indexed_count}/{len(policies)} policies indexed")
+        return indexed_count
+        
+    except Exception as e:
+        logger.error(f"Policy re-indexing failed: {e}")
+        return 0
