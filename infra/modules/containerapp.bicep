@@ -31,6 +31,9 @@ param resourcePrefix string
 @description('Environment variables for the container')
 param environmentVariables array = []
 
+@description('Secrets for the container app')
+param secrets array = []
+
 // Determine service name based on container app name
 var serviceName = contains(name, 'backend') ? 'api' : 'web'
 
@@ -52,6 +55,7 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
     workloadProfileName: 'Consumption'
     configuration: {
       activeRevisionsMode: 'Single'
+      secrets: secrets
       ingress: {
         external: true
         targetPort: containerPort

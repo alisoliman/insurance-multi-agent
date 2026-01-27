@@ -571,5 +571,19 @@ async def process_claim_with_supervisor_stream(
     }
 
 
-# Initialize the supervisor at module load (maintains compatibility)
-insurance_supervisor = create_insurance_supervisor()
+# Lazy initialization of the supervisor (maintains compatibility)
+# The supervisor is now initialized on first use rather than at module import
+# This allows the module to be imported even when Azure credentials aren't available
+_insurance_supervisor = None
+
+
+def get_insurance_supervisor():
+    """Get or create the insurance supervisor singleton.
+    
+    This function provides lazy initialization of the supervisor,
+    allowing the module to be imported without requiring Azure credentials.
+    """
+    global _insurance_supervisor
+    if _insurance_supervisor is None:
+        _insurance_supervisor = create_insurance_supervisor()
+    return _insurance_supervisor

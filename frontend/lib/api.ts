@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+import { getApiUrl } from './config'
 
 export interface ApiResponse<T = unknown> {
   success: boolean
@@ -188,10 +188,13 @@ export interface FeedbackQueryParams {
 }
 
 class ApiClient {
-  private baseUrl: string
+  private baseUrl: string | null = null
 
-  constructor(baseUrl: string = API_BASE_URL) {
-    this.baseUrl = baseUrl
+  private async getBaseUrl(): Promise<string> {
+    if (!this.baseUrl) {
+      this.baseUrl = await getApiUrl()
+    }
+    return this.baseUrl
   }
 
   private async request<T>(
@@ -199,7 +202,8 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     try {
-      const url = `${this.baseUrl}${endpoint}`
+      const baseUrl = await this.getBaseUrl()
+      const url = `${baseUrl}${endpoint}`
       const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',

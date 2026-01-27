@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+import { getApiUrl } from './config'
 
 // Types for API responses
 export interface AgentStatusResponse {
@@ -63,7 +63,8 @@ export interface ClaimData {
 // API functions
 export async function fetchAgentStatus(): Promise<AgentStatusResponse> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/agents/health`)
+    const apiUrl = await getApiUrl()
+    const response = await fetch(`${apiUrl}/api/agents/health`)
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
@@ -130,7 +131,8 @@ export async function fetchAgentStatus(): Promise<AgentStatusResponse> {
 
 export async function fetchActiveWorkflows(): Promise<WorkflowStage[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/agents/orchestrator/active-workflows`)
+    const apiUrl = await getApiUrl()
+    const response = await fetch(`${apiUrl}/api/agents/orchestrator/active-workflows`)
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
@@ -204,7 +206,8 @@ export async function fetchRecentActivity(): Promise<ActivityItem[]> {
   try {
     // For now, we'll simulate this endpoint since it doesn't exist yet
     // In a real implementation, this would fetch from a dedicated activity log endpoint
-    const response = await fetch(`${API_BASE_URL}/api/agents/health`)
+    const apiUrl = await getApiUrl()
+    const response = await fetch(`${apiUrl}/api/agents/health`)
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
@@ -250,7 +253,8 @@ export async function fetchActiveClaims(): Promise<ClaimData[]> {
   try {
     // For now, we'll simulate this endpoint since it doesn't exist yet
     // In a real implementation, this would fetch from a dedicated claims endpoint
-    const response = await fetch(`${API_BASE_URL}/api/agents/health`)
+    const apiUrl = await getApiUrl()
+    const response = await fetch(`${apiUrl}/api/agents/health`)
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
@@ -291,7 +295,8 @@ export async function fetchActiveClaims(): Promise<ClaimData[]> {
 // Health check function
 export async function checkBackendHealth(): Promise<boolean> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/agents/health`)
+    const apiUrl = await getApiUrl()
+    const response = await fetch(`${apiUrl}/api/agents/health`)
     return response.ok
   } catch (error) {
     console.error('Backend health check failed:', error)

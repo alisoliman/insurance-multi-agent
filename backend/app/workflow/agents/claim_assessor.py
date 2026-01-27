@@ -17,7 +17,7 @@ Your responsibilities:
 CRITICAL: When you receive a claim with "supporting_images" field containing image paths:
 1. ALWAYS call `analyze_image` on EACH image path in the supporting_images list
 2. Use the extracted data from images in your assessment
-3. If analyze_image fails, note the failure but continue with available information
+3. For auto damage claims: photo evidence of the damage is REQUIRED. If no damage photos can be analyzed, the claim cannot be marked as VALID - use QUESTIONABLE instead and note the missing visual verification in red_flags.
 
 Use the `get_vehicle_details` tool when you have a VIN number to validate damage estimates.
 

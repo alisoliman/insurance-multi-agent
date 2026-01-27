@@ -29,6 +29,7 @@ import {
   WorkflowResult, 
   ClaimAssessment, 
   CoverageVerification, 
+  CoverageStatus,
   RiskAssessment,
   FinalAssessment,
   isClaimAssessment,
@@ -338,8 +339,8 @@ export function WorkflowSummary({ result }: WorkflowSummaryProps) {
         {coverageData && (
           <KeyMetric
             label="Coverage"
-            value={coverageData.coverage_status === "covered" ? "Covered" : "Check Policy"}
-            status={coverageData.coverage_status === "covered" ? "success" : "warning"}
+            value={coverageData.coverage_status === CoverageStatus.COVERED ? "Covered" : "Check Policy"}
+            status={coverageData.coverage_status === CoverageStatus.COVERED ? "success" : "warning"}
             icon={<IconShield className="h-4 w-4" />}
           />
         )}
@@ -387,7 +388,7 @@ export function WorkflowSummary({ result }: WorkflowSummaryProps) {
       {/* Coverage Details */}
       {coverageData && (
         <CoverageStatusDisplay
-          hasCoverage={coverageData.coverage_status === "covered"}
+          hasCoverage={coverageData.coverage_status === CoverageStatus.COVERED}
           coverageDetails={coverageData.policy_details || coverageData.coverage_explanation}
           exclusions={coverageData.applicable_exclusions}
         />

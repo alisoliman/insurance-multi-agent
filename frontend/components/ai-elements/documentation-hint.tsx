@@ -80,11 +80,9 @@ function DocumentationHintComponent({
   type,
   // These props are available for future conditional rendering:
   // photosProvided, policeReport, witnessStatements
-  photoCount: _photoCount,
+  photoCount,
   className,
 }: DocumentationHintProps) {
-  // Suppress unused variable warning - photoCount reserved for future use
-  void _photoCount;
   const hint = DOCUMENTATION_HINTS[type];
   
   // Determine icon and variant based on type

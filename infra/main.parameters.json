@@ -16,6 +16,21 @@
         },
         "projectName": {
             "value": "shadcn-fastapi"
+        },
+        "azureOpenAIEndpoint": {
+            "value": "${AZURE_OPENAI_ENDPOINT}"
+        },
+        "azureOpenAIApiKey": {
+            "value": "${AZURE_OPENAI_API_KEY}"
+        },
+        "azureOpenAIDeploymentName": {
+            "value": "${AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o}"
+        },
+        "azureOpenAIApiVersion": {
+            "value": "${AZURE_OPENAI_API_VERSION=2025-04-01-preview}"
+        },
+        "azureOpenAIEmbeddingModel": {
+            "value": "${AZURE_OPENAI_EMBEDDING_MODEL=text-embedding-3-large}"
         }
     }
 }

@@ -5,8 +5,7 @@
  */
 
 import { Locale, ClaimType, Complexity } from "./locale-config";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { getApiUrl } from "./config";
 
 // ============================================================================
 // Type Definitions
@@ -188,7 +187,8 @@ async function handleResponse<T>(response: Response): Promise<T> {
 export async function generateScenario(
   request: ScenarioGenerationRequest
 ): Promise<GeneratedScenario> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/scenarios/generate`, {
+  const apiUrl = await getApiUrl();
+  const response = await fetch(`${apiUrl}/api/v1/scenarios/generate`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -219,7 +219,8 @@ export async function listScenarios(options?: {
   if (options?.offset) params.set("offset", String(options.offset));
   
   const queryString = params.toString();
-  const url = `${API_BASE_URL}/api/v1/scenarios${queryString ? `?${queryString}` : ""}`;
+  const apiUrl = await getApiUrl();
+  const url = `${apiUrl}/api/v1/scenarios${queryString ? `?${queryString}` : ""}`;
   
   const response = await fetch(url);
   return handleResponse<ScenarioListResponse>(response);
@@ -234,7 +235,8 @@ export async function listScenarios(options?: {
 export async function saveScenario(
   request: SaveScenarioRequest
 ): Promise<SavedScenarioSummary> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/scenarios`, {
+  const apiUrl = await getApiUrl();
+  const response = await fetch(`${apiUrl}/api/v1/scenarios`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -252,7 +254,8 @@ export async function saveScenario(
  * @returns Full scenario details
  */
 export async function getScenario(scenarioId: string): Promise<SavedScenario> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/scenarios/${scenarioId}`);
+  const apiUrl = await getApiUrl();
+  const response = await fetch(`${apiUrl}/api/v1/scenarios/${scenarioId}`);
   return handleResponse<SavedScenario>(response);
 }
 
@@ -262,7 +265,8 @@ export async function getScenario(scenarioId: string): Promise<SavedScenario> {
  * @param scenarioId - UUID of the scenario to delete
  */
 export async function deleteScenario(scenarioId: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/scenarios/${scenarioId}`, {
+  const apiUrl = await getApiUrl();
+  const response = await fetch(`${apiUrl}/api/v1/scenarios/${scenarioId}`, {
     method: "DELETE",
   });
   
@@ -275,7 +279,8 @@ export async function deleteScenario(scenarioId: string): Promise<void> {
  * @returns List of preset templates
  */
 export async function getTemplates(): Promise<TemplateListResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/scenarios/templates`);
+  const apiUrl = await getApiUrl();
+  const response = await fetch(`${apiUrl}/api/v1/scenarios/templates`);
   return handleResponse<TemplateListResponse>(response);
 }
 

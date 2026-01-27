@@ -83,5 +83,48 @@ def _compile_agents() -> Dict[str, ChatAgent]:
     }
 
 
-# Public mapping of agent name → ChatAgent instance
-AGENTS: Dict[str, ChatAgent] = _compile_agents()
+# Lazy initialization of agents - only compiled when first accessed
+_AGENTS: Dict[str, ChatAgent] | None = None
+
+
+def get_agents() -> Dict[str, ChatAgent]:
+    """Get the compiled agents dict (lazy initialization).
+    
+    This function provides lazy initialization of agents,
+    allowing the module to be imported without requiring Azure credentials.
+    The agents are only compiled when first requested.
+    """
+    global _AGENTS
+    if _AGENTS is None:
+        _AGENTS = _compile_agents()
+    return _AGENTS
+
+
+# For backward compatibility, AGENTS is now a property-like access
+# Code that imports AGENTS directly will still work but triggers lazy init
+class _AgentsProxy(Dict[str, ChatAgent]):
+    """Proxy dict that lazily initializes agents on first access."""
+    
+    def __getitem__(self, key: str) -> ChatAgent:
+        return get_agents()[key]
+    
+    def __contains__(self, key: object) -> bool:
+        return key in get_agents()
+    
+    def __iter__(self):
+        return iter(get_agents())
+    
+    def keys(self):
+        return get_agents().keys()
+    
+    def values(self):
+        return get_agents().values()
+    
+    def items(self):
+        return get_agents().items()
+    
+    def get(self, key: str, default=None):
+        return get_agents().get(key, default)
+
+
+AGENTS: Dict[str, ChatAgent] = _AgentsProxy()  # type: ignore

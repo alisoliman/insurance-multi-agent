@@ -64,7 +64,7 @@ logs/
 Thumbs.db
 
 # uv
-uv.lock
+
 
 # Local data that shouldn't be in container
 *.faiss

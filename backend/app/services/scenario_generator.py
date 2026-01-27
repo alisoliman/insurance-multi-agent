@@ -798,14 +798,14 @@ async def reindex_saved_policies() -> int:
                 
                 # Create a minimal claim for markdown generation
                 gen_claim = GeneratedClaim(
-                    claim_id=f"CLM-TEMP-{policy.policy_number}",
+                    claim_id="CLM-0000-000",  # Placeholder claim ID for indexing
                     policy_number=policy.policy_number,
                     claimant_id="CLT-TEMP",
                     claimant_name=policy.customer_name,
                     incident_date=policy.effective_date,
                     claim_type=policy.policy_type,
                     description="Temporary claim for policy indexing",
-                    estimated_damage=0,
+                    estimated_damage=1.0,  # Minimum valid value
                     location="N/A",
                 )
                 

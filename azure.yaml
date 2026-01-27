@@ -11,8 +11,6 @@ services:
     project: ./backend
     language: python
     host: containerapp
-    env:
-      FRONTEND_ORIGIN: "{{ .Env.FRONTEND_ORIGIN }}"
   web:
     project: ./frontend
     language: js

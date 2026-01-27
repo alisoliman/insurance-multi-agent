@@ -15,6 +15,22 @@ param frontendContainerImage string = 'mcr.microsoft.com/azuredocs/containerapps
 @description('The project name for resource naming')
 param projectName string = 'shadcn-fastapi'
 
+@description('Azure OpenAI endpoint URL')
+param azureOpenAIEndpoint string = ''
+
+@description('Azure OpenAI API key')
+@secure()
+param azureOpenAIApiKey string = ''
+
+@description('Azure OpenAI deployment name')
+param azureOpenAIDeploymentName string = 'gpt-4o'
+
+@description('Azure OpenAI API version')
+param azureOpenAIApiVersion string = '2025-04-01-preview'
+
+@description('Azure OpenAI embedding model')
+param azureOpenAIEmbeddingModel string = 'text-embedding-3-large'
+
 // Generate a short unique suffix for resource naming
 var uniqueSuffix = take(uniqueString(resourceGroup().id), 6)
 
@@ -89,6 +105,32 @@ module backendContainerApp 'modules/containerapp.bicep' = {
       {
         name: 'FRONTEND_ORIGIN'
         value: 'https://${frontendContainerAppName}.${containerAppsStack.outputs.containerAppsEnvironmentDefaultDomain}'
+      }
+      {
+        name: 'AZURE_OPENAI_ENDPOINT'
+        value: azureOpenAIEndpoint
+      }
+      {
+        name: 'AZURE_OPENAI_API_KEY'
+        secretRef: 'azure-openai-api-key'
+      }
+      {
+        name: 'AZURE_OPENAI_DEPLOYMENT_NAME'
+        value: azureOpenAIDeploymentName
+      }
+      {
+        name: 'AZURE_OPENAI_API_VERSION'
+        value: azureOpenAIApiVersion
+      }
+      {
+        name: 'AZURE_OPENAI_EMBEDDING_MODEL'
+        value: azureOpenAIEmbeddingModel
+      }
+    ]
+    secrets: [
+      {
+        name: 'azure-openai-api-key'
+        value: azureOpenAIApiKey
       }
     ]
   }
