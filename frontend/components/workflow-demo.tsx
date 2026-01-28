@@ -65,7 +65,7 @@ import {
   IconFolder,
 } from '@tabler/icons-react'
 
-import { AGENT_CONFIG, getAgentConfig, getSpecialistAgents, type AgentName } from '@/lib/agent-config'
+import { AGENT_CONFIG, getAgentConfig, getSpecialistAgents } from '@/lib/agent-config'
 
 interface ClaimSummary {
   claim_id: string
