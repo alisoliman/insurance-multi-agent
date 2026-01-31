@@ -6,7 +6,7 @@ This is the backend component of the Contoso Claims multi-agent insurance platfo
 
 - FastAPI framework with async support
 - Multi-agent system using agent-framework
-- Azure OpenAI integration (GPT-4o)
+- Azure OpenAI integration (GPT-4.1)
 - Vector search with FAISS for policy documents
 - PDF processing for insurance policies
 - RESTful API endpoints for agent workflows
@@ -43,9 +43,9 @@ uv run fastapi dev
 ```env
 AZURE_OPENAI_API_KEY=your_api_key_here
 AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
-AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4.1
 AZURE_OPENAI_EMBEDDING_MODEL=text-embedding-3-large
-AZURE_OPENAI_API_VERSION=2024-08-01-preview
+AZURE_OPENAI_API_VERSION=2025-04-01-preview
 ```
 
 ### Running the Application
