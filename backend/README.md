@@ -1,12 +1,15 @@
-# Shadcn-FastAPI Starter Backend
+# Contoso Claims - Backend API
 
-This is the backend component of the Shadcn-FastAPI Starter boilerplate, built with FastAPI and managed by uv.
+This is the backend component of the Contoso Claims multi-agent insurance platform, built with FastAPI and powered by Azure OpenAI.
 
 ## Features
 
 - FastAPI framework with async support
-- Dependency management with uv
-- RESTful API endpoints for the Task Manager example
+- Multi-agent system using agent-framework
+- Azure OpenAI integration (GPT-4o)
+- Vector search with FAISS for policy documents
+- PDF processing for insurance policies
+- RESTful API endpoints for agent workflows
 - Request validation with Pydantic
 - Error handling and logging
 - CORS configuration
@@ -16,8 +19,9 @@ This is the backend component of the Shadcn-FastAPI Starter boilerplate, built w
 
 ### Prerequisites
 
-- Python 3.10 or higher
+- Python 3.12
 - [uv](https://github.com/astral-sh/uv) package manager
+- Azure OpenAI account (optional - falls back to mock responses)
 
 ### Installation
 
@@ -27,23 +31,21 @@ This is the backend component of the Shadcn-FastAPI Starter boilerplate, built w
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-2. Create and activate a virtual environment:
+2. Install dependencies and run:
 
 ```bash
-uv venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\Activate.ps1
+cd backend
+uv run fastapi dev
 ```
 
-3. Install dependencies:
+3. Create a `.env` file in the backend directory:
 
-```bash
-uv pip install -e .
-```
-
-4. Create a `.env` file based on the `.env.example` template:
-
-```bash
-cp .env.example .env
+```env
+AZURE_OPENAI_API_KEY=your_api_key_here
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
+AZURE_OPENAI_EMBEDDING_MODEL=text-embedding-3-large
+AZURE_OPENAI_API_VERSION=2024-08-01-preview
 ```
 
 ### Running the Application
@@ -51,24 +53,10 @@ cp .env.example .env
 Start the development server:
 
 ```bash
-uvicorn app.main:app --reload
-```
-
-Or use the fastapi CLI:
-
-```bash
-fastapi dev
+uv run fastapi dev
 ```
 
 The API will be available at http://localhost:8000 with documentation at http://localhost:8000/api/docs.
-
-### Running Tests
-
-Run the tests with pytest:
-
-```bash
-uv run pytest
-```
 
 ### Docker
 
@@ -76,21 +64,34 @@ Build and run the Docker container:
 
 ```bash
 # Build the image
-docker build -t shadcn-fastapi-backend .
+docker build -t insurance-backend .
 
 # Run the container
-docker run -p 8000:80 shadcn-fastapi-backend
+docker run -p 8000:80 insurance-backend
 ```
 
 ## API Endpoints
 
-### Tasks API
+### Agent Endpoints
 
-- `GET /api/tasks/` - List all tasks with pagination and filtering
-- `GET /api/tasks/{task_id}` - Get a specific task
-- `POST /api/tasks/` - Create a new task
-- `PUT /api/tasks/{task_id}` - Update a task
-- `DELETE /api/tasks/{task_id}` - Delete a task
+- `POST /api/v1/agent/run` - Run a single agent (claim-assessor, policy-checker, risk-analyst, communication-agent)
+- `GET /api/v1/agent/list` - List available agents
+
+### Workflow Endpoints
+
+- `POST /api/v1/workflow/run` - Run complete multi-agent workflow
+- `POST /api/v1/workflow/stream` - Stream workflow execution with real-time updates
+
+### Document Management
+
+- `POST /api/v1/documents/upload` - Upload insurance policy documents
+- `GET /api/v1/documents/list` - List uploaded documents
+- `POST /api/v1/documents/rebuild-index` - Rebuild vector search index
+
+### Sample Data
+
+- `GET /api/v1/demo/scenarios` - Get demo claim scenarios
+- `GET /api/v1/demo/scenarios/{id}` - Get specific scenario
 
 ### Health Check
 
@@ -100,18 +101,33 @@ docker run -p 8000:80 shadcn-fastapi-backend
 
 ```
 backend/
-├── app/                # Application code
-│   ├── api/            # API routes
-│   │   └── routes/     # Route modules
-│   ├── core/           # Core functionality
-│   │   ├── config.py   # Settings
-│   │   ├── exceptions.py # Custom exceptions
-│   │   └── logger.py   # Logging configuration
-│   ├── schemas/        # Pydantic schemas
-│   └── main.py         # Application entry point
-├── tests/              # Test modules
-├── .env.example        # Environment variables template
-├── Dockerfile          # Docker configuration
-├── pyproject.toml      # Project dependencies
-└── README.md           # This file
+├── app/                    # Application code
+│   ├── api/v1/             # API routes
+│   │   └── endpoints/      # Route modules
+│   ├── core/               # Core functionality
+│   │   ├── config.py       # Settings
+│   │   └── logger.py       # Logging configuration
+│   ├── workflow/           # Multi-agent system
+│   │   ├── agents/         # Individual agent implementations
+│   │   ├── supervisor.py   # Workflow orchestration
+│   │   ├── tools.py        # Agent tools
+│   │   └── policy_search.py # Vector search for policies
+│   ├── models/             # Pydantic schemas
+│   ├── services/           # Business logic
+│   ├── data/               # Sample policies and claims
+│   └── main.py             # Application entry point
+├── Dockerfile              # Docker configuration
+├── pyproject.toml          # Project dependencies
+└── README.md               # This file
 ```
+
+## Agents
+
+The backend implements four specialized AI agents:
+
+1. **Claim Assessor** - Analyzes damage photos and repair costs
+2. **Policy Checker** - Verifies coverage and searches policy documents
+3. **Risk Analyst** - Detects fraud patterns and assesses risk
+4. **Communication Agent** - Generates customer communications
+
+The **Supervisor Agent** orchestrates the workflow and synthesizes final recommendations.

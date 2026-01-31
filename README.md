@@ -1,6 +1,6 @@
 # Contoso Claims - Multi-Agent Insurance Claims Platform
 
-An **Agentic AI Claims Demo** powered by advanced multi-agent systems leveraging **Langgraph** and **Azure OpenAI (GPT-4.1)**, designed to streamline and enhance the end-to-end insurance claims process. This proof-of-concept showcases a cutting-edge architecture in which specialized AI agents collaboratively assess claims, delivering instant, transparent, and explainable recommendations directly to claims processors. By augmenting human decision-making, the solution significantly accelerates claim handling—reducing processing time from hours to minutes—while enhancing consistency, transparency, and customer satisfaction.
+An **Agentic AI Claims Demo** powered by advanced multi-agent systems leveraging **agent-framework** and **Azure OpenAI (GPT-4o)**, designed to streamline and enhance the end-to-end insurance claims process. This proof-of-concept showcases a cutting-edge architecture in which specialized AI agents collaboratively assess claims, delivering instant, transparent, and explainable recommendations directly to claims processors. By augmenting human decision-making, the solution significantly accelerates claim handling—reducing processing time from hours to minutes—while enhancing consistency, transparency, and customer satisfaction.
 
 ## 🎯 What This Demo Showcases
 
@@ -42,11 +42,11 @@ Unlike traditional single-model AI systems, Contoso Claims employs a **collabora
 ## 🏗️ Architecture
 
 ### Technology Stack
-- **Multi-Agent Framework**: LangGraph with supervisor pattern
-- **AI Provider**: Azure OpenAI (GPT-4o, GPT-4.1) 
-- **Backend**: FastAPI
+- **Multi-Agent Framework**: agent-framework with supervisor pattern
+- **AI Provider**: Azure OpenAI (GPT-4o) 
+- **Backend**: FastAPI with Python 3.12
 - **Frontend**: Next.js 15 with React 19 and shadcn/ui
-- **Search**: FAISS vector database for policy retrieval (to be replaced with Azure AI Search in Prod Environments)
+- **Search**: FAISS vector database for policy retrieval (to be replaced with Azure AI Search in production)
 - **Infrastructure**: Azure Container Apps
 
 ### System Flow
@@ -90,9 +90,9 @@ Create a `.env` file in the backend directory:
 ```env
 AZURE_OPENAI_API_KEY=your_api_key_here
 AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
-AZURE_OPENAI_DEPLOYMENT_NAME=llm-deployment-name(ex. gpt-4.1)
-AZURE_OPENAI_EMBEDDING_MODEL=embedding-model-deployment-name
-AZURE_OPENAI_API_VERSION=2025-04-01-preview
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
+AZURE_OPENAI_EMBEDDING_MODEL=text-embedding-3-large
+AZURE_OPENAI_API_VERSION=2024-08-01-preview
 ```
 
 ### Backend Setup
@@ -164,7 +164,7 @@ The system includes realistic test scenarios:
 ## 📚 Project Structure
 
 ```
-simple-insurance-multi-agent/
+insurance-multi-agent/
 ├── backend/                    # FastAPI application
 │   ├── app/
 │   │   ├── api/v1/            # REST API endpoints
