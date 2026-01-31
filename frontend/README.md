@@ -1,6 +1,6 @@
-# Frontend - Task Manager UI
+# Contoso Claims - Frontend
 
-Next.js 15 frontend application built with shadcn/ui components for the Task Manager.
+Next.js 15 frontend application built with shadcn/ui for the Contoso Claims multi-agent insurance platform.
 
 ## Features
 
@@ -9,6 +9,10 @@ Next.js 15 frontend application built with shadcn/ui components for the Task Man
 - **shadcn/ui** components for beautiful UI
 - **Tailwind CSS v4** for styling
 - **TypeScript** for type safety
+- **Real-time agent workflow visualization**
+- **Interactive agent testing pages**
+- **Document management interface**
+- **Demo claim scenarios**
 
 ## Local Development
 
@@ -44,6 +48,18 @@ In production (Azure Container Apps), it automatically detects and connects to t
 npx shadcn@latest add button
 npx shadcn@latest add button card dialog
 ```
+
+## Application Routes
+
+- `/` - Home page with project overview
+- `/demo` - Complete multi-agent workflow demo
+- `/agents/claim-assessor` - Individual claim assessor testing
+- `/agents/policy-checker` - Policy verification testing
+- `/agents/risk-analyst` - Risk analysis testing
+- `/agents/communication-agent` - Communication generation testing
+- `/documents` - Document management
+- `/documents/manage` - Upload and manage policy documents
+- `/documents/index-management` - Vector index management
 
 ## Deployment
 
