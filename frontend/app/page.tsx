@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { MetricsCards } from "@/components/dashboard/metrics-cards"
-import { Claim, DashboardMetrics, getClaims, getMetrics, getProcessingQueue, getReviewQueue } from "@/lib/api/claims"
+import { Claim, DashboardMetrics, getClaims, getMetrics, getProcessingQueue, getReviewQueue, seedClaims, createClaim } from "@/lib/api/claims"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import {
@@ -13,6 +13,8 @@ import { ClaimsTable } from "@/components/claims/claims-table"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { QueueInsights } from "@/components/dashboard/queue-insights"
+import { CreateClaimForm } from "@/components/claims/create-claim-form"
+import { toast } from "sonner"
 
 const CURRENT_HANDLER_ID = "handler-001"
 const POLLING_INTERVAL_MS = 15000
@@ -39,6 +41,7 @@ export default function WorkbenchHome() {
   const [reviewQueue, setReviewQueue] = useState<Claim[]>([])
   const [autoApprovedClaims, setAutoApprovedClaims] = useState<Claim[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isSeeding, setIsSeeding] = useState(false)
 
   const loadDashboard = useCallback(async (showLoading = false) => {
     if (showLoading) setIsLoading(true)
@@ -68,6 +71,31 @@ export default function WorkbenchHome() {
     return () => clearInterval(intervalId)
   }, [loadDashboard])
 
+  const handleSeed = async () => {
+    setIsSeeding(true)
+    try {
+      const result = await seedClaims(5)
+      toast.success(`Created ${result.claims_created} sample claims`)
+      loadDashboard(false)
+    } catch (error) {
+      console.error("Failed to seed claims", error)
+      toast.error("Failed to create sample claims")
+    } finally {
+      setIsSeeding(false)
+    }
+  }
+
+  const handleCreateClaim = async (payload: Parameters<typeof createClaim>[0]) => {
+    try {
+      await createClaim(payload)
+      toast.success("Claim created and queued for AI processing")
+      loadDashboard(false)
+    } catch (error) {
+      console.error("Failed to create claim", error)
+      toast.error("Failed to create claim")
+    }
+  }
+
   return (
     <SidebarProvider
       style={
@@ -81,11 +109,19 @@ export default function WorkbenchHome() {
       <SidebarInset>
         <SiteHeader />
         <div className="flex flex-1 flex-col p-6 space-y-8">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Workbench Dashboard</h1>
-            <p className="text-muted-foreground mt-2">
-              Overview of your claims and daily activity.
-            </p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Workbench Dashboard</h1>
+              <p className="text-muted-foreground mt-2">
+                Overview of your claims and daily activity.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="secondary" onClick={handleSeed} disabled={isSeeding}>
+                {isSeeding ? "Seeding..." : "Seed Sample Claims"}
+              </Button>
+              <CreateClaimForm onSubmit={handleCreateClaim} />
+            </div>
           </div>
 
           <MetricsCards metrics={metrics} isLoading={isLoading} />

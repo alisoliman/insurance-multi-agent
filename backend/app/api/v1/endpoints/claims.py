@@ -22,7 +22,8 @@ from app.models.workbench import (
     Handler,
     AIAssessment,
     ClaimDecision,
-    ClaimDecisionCreate
+    ClaimDecisionCreate,
+    DecisionType
 )
 
 
@@ -30,6 +31,14 @@ class SeedResponse(BaseModel):
     """Response from seed endpoint."""
     claims_created: int
     claim_ids: List[str]
+
+
+class ClaimDecisionRequest(BaseModel):
+    """Request body for recording a decision (claim_id is taken from path)."""
+    handler_id: str
+    decision_type: DecisionType
+    notes: Optional[str] = None
+    ai_assessment_id: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -365,16 +374,19 @@ async def get_latest_assessment(
 @router.post("/{claim_id}/decision", response_model=ClaimDecision)
 async def record_decision(
     claim_id: str,
-    decision_in: ClaimDecisionCreate,
+    decision_in: ClaimDecisionRequest,
     service: ClaimService = Depends(get_claim_service)
 ):
     """Record a decision for a claim."""
-    if decision_in.claim_id and decision_in.claim_id != claim_id:
-         raise HTTPException(status_code=400, detail="Claim ID mismatch in body")
-    
-    decision_in.claim_id = claim_id
+    decision_create = ClaimDecisionCreate(
+        claim_id=claim_id,
+        handler_id=decision_in.handler_id,
+        decision_type=decision_in.decision_type,
+        notes=decision_in.notes,
+        ai_assessment_id=decision_in.ai_assessment_id
+    )
          
-    decision = await service.record_decision(claim_id, decision_in)
+    decision = await service.record_decision(claim_id, decision_create)
     if not decision:
         raise HTTPException(status_code=404, detail="Claim not found")
     return decision

@@ -32,13 +32,13 @@ from app.models.workbench import (
 logger = logging.getLogger(__name__)
 
 # Auto-approval rule (low-risk, low-value)
-AUTO_APPROVE_MAX_DAMAGE = 10000.0
-AUTO_APPROVE_MAX_RISK_SCORE = 25
-AUTO_APPROVE_RISK_LEVEL = "LOW_RISK"
-AUTO_APPROVE_VALIDITY = "VALID"
-AUTO_APPROVE_COVERAGE = "COVERED"
+AUTO_APPROVE_MAX_DAMAGE = 15000.0
+AUTO_APPROVE_MAX_RISK_SCORE = 30
+AUTO_APPROVE_RISK_LEVELS = {"LOW_RISK"}
+AUTO_APPROVE_VALIDITY_ALLOWED = {"VALID", "QUESTIONABLE"}
+AUTO_APPROVE_COVERAGE_ALLOWED = {"COVERED", "PARTIALLY_COVERED", "INSUFFICIENT_EVIDENCE"}
 AUTO_APPROVE_RECOMMENDATION = "APPROVE"
-AUTO_APPROVE_CONFIDENCE = "HIGH"
+AUTO_APPROVE_CONFIDENCE_ALLOWED = {"HIGH", "MEDIUM"}
 AUTO_APPROVE_HANDLER_ID = "system"
 
 class ClaimService:
@@ -273,17 +273,17 @@ class ClaimService:
         recommendation = final_out.get("recommendation") or assessment.final_recommendation
         confidence = final_out.get("confidence")
 
-        if risk_level != AUTO_APPROVE_RISK_LEVEL:
+        if not risk_level or risk_level not in AUTO_APPROVE_RISK_LEVELS:
             return
         if risk_score is not None and risk_score > AUTO_APPROVE_MAX_RISK_SCORE:
             return
-        if validity_status != AUTO_APPROVE_VALIDITY:
+        if validity_status and validity_status not in AUTO_APPROVE_VALIDITY_ALLOWED:
             return
-        if coverage_status != AUTO_APPROVE_COVERAGE:
+        if coverage_status and coverage_status not in AUTO_APPROVE_COVERAGE_ALLOWED:
             return
-        if recommendation != AUTO_APPROVE_RECOMMENDATION:
+        if not recommendation or recommendation != AUTO_APPROVE_RECOMMENDATION:
             return
-        if confidence is not None and confidence != AUTO_APPROVE_CONFIDENCE:
+        if confidence is not None and confidence not in AUTO_APPROVE_CONFIDENCE_ALLOWED:
             return
 
         decision_in = ClaimDecisionCreate(
