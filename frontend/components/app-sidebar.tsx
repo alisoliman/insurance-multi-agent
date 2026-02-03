@@ -58,25 +58,39 @@ function SidebarThemeToggle() {
 const data = {
   navMain: [
     {
-      title: "Claims Workbench",
+      title: "Live Dashboard",
+      url: "/",
+      icon: IconDashboard,
+    },
+    {
+      title: "Queues",
+      url: "#",
+      icon: IconFileAi,
+      items: [
+        {
+          title: "Review Queue",
+          url: "/claims/queue",
+        },
+        {
+          title: "AI Processing Queue",
+          url: "/claims/processing-queue",
+        },
+        {
+          title: "Auto-Approvals",
+          url: "/claims/auto-approvals",
+        },
+      ],
+    },
+    {
+      title: "My Work",
       url: "#",
       icon: IconBriefcase,
-      isActive: true,
       items: [
         {
           title: "My Claims",
           url: "/claims",
         },
-        {
-          title: "Incoming Queue",
-          url: "/claims/queue",
-        },
       ],
-    },
-    {
-      title: "Live Dashboard",
-      url: "/",
-      icon: IconDashboard,
     },
     {
       title: "Agent Demos",

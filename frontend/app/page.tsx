@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { MetricsCards } from "@/components/dashboard/metrics-cards"
-import { DashboardMetrics, getMetrics } from "@/lib/api/claims"
+import { Claim, DashboardMetrics, getClaims, getMetrics, getProcessingQueue, getReviewQueue } from "@/lib/api/claims"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import {
@@ -10,39 +10,63 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 import { ClaimsTable } from "@/components/claims/claims-table"
-import { Claim, getClaims } from "@/lib/api/claims"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
+import { QueueInsights } from "@/components/dashboard/queue-insights"
 
 const CURRENT_HANDLER_ID = "handler-001"
+const POLLING_INTERVAL_MS = 15000
 
 export default function WorkbenchHome() {
   const router = useRouter()
   const [metrics, setMetrics] = useState<DashboardMetrics>({
-    assigned_count: 0,
+    my_caseload: 0,
     queue_depth: 0,
-    processed_today: 0
+    processing_queue_depth: 0,
+    processed_today: 0,
+    avg_processing_time_minutes: 0,
+    auto_approved_today: 0,
+    auto_approved_total: 0,
+    status_new: 0,
+    status_assigned: 0,
+    status_in_progress: 0,
+    status_awaiting_info: 0,
+    status_approved: 0,
+    status_denied: 0
   })
   const [recentClaims, setRecentClaims] = useState<Claim[]>([])
+  const [processingQueue, setProcessingQueue] = useState<Claim[]>([])
+  const [reviewQueue, setReviewQueue] = useState<Claim[]>([])
+  const [autoApprovedClaims, setAutoApprovedClaims] = useState<Claim[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    async function loadDashboard() {
-      try {
-        const [metricsData, claimsData] = await Promise.all([
+  const loadDashboard = useCallback(async (showLoading = false) => {
+    if (showLoading) setIsLoading(true)
+    try {
+        const [metricsData, claimsData, processingData, reviewData, autoApprovedData] = await Promise.all([
           getMetrics(CURRENT_HANDLER_ID),
-          getClaims({ handler_id: CURRENT_HANDLER_ID, limit: 5 })
+          getClaims({ handler_id: CURRENT_HANDLER_ID, limit: 5 }),
+          getProcessingQueue({ limit: 5 }),
+          getReviewQueue({ limit: 100 }),
+          getClaims({ handler_id: "system", status: "approved", limit: 5 })
         ])
-        setMetrics(metricsData)
-        setRecentClaims(claimsData)
-      } catch (error) {
-        console.error("Failed to load dashboard", error)
-      } finally {
-        setIsLoading(false)
-      }
+      setMetrics(metricsData)
+      setRecentClaims(claimsData)
+      setProcessingQueue(processingData)
+      setReviewQueue(reviewData)
+      setAutoApprovedClaims(autoApprovedData)
+    } catch (error) {
+      console.error("Failed to load dashboard", error)
+    } finally {
+      if (showLoading) setIsLoading(false)
     }
-    loadDashboard()
   }, [])
+
+  useEffect(() => {
+    loadDashboard(true)
+    const intervalId = setInterval(() => loadDashboard(false), POLLING_INTERVAL_MS)
+    return () => clearInterval(intervalId)
+  }, [loadDashboard])
 
   return (
     <SidebarProvider
@@ -65,6 +89,73 @@ export default function WorkbenchHome() {
           </div>
 
           <MetricsCards metrics={metrics} isLoading={isLoading} />
+
+          <QueueInsights metrics={metrics} reviewQueue={reviewQueue} processingQueue={processingQueue} />
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="rounded-md border p-4">
+              <h2 className="text-lg font-semibold mb-2">Workflow Pipeline</h2>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-md bg-muted p-3">
+                  <div className="text-xs text-muted-foreground">New</div>
+                  <div className="text-xl font-bold">{metrics.status_new ?? 0}</div>
+                </div>
+                <div className="rounded-md bg-muted p-3">
+                  <div className="text-xs text-muted-foreground">Assigned</div>
+                  <div className="text-xl font-bold">{metrics.status_assigned ?? 0}</div>
+                </div>
+                <div className="rounded-md bg-muted p-3">
+                  <div className="text-xs text-muted-foreground">In Progress</div>
+                  <div className="text-xl font-bold">{metrics.status_in_progress ?? 0}</div>
+                </div>
+                <div className="rounded-md bg-muted p-3">
+                  <div className="text-xs text-muted-foreground">Awaiting Info</div>
+                  <div className="text-xl font-bold">{metrics.status_awaiting_info ?? 0}</div>
+                </div>
+                <div className="rounded-md bg-muted p-3">
+                  <div className="text-xs text-muted-foreground">Approved</div>
+                  <div className="text-xl font-bold">{metrics.status_approved ?? 0}</div>
+                </div>
+                <div className="rounded-md bg-muted p-3">
+                  <div className="text-xs text-muted-foreground">Denied</div>
+                  <div className="text-xl font-bold">{metrics.status_denied ?? 0}</div>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-md border p-4">
+              <h2 className="text-lg font-semibold mb-2">Auto-Approvals</h2>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Today</span>
+                  <span className="font-semibold">{metrics.auto_approved_today ?? 0}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Total</span>
+                  <span className="font-semibold">{metrics.auto_approved_total ?? 0}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">AI Processing Queue</h2>
+              <Button variant="outline" onClick={() => router.push("/claims/processing-queue")}>
+                View All
+              </Button>
+            </div>
+            <ClaimsTable claims={processingQueue} isLoading={isLoading} showAssessmentStatus={true} showAiSummary={true} />
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Auto-Approved (AI)</h2>
+              <Button variant="outline" onClick={() => router.push("/claims/auto-approvals")}>
+                View All
+              </Button>
+            </div>
+            <ClaimsTable claims={autoApprovedClaims} isLoading={isLoading} showAssessmentStatus={true} showAiSummary={true} />
+          </div>
 
           <div className="space-y-4">
             <div className="flex justify-between items-center">

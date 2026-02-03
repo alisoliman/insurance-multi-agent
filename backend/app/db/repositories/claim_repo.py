@@ -21,7 +21,8 @@ from app.models.workbench import (
     ClaimDecisionCreate,
     AIAssessment,
     AuditAction,
-    AuditLogCreate
+    AuditLogCreate,
+    AssessmentStatus
 )
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,7 @@ class ClaimRepository:
 
     async def create_claim(self, claim: Claim) -> Claim:
         """Create a new claim."""
+        logger.info(f"Creating claim: id={claim.id}, type={claim.claim_type}, status={claim.status.value}")
         query = """
         INSERT INTO claims (
             id, claimant_name, claimant_id, policy_number, claim_type,
@@ -56,6 +58,7 @@ class ClaimRepository:
         
         await self.db.execute(query, params)
         await self.db.commit()
+        logger.info(f"Claim {claim.id} created and committed successfully")
         return claim
 
     async def get_metrics(self, handler_id: str) -> dict:
@@ -67,15 +70,46 @@ class ClaimRepository:
         )
         assigned_count = (await cursor.fetchone())[0]
 
-        # 2. Queue depth (unassigned)
+        # 2. Review queue depth (unassigned, AI completed/failed)
         cursor = await self.db.execute(
-            "SELECT COUNT(*) FROM claims WHERE status = 'new'"
+            """
+            SELECT COUNT(*) FROM claims c
+            LEFT JOIN (
+                SELECT a1.claim_id, a1.status
+                FROM ai_assessments a1
+                JOIN (
+                    SELECT claim_id, MAX(created_at) AS max_created_at
+                    FROM ai_assessments
+                    GROUP BY claim_id
+                ) latest
+                  ON latest.claim_id = a1.claim_id AND latest.max_created_at = a1.created_at
+            ) la ON la.claim_id = c.id
+            WHERE c.assigned_handler_id IS NULL
+              AND la.status IN ('completed', 'failed')
+            """
         )
         queue_depth = (await cursor.fetchone())[0]
 
-        # 3. Processed today (decisions made today by this handler)
-        # We check claim_decisions table
-        # SQLite date function works with ISO strings
+        # 3. AI processing queue depth (pending/processing)
+        cursor = await self.db.execute(
+            """
+            SELECT COUNT(*) FROM claims c
+            LEFT JOIN (
+                SELECT a1.claim_id, a1.status
+                FROM ai_assessments a1
+                JOIN (
+                    SELECT claim_id, MAX(created_at) AS max_created_at
+                    FROM ai_assessments
+                    GROUP BY claim_id
+                ) latest
+                  ON latest.claim_id = a1.claim_id AND latest.max_created_at = a1.created_at
+            ) la ON la.claim_id = c.id
+            WHERE la.status IN ('pending', 'processing')
+            """
+        )
+        processing_queue_depth = (await cursor.fetchone())[0]
+
+        # 4. Processed today (decisions made today by this handler)
         cursor = await self.db.execute(
             """
             SELECT COUNT(*) FROM claim_decisions 
@@ -86,17 +120,86 @@ class ClaimRepository:
         )
         processed_today = (await cursor.fetchone())[0]
 
+        # 5. Average processing time (assignment -> decision), in minutes
+        cursor = await self.db.execute(
+            """
+            SELECT AVG((julianday(cd.created_at) - julianday(al.assigned_at)) * 24 * 60)
+            FROM claim_decisions cd
+            JOIN (
+                SELECT claim_id, MAX(timestamp) AS assigned_at
+                FROM claim_audit_log
+                WHERE action = 'assigned'
+                GROUP BY claim_id
+            ) al ON al.claim_id = cd.claim_id
+            WHERE cd.handler_id = ?
+            """,
+            (handler_id,)
+        )
+        avg_processing_time = (await cursor.fetchone())[0]
+
+        # 6. Auto-approved counts
+        cursor = await self.db.execute(
+            """
+            SELECT COUNT(*) FROM claim_decisions
+            WHERE handler_id = 'system'
+            AND date(created_at) = date('now')
+            """
+        )
+        auto_approved_today = (await cursor.fetchone())[0]
+
+        cursor = await self.db.execute(
+            """
+            SELECT COUNT(*) FROM claim_decisions
+            WHERE handler_id = 'system'
+            """
+        )
+        auto_approved_total = (await cursor.fetchone())[0]
+
+        # 7. Status counts for pipeline view
+        cursor = await self.db.execute(
+            """
+            SELECT status, COUNT(*) as count
+            FROM claims
+            GROUP BY status
+            """
+        )
+        status_rows = await cursor.fetchall()
+        status_counts = {row["status"]: row["count"] for row in status_rows}
+
         return {
-            "assigned_count": assigned_count,
+            "my_caseload": assigned_count,
             "queue_depth": queue_depth,
-            "processed_today": processed_today
+            "processing_queue_depth": processing_queue_depth,
+            "processed_today": processed_today,
+            "avg_processing_time_minutes": round(avg_processing_time, 2) if avg_processing_time else 0,
+            "auto_approved_today": auto_approved_today,
+            "auto_approved_total": auto_approved_total,
+            "status_new": status_counts.get("new", 0),
+            "status_assigned": status_counts.get("assigned", 0),
+            "status_in_progress": status_counts.get("in_progress", 0),
+            "status_awaiting_info": status_counts.get("awaiting_info", 0),
+            "status_approved": status_counts.get("approved", 0),
+            "status_denied": status_counts.get("denied", 0)
         }
 
     async def get_claim(self, claim_id: str) -> Optional[Claim]:
         """Get a single claim by ID."""
-        cursor = await self.db.execute(
-            "SELECT * FROM claims WHERE id = ?", (claim_id,)
-        )
+        query = """
+        SELECT c.*, la.status AS latest_assessment_status, la.agent_outputs AS agent_outputs, la.final_recommendation AS final_recommendation
+        FROM claims c
+        LEFT JOIN (
+            SELECT a1.claim_id, a1.status, a1.agent_outputs, a1.final_recommendation
+            FROM ai_assessments a1
+            JOIN (
+                SELECT claim_id, MAX(created_at) AS max_created_at
+                FROM ai_assessments
+                GROUP BY claim_id
+            ) latest
+              ON latest.claim_id = a1.claim_id AND latest.max_created_at = a1.created_at
+        ) la ON la.claim_id = c.id
+        WHERE c.id = ?
+        """
+        cursor = await self.db.execute(query, (claim_id,))
         row = await cursor.fetchone()
         if not row:
             return None
@@ -107,6 +210,12 @@ class ClaimRepository:
         self,
         handler_id: Optional[str] = None,
         status: Optional[ClaimStatus] = None,
+        claim_type: Optional[str] = None,
+        created_from: Optional[str] = None,
+        created_to: Optional[str] = None,
+        search: Optional[str] = None,
+        assessment_statuses: Optional[List[str]] = None,
+        unassigned_only: bool = False,
         limit: int = 50,
         offset: int = 0
     ) -> Tuple[List[Claim], int]:
@@ -114,47 +223,141 @@ class ClaimRepository:
         Get claims with optional filters.
         Returns a tuple of (claims list, total count).
         """
-        # Build WHERE clause dynamically
+        logger.info(
+            "get_claims called: handler_id=%s, status=%s, claim_type=%s, created_from=%s, created_to=%s, search=%s, assessment_statuses=%s, limit=%s, offset=%s",
+            handler_id, status, claim_type, created_from, created_to, search, assessment_statuses, limit, offset
+        )
+
         conditions = []
-        params = []
-        
+        params: list = []
+
         if handler_id is not None:
-            conditions.append("assigned_handler_id = ?")
+            conditions.append("c.assigned_handler_id = ?")
             params.append(handler_id)
-        
+
+        if unassigned_only:
+            conditions.append("c.assigned_handler_id IS NULL")
+
         if status is not None:
-            conditions.append("status = ?")
+            conditions.append("c.status = ?")
             params.append(status.value)
-        
+
+        if claim_type is not None:
+            conditions.append("c.claim_type = ?")
+            params.append(claim_type)
+
+        if created_from is not None:
+            conditions.append("c.created_at >= ?")
+            params.append(created_from)
+
+        if created_to is not None:
+            conditions.append("c.created_at <= ?")
+            params.append(created_to)
+
+        if search is not None and search.strip():
+            conditions.append("(c.id = ? OR lower(c.claimant_name) LIKE ?)")
+            params.append(search.strip())
+            params.append(f"%{search.strip().lower()}%")
+
+        if assessment_statuses:
+            placeholders = ", ".join(["?"] * len(assessment_statuses))
+            conditions.append(f"la.status IN ({placeholders})")
+            params.extend(assessment_statuses)
+
         where_clause = ""
         if conditions:
             where_clause = "WHERE " + " AND ".join(conditions)
-        
-        # Get total count
-        count_query = f"SELECT COUNT(*) FROM claims {where_clause}"
+
+        latest_assessment_join = """
+        LEFT JOIN (
+            SELECT a1.claim_id, a1.status, a1.agent_outputs, a1.final_recommendation
+            FROM ai_assessments a1
+            JOIN (
+                SELECT claim_id, MAX(created_at) AS max_created_at
+                FROM ai_assessments
+                GROUP BY claim_id
+            ) latest
+              ON latest.claim_id = a1.claim_id AND latest.max_created_at = a1.created_at
+        ) la ON la.claim_id = c.id
+        """
+
+        count_query = f"""
+        SELECT COUNT(*) FROM claims c
+        {latest_assessment_join}
+        {where_clause}
+        """
         cursor = await self.db.execute(count_query, params)
-        total = (await cursor.fetchone())[0]
-        
-        # Get paginated results (ordered by priority DESC, created_at DESC)
+        row = await cursor.fetchone()
+        total = row[0] if row else 0
+
         query = f"""
-        SELECT * FROM claims {where_clause}
+        SELECT c.*, la.status AS latest_assessment_status, la.agent_outputs AS agent_outputs, la.final_recommendation AS final_recommendation
+        FROM claims c
+        {latest_assessment_join}
+        {where_clause}
         ORDER BY 
-            CASE priority 
+            CASE c.priority 
                 WHEN 'urgent' THEN 1 
                 WHEN 'high' THEN 2 
                 WHEN 'medium' THEN 3 
                 WHEN 'low' THEN 4 
             END,
-            created_at DESC
+            c.created_at DESC
         LIMIT ? OFFSET ?
         """
-        params.extend([limit, offset])
-        
-        cursor = await self.db.execute(query, params)
+        params_with_pagination = params + [limit, offset]
+
+        cursor = await self.db.execute(query, params_with_pagination)
         rows = await cursor.fetchall()
-        
+
         claims = [self._row_to_claim(row) for row in rows]
+        logger.info("get_claims: returning %s claims", len(claims))
         return claims, total
+
+    async def get_review_queue(
+        self,
+        status: Optional[ClaimStatus] = None,
+        claim_type: Optional[str] = None,
+        created_from: Optional[str] = None,
+        created_to: Optional[str] = None,
+        search: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0
+    ) -> Tuple[List[Claim], int]:
+        """Get AI-processed, unassigned claims ready for review."""
+        if status is None:
+            status = ClaimStatus.NEW
+        return await self.get_claims(
+            status=status,
+            claim_type=claim_type,
+            created_from=created_from,
+            created_to=created_to,
+            search=search,
+            assessment_statuses=["completed", "failed"],
+            unassigned_only=True,
+            limit=limit,
+            offset=offset
+        )
+
+    async def get_processing_queue(
+        self,
+        claim_type: Optional[str] = None,
+        created_from: Optional[str] = None,
+        created_to: Optional[str] = None,
+        search: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0
+    ) -> Tuple[List[Claim], int]:
+        """Get claims currently pending or processing AI."""
+        return await self.get_claims(
+            claim_type=claim_type,
+            created_from=created_from,
+            created_to=created_to,
+            search=search,
+            assessment_statuses=["pending", "processing"],
+            limit=limit,
+            offset=offset
+        )
 
     async def update_claim(self, claim_id: str, update: ClaimUpdate) -> Optional[Claim]:
         """
@@ -221,21 +424,67 @@ class ClaimRepository:
         # Parse enum fields
         data['status'] = ClaimStatus(data['status'])
         data['priority'] = ClaimPriority(data['priority'])
+        if data.get('latest_assessment_status'):
+            data['latest_assessment_status'] = AssessmentStatus(data['latest_assessment_status'])
+
+        agent_outputs_raw = data.pop("agent_outputs", None)
+        final_rec = data.pop("final_recommendation", None)
+        if agent_outputs_raw:
+            try:
+                agent_outputs = json.loads(agent_outputs_raw)
+            except Exception:
+                agent_outputs = {}
+            risk = agent_outputs.get("risk_analyst") or {}
+            synth = agent_outputs.get("synthesizer") or {}
+            data["ai_risk_level"] = risk.get("risk_level")
+            data["ai_risk_score"] = risk.get("risk_score")
+            data["ai_recommendation"] = synth.get("recommendation") or final_rec
         
         return Claim(**data)
+
+    async def get_latest_assessment(self, claim_id: str) -> Optional[AIAssessment]:
+        """Get the latest AI assessment for a claim."""
+        cursor = await self.db.execute(
+            """
+            SELECT * FROM ai_assessments
+            WHERE claim_id = ?
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (claim_id,)
+        )
+        row = await cursor.fetchone()
+        if not row:
+            return None
+        return self._row_to_assessment(row)
+
+    async def get_latest_assessment_status(self, claim_id: str) -> Optional[str]:
+        """Get latest AI assessment status for a claim."""
+        cursor = await self.db.execute(
+            """
+            SELECT status FROM ai_assessments
+            WHERE claim_id = ?
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (claim_id,)
+        )
+        row = await cursor.fetchone()
+        if not row:
+            return None
+        return row["status"]
 
     async def assign_claim(self, claim_id: str, handler_id: str) -> Optional[Claim]:
         """
         Assign a claim to a handler if it is currently unassigned.
         Returns the updated claim if successful, or None if claim not found or already assigned.
         """
-        # Atomic update: only update if assigned_handler_id is NULL or status is 'new'
-        # Note: We should probably rely on status='new' or assigned_handler_id IS NULL
-        
+        latest_status = await self.get_latest_assessment_status(claim_id)
+        if latest_status not in ("completed", "failed"):
+            return None
+
         now = datetime.utcnow().isoformat()
         
-        # Check current state first or do conditional update
-        # Conditional update is safer for race conditions
         query = """
         UPDATE claims 
         SET assigned_handler_id = ?, 
@@ -243,7 +492,7 @@ class ClaimRepository:
             updated_at = ?, 
             version = version + 1
         WHERE id = ? 
-          AND (assigned_handler_id IS NULL OR status = 'new')
+          AND assigned_handler_id IS NULL
         """
         
         cursor = await self.db.execute(query, (handler_id, now, claim_id))
@@ -254,6 +503,40 @@ class ClaimRepository:
             return None
             
         return await self.get_claim(claim_id)
+
+    async def unassign_claim(self, claim_id: str, handler_id: str) -> Optional[Claim]:
+        """Unassign a claim and return it to the review queue."""
+        now = datetime.utcnow().isoformat()
+        query = """
+        UPDATE claims
+        SET assigned_handler_id = NULL,
+            status = 'new',
+            updated_at = ?,
+            version = version + 1
+        WHERE id = ?
+          AND assigned_handler_id = ?
+        """
+        cursor = await self.db.execute(query, (now, claim_id, handler_id))
+        await self.db.commit()
+        if cursor.rowcount == 0:
+            return None
+        return await self.get_claim(claim_id)
+
+    def _row_to_assessment(self, row) -> AIAssessment:
+        data = dict(row)
+        if data.get("status"):
+            data["status"] = AssessmentStatus(data["status"])
+        if data.get("agent_outputs"):
+            data["agent_outputs"] = json.loads(data["agent_outputs"])
+        if data.get("confidence_scores"):
+            data["confidence_scores"] = json.loads(data["confidence_scores"])
+        if data.get("processing_started_at"):
+            data["processing_started_at"] = datetime.fromisoformat(data["processing_started_at"])
+        if data.get("processing_completed_at"):
+            data["processing_completed_at"] = datetime.fromisoformat(data["processing_completed_at"])
+        if data.get("created_at"):
+            data["created_at"] = datetime.fromisoformat(data["created_at"])
+        return AIAssessment(**data)
 
     # ---------------------------------------------------------------------------
     # Handler Operations

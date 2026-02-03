@@ -167,7 +167,8 @@ CREATE INDEX IF NOT EXISTS idx_audit_handler ON claim_audit_log(handler_id);
 INSERT OR IGNORE INTO handlers (id, name, email, is_active, created_at) VALUES
     ('handler-001', 'Alice Johnson', 'alice@contoso.com', 1, datetime('now')),
     ('handler-002', 'Bob Smith', 'bob@contoso.com', 1, datetime('now')),
-    ('handler-003', 'Carol Williams', 'carol@contoso.com', 1, datetime('now'));
+    ('handler-003', 'Carol Williams', 'carol@contoso.com', 1, datetime('now')),
+    ('system', 'Auto Approver', 'system@contoso.com', 0, datetime('now'));
 """
 
 
@@ -199,6 +200,14 @@ async def get_db() -> AsyncGenerator[aiosqlite.Connection, None]:
     
     db = await aiosqlite.connect(DB_PATH)
     db.row_factory = aiosqlite.Row
+    # Ensure newer tables exist even if the DB file pre-dates claims workbench.
+    cursor = await db.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='claims'"
+    )
+    has_claims_table = await cursor.fetchone()
+    if not has_claims_table:
+        await db.executescript(SCHEMA)
+        await db.commit()
     try:
         yield db
     finally:
@@ -220,6 +229,13 @@ async def get_db_connection() -> AsyncGenerator[aiosqlite.Connection, None]:
     
     db = await aiosqlite.connect(DB_PATH)
     db.row_factory = aiosqlite.Row
+    cursor = await db.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='claims'"
+    )
+    has_claims_table = await cursor.fetchone()
+    if not has_claims_table:
+        await db.executescript(SCHEMA)
+        await db.commit()
     try:
         yield db
     finally:

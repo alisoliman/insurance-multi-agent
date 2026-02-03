@@ -125,6 +125,7 @@ async def get_claim_service(db: Connection = Depends(get_db)) -> ClaimService:
 # Collection Endpoints (no path parameters - must come first)
 # ---------------------------------------------------------------------------
 
+@router.post("", response_model=Claim, status_code=201, include_in_schema=False)
 @router.post("/", response_model=Claim, status_code=201)
 async def create_claim(
     claim_in: ClaimCreate,
@@ -134,10 +135,15 @@ async def create_claim(
     return await service.create_claim(claim_in)
 
 
+@router.get("", response_model=List[Claim], include_in_schema=False)
 @router.get("/", response_model=List[Claim])
 async def list_claims(
     handler_id: Optional[str] = Query(None, description="Filter by assigned handler ID"),
     status: Optional[ClaimStatus] = Query(None, description="Filter by claim status"),
+    claim_type: Optional[str] = Query(None, description="Filter by claim type"),
+    created_from: Optional[str] = Query(None, description="Filter by created_at start (ISO)"),
+    created_to: Optional[str] = Query(None, description="Filter by created_at end (ISO)"),
+    search: Optional[str] = Query(None, description="Search by claim ID or claimant name"),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     service: ClaimService = Depends(get_claim_service)
@@ -145,18 +151,30 @@ async def list_claims(
     """
     List claims with optional filtering.
     Use handler_id to get 'My Assigned Claims'.
-    Use status='new' to get 'Incoming Queue'.
     """
     if handler_id:
-        claims, _ = await service.get_assigned_claims(handler_id, limit, offset)
+        claims, _ = await service.get_assigned_claims(
+            handler_id=handler_id,
+            status=status,
+            claim_type=claim_type,
+            created_from=created_from,
+            created_to=created_to,
+            search=search,
+            limit=limit,
+            offset=offset
+        )
         return claims
-    elif status == ClaimStatus.NEW:
-        claims, _ = await service.get_incoming_claims(limit, offset)
-        return claims
-    else:
-        # Default to incoming queue if no filters
-        claims, _ = await service.get_incoming_claims(limit, offset)
-        return claims
+
+    claims, _ = await service.repo.get_claims(
+        status=status,
+        claim_type=claim_type,
+        created_from=created_from,
+        created_to=created_to,
+        search=search,
+        limit=limit,
+        offset=offset
+    )
+    return claims
 
 
 @router.get("/handlers", response_model=List[Handler])
@@ -167,7 +185,7 @@ async def list_handlers(
     return await service.get_handlers()
 
 
-@router.get("/metrics", response_model=Dict[str, int])
+@router.get("/metrics", response_model=Dict[str, float])
 async def get_metrics(
     handler_id: str = Query(..., description="Handler ID to get metrics for"),
     service: ClaimService = Depends(get_claim_service)
@@ -184,7 +202,7 @@ async def seed_claims(
     """
     Seed the database with sample claims for demo/testing.
     Creates random claims from predefined templates.
-    All seeded claims have status='new' (unassigned).
+    All seeded claims auto-start AI processing.
     """
     created_ids = []
     
@@ -214,6 +232,56 @@ async def seed_claims(
 
 
 # ---------------------------------------------------------------------------
+# Queue Endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/queue", response_model=List[Claim])
+async def get_review_queue(
+    status: Optional[ClaimStatus] = Query(None, description="Filter by claim status"),
+    claim_type: Optional[str] = Query(None, description="Filter by claim type"),
+    created_from: Optional[str] = Query(None, description="Filter by created_at start (ISO)"),
+    created_to: Optional[str] = Query(None, description="Filter by created_at end (ISO)"),
+    search: Optional[str] = Query(None, description="Search by claim ID or claimant name"),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    service: ClaimService = Depends(get_claim_service)
+):
+    """Get AI-processed, unassigned claims ready for review."""
+    claims, _ = await service.get_review_queue(
+        status=status,
+        claim_type=claim_type,
+        created_from=created_from,
+        created_to=created_to,
+        search=search,
+        limit=limit,
+        offset=offset
+    )
+    return claims
+
+
+@router.get("/processing-queue", response_model=List[Claim])
+async def get_processing_queue(
+    claim_type: Optional[str] = Query(None, description="Filter by claim type"),
+    created_from: Optional[str] = Query(None, description="Filter by created_at start (ISO)"),
+    created_to: Optional[str] = Query(None, description="Filter by created_at end (ISO)"),
+    search: Optional[str] = Query(None, description="Search by claim ID or claimant name"),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    service: ClaimService = Depends(get_claim_service)
+):
+    """Get claims pending or processing AI."""
+    claims, _ = await service.get_processing_queue(
+        claim_type=claim_type,
+        created_from=created_from,
+        created_to=created_to,
+        search=search,
+        limit=limit,
+        offset=offset
+    )
+    return claims
+
+
+# ---------------------------------------------------------------------------
 # Item Endpoints (with path parameters - must come after static paths)
 # ---------------------------------------------------------------------------
 
@@ -237,14 +305,30 @@ async def assign_claim(
 ):
     """
     Assign a claim to a handler.
-    Fails if claim is already assigned.
+    Fails if claim is already assigned or AI is not complete.
     """
     claim = await service.assign_claim(claim_id, handler_id)
     if not claim:
         raise HTTPException(
-            status_code=409, 
-            detail="Claim could not be assigned (it may not exist or is already assigned)"
+            status_code=409,
+            detail="Claim could not be assigned (it may not exist, AI is not complete, or it is already assigned)"
         )
+    return claim
+
+
+@router.post("/{claim_id}/unassign", response_model=Claim)
+async def unassign_claim(
+    claim_id: str,
+    body: Dict[str, str],
+    service: ClaimService = Depends(get_claim_service)
+):
+    """Unassign a claim and return it to the review queue."""
+    handler_id = body.get("handler_id")
+    if not handler_id:
+        raise HTTPException(status_code=400, detail="handler_id is required")
+    claim = await service.unassign_claim(claim_id, handler_id)
+    if not claim:
+        raise HTTPException(status_code=403, detail="Claim not found or not owned by handler")
     return claim
 
 
@@ -266,6 +350,18 @@ async def process_claim(
         raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
 
 
+@router.get("/{claim_id}/assessment", response_model=AIAssessment)
+async def get_latest_assessment(
+    claim_id: str,
+    service: ClaimService = Depends(get_claim_service)
+):
+    """Get latest AI assessment for a claim."""
+    assessment = await service.get_latest_assessment(claim_id)
+    if not assessment:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    return assessment
+
+
 @router.post("/{claim_id}/decision", response_model=ClaimDecision)
 async def record_decision(
     claim_id: str,
@@ -282,3 +378,6 @@ async def record_decision(
     if not decision:
         raise HTTPException(status_code=404, detail="Claim not found")
     return decision
+
+
+# ---------------------------------------------------------------------------

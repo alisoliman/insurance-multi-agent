@@ -28,12 +28,14 @@ The core entity representing an insurance claim in the workbench.
 | `updated_at` | TEXT | | ISO timestamp of last update |
 
 **Status Enum**:
-- `new` - Unassigned, in incoming queue
+- `new` - Unassigned, awaiting review
 - `assigned` - Handler has claimed the claim
-- `in_progress` - AI processing or manual review active
+- `in_progress` - Handler review active
 - `awaiting_info` - Pending additional information from claimant
 - `approved` - Claim approved (terminal)
 - `denied` - Claim denied (terminal)
+
+**Note**: AI processing status is tracked in `AIAssessment.status` and does not change `claim.status` until a handler claims the work.
 
 **Priority Enum**:
 - `low` - Routine claim, no urgency
@@ -113,6 +115,10 @@ Stores results from multi-agent AI workflow processing.
 - `processing` - AI workflow currently running
 - `completed` - All agents finished successfully
 - `failed` - Processing encountered error
+
+**Queue Usage**:
+- **AI Processing Queue**: claims whose latest assessment status is `pending` or `processing`
+- **Review Queue**: unassigned claims whose latest assessment status is `completed` or `failed`
 
 **Indexes**:
 - `idx_assessments_claim` ON (claim_id)
@@ -208,12 +214,16 @@ Audit trail for all claim-related actions (compliance requirement FR-012).
 
 **Transition Rules**:
 1. NEW → ASSIGNED: Handler claims from queue
-2. ASSIGNED → IN_PROGRESS: AI processing started OR manual review begins
+2. ASSIGNED → IN_PROGRESS: Handler review begins
 3. ASSIGNED → NEW: Handler unassigns (returns to queue)
 4. IN_PROGRESS → APPROVED: Handler approves claim
 5. IN_PROGRESS → DENIED: Handler denies claim
 6. IN_PROGRESS → AWAITING_INFO: Handler requests more information
 7. AWAITING_INFO → IN_PROGRESS: Information received, processing resumes
+
+**Queue Definitions**:
+- **AI Processing Queue**: read-only view of claims with latest AI assessment status `pending` or `processing`
+- **Review Queue**: unassigned claims with latest AI assessment status `completed` or `failed` and available for handler pickup
 
 ---
 

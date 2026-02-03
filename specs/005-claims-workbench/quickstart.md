@@ -125,8 +125,8 @@ frontend/
 │   ├── page.tsx                # REPLACE: Workbench home
 │   ├── claims/
 │   │   ├── page.tsx            # NEW: My assigned claims
-│   │   ├── queue/page.tsx      # NEW: Incoming claims queue
-│   │   └── [id]/page.tsx       # NEW: Claim detail + AI processing
+│   │   ├── queue/page.tsx      # NEW: Review queue (AI-completed claims)
+│   │   └── [id]/page.tsx       # NEW: Claim detail + AI review
 │   └── layout.tsx              # MODIFY: Navigation updates
 ├── components/
 │   └── claims/                 # NEW: Claims UI components
@@ -170,13 +170,27 @@ Key endpoints to implement:
 | POST | /api/v1/claims | Create new claim |
 | GET | /api/v1/claims/{id} | Get claim details |
 | POST | /api/v1/claims/{id}/assign | Assign claim to handler |
-| POST | /api/v1/claims/{id}/unassign | Return claim to queue |
-| POST | /api/v1/claims/{id}/process | Trigger AI workflow |
+| POST | /api/v1/claims/{id}/unassign | Return claim to review queue |
+| POST | /api/v1/claims/{id}/process | Re-run AI workflow |
 | GET | /api/v1/claims/{id}/assessment | Get AI assessment |
 | POST | /api/v1/claims/{id}/decision | Record decision |
-| GET | /api/v1/claims/queue | Get unassigned claims |
-| GET | /api/v1/handlers/me/claims | Get handler's assigned claims |
-| GET | /api/v1/workbench/metrics | Dashboard metrics |
+| GET | /api/v1/claims/queue | Get review queue |
+| GET | /api/v1/claims/processing-queue | Get AI processing queue |
+| GET | /api/v1/claims?handler_id={id} | Get handler's assigned claims |
+| GET | /api/v1/metrics | Dashboard metrics |
+
+### End-to-End Flow (Manual Smoke Test)
+
+1. Start backend and frontend (see Run the full stack locally).
+2. In the UI, open **Review Queue** and click **Seed Sample Claims** or **New Claim**.
+3. Open **AI Processing Queue** and confirm the new claim appears with AI status `pending`/`processing`.
+4. Wait for AI to complete. The claim should move to **Review Queue** with AI status `completed` or `failed`.
+5. Click **Pick Up** to assign the claim.
+6. Open the claim detail page and click **Re-run AI** to verify it updates.
+7. Record a decision (approve/deny/request info) and confirm the claim status updates.
+8. Optionally click **Return to Review Queue** to unassign the claim.
+
+Note: AI processing requires a working LLM configuration. If environment variables are missing, AI runs may fail and the claim will show status `failed` with an error message.
 
 ## Common Tasks
 

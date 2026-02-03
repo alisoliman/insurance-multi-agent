@@ -12,9 +12,10 @@ interface ClaimDetailProps {
   claim: Claim
   onProcessAI?: () => void
   isProcessing?: boolean
+  aiStatus?: string
 }
 
-export function ClaimDetail({ claim, onProcessAI, isProcessing }: ClaimDetailProps) {
+export function ClaimDetail({ claim, onProcessAI, isProcessing, aiStatus }: ClaimDetailProps) {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start">
@@ -22,15 +23,23 @@ export function ClaimDetail({ claim, onProcessAI, isProcessing }: ClaimDetailPro
           <h2 className="text-3xl font-bold tracking-tight mb-2">Claim #{claim.id.substring(0, 8)}</h2>
           <div className="flex space-x-2">
             <Badge variant="outline">{claim.status.replace('_', ' ')}</Badge>
+            {aiStatus && (
+              <Badge variant="outline">AI: {aiStatus}</Badge>
+            )}
+            {claim.assigned_handler_id && (
+              <Badge variant="outline">
+                Assigned: {claim.assigned_handler_id === "system" ? "AI Auto-Approved" : claim.assigned_handler_id}
+              </Badge>
+            )}
             <Badge variant={claim.priority === 'urgent' ? 'destructive' : 'secondary'}>
               {claim.priority} priority
             </Badge>
           </div>
         </div>
-        {onProcessAI && claim.status !== 'new' && (
+        {onProcessAI && (
           <Button onClick={onProcessAI} disabled={isProcessing}>
             <PlayCircle className="w-4 h-4 mr-2" />
-            {isProcessing ? "Processing..." : "Run AI Analysis"}
+            {isProcessing ? "Processing..." : "Re-run AI Analysis"}
           </Button>
         )}
       </div>
@@ -84,6 +93,24 @@ export function ClaimDetail({ claim, onProcessAI, isProcessing }: ClaimDetailPro
         </CardHeader>
         <CardContent>
           <p className="whitespace-pre-wrap">{claim.description}</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>AI Summary</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-3 gap-4">
+          <div className="font-semibold">Recommendation</div>
+          <div className="col-span-2">{claim.ai_recommendation || "Pending analysis"}</div>
+
+          <div className="font-semibold">Risk Level</div>
+          <div className="col-span-2">{claim.ai_risk_level || "Unknown"}</div>
+
+          <div className="font-semibold">Risk Score</div>
+          <div className="col-span-2">
+            {claim.ai_risk_score !== undefined ? claim.ai_risk_score : "N/A"}
+          </div>
         </CardContent>
       </Card>
     </div>

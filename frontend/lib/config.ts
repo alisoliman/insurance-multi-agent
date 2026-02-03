@@ -1,8 +1,29 @@
 // Configuration that can be read at runtime
 let cachedApiUrl: string | null = null
 
+const normalizeUrl = (rawUrl: string): string => {
+  const trimmed = rawUrl.trim()
+  if (!trimmed) return trimmed
+
+  // If missing scheme, assume https in production contexts.
+  if (!/^https?:\/\//i.test(trimmed)) {
+    return `https://${trimmed}`
+  }
+
+  // If page is https, never return http to avoid mixed content.
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && trimmed.startsWith('http://')) {
+    return trimmed.replace('http://', 'https://')
+  }
+
+  return trimmed
+}
+
 export const getApiUrl = async (): Promise<string> => {
   if (cachedApiUrl) {
+    // Ensure we never return http on an https page.
+    if (typeof window !== 'undefined') {
+      cachedApiUrl = normalizeUrl(cachedApiUrl)
+    }
     return cachedApiUrl
   }
 
@@ -29,6 +50,6 @@ export const getApiUrl = async (): Promise<string> => {
 
   // Fallback to predefined env var or localhost for development
   const fallback = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-  cachedApiUrl = fallback
-  return fallback
+  cachedApiUrl = normalizeUrl(fallback)
+  return cachedApiUrl
 } 

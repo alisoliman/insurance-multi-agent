@@ -95,6 +95,10 @@ class Claim(ClaimBase):
     id: str
     status: ClaimStatus = ClaimStatus.NEW
     assigned_handler_id: Optional[str] = None
+    latest_assessment_status: Optional[AssessmentStatus] = None
+    ai_recommendation: Optional[str] = None
+    ai_risk_level: Optional[str] = None
+    ai_risk_score: Optional[int] = None
     version: int = 1
     created_at: datetime
     updated_at: Optional[datetime] = None

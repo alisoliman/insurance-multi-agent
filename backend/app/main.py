@@ -12,6 +12,7 @@ from app.api.v1.endpoints import agent as agent_endpoints
 from app.api.v1.endpoints import documents as documents_endpoints
 from app.api.v1.endpoints import index_management as index_endpoints
 from app.api.v1.endpoints import claims as claims_endpoints
+from app.api.v1.endpoints import metrics as metrics_endpoints
 from app.workflow.policy_search import get_policy_search
 
 logging.basicConfig(level=logging.INFO)
@@ -116,6 +117,7 @@ app.include_router(agent_endpoints.router, prefix="/api/v1")
 app.include_router(documents_endpoints.router, prefix="/api/v1")
 app.include_router(index_endpoints.router, prefix="/api/v1")
 app.include_router(claims_endpoints.router, prefix="/api/v1/claims", tags=["claims"])
+app.include_router(metrics_endpoints.router, prefix="/api/v1", tags=["metrics"])
 
 if SCENARIOS_AVAILABLE and scenarios_endpoints is not None:
     app.include_router(scenarios_endpoints.router, prefix="/api/v1")

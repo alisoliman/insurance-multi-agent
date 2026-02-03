@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Claim, AIAssessment, getClaim, processClaim } from "@/lib/api/claims"
+import { Claim, AIAssessment, getClaim, processClaim, getAssessment, unassignClaim } from "@/lib/api/claims"
 import { ClaimDetail } from "@/components/claims/claim-detail"
 import { AIResults } from "@/components/claims/ai-results"
 import { DecisionForm } from "@/components/claims/decision-form"
@@ -19,6 +19,7 @@ export default function ClaimPage() {
   const [assessment, setAssessment] = useState<AIAssessment | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isPolling, setIsPolling] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -36,10 +37,37 @@ export default function ClaimPage() {
     loadData()
   }, [claimId])
 
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null
+
+    const loadAssessment = async () => {
+      try {
+        const data = await getAssessment(claimId)
+        setAssessment(data)
+        const shouldPoll = data.status === "pending" || data.status === "processing"
+        setIsPolling(shouldPoll)
+      } catch {
+        // If no assessment yet, ignore
+      }
+    }
+
+    if (claimId) {
+      loadAssessment()
+    }
+
+    if (isPolling) {
+      interval = setInterval(loadAssessment, 15000)
+    }
+
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [claimId, isPolling])
+
   const handleProcessAI = async () => {
     setIsProcessing(true)
     try {
-      toast.info("Starting AI analysis... This may take a minute.")
+      toast.info("Re-running AI analysis... This may take a minute.")
       const result = await processClaim(claimId)
       setAssessment(result)
       toast.success("AI analysis completed successfully")
@@ -54,6 +82,18 @@ export default function ClaimPage() {
   const handleDecisionRecorded = () => {
     // Refresh claim data to update status
     getClaim(claimId).then(setClaim)
+  }
+
+  const handleUnassign = async () => {
+    if (!claim) return
+    try {
+      await unassignClaim(claim.id, "handler-001")
+      toast.success("Claim returned to review queue")
+      router.push("/claims/queue")
+    } catch (error) {
+      console.error("Failed to unassign claim", error)
+      toast.error("Failed to return claim to review queue")
+    }
   }
 
   if (isLoading) {
@@ -75,6 +115,7 @@ export default function ClaimPage() {
         claim={claim} 
         onProcessAI={handleProcessAI}
         isProcessing={isProcessing}
+        aiStatus={claim.latest_assessment_status}
       />
 
       {(assessment || isProcessing) && (
@@ -82,6 +123,14 @@ export default function ClaimPage() {
           assessment={assessment} 
           isLoading={isProcessing} 
         />
+      )}
+
+      {claim.assigned_handler_id === "handler-001" && claim.status !== 'approved' && claim.status !== 'denied' && (
+        <div>
+          <Button variant="outline" onClick={handleUnassign}>
+            Return to Review Queue
+          </Button>
+        </div>
       )}
 
       {claim.status !== 'approved' && claim.status !== 'denied' && (

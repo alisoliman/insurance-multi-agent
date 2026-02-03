@@ -37,6 +37,23 @@ export function AIResults({ assessment, isLoading }: AIResultsProps) {
     return null
   }
 
+  if (assessment.status === 'pending' || assessment.status === 'processing') {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-start">
+            <CardTitle>AI Processing</CardTitle>
+            <Badge variant="outline">{assessment.status}</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center justify-center py-8 space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <p className="text-muted-foreground">Agents are analyzing the claim...</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
   if (assessment.status === 'failed') {
     return (
       <Alert variant="destructive">

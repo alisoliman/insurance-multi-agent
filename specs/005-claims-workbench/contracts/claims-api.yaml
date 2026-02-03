@@ -16,7 +16,7 @@ tags:
   - name: Claims
     description: Claim management operations
   - name: Queue
-    description: Incoming claims queue operations
+    description: Review and AI processing queue operations
   - name: Processing
     description: AI workflow processing
   - name: Handlers
@@ -47,6 +47,29 @@ paths:
             type: string
             enum: [new, assigned, in_progress, awaiting_info, approved, denied]
           description: Filter by status
+        - name: claim_type
+          in: query
+          schema:
+            type: string
+            enum: [auto, property, liability, health, other]
+          description: Filter by claim type
+        - name: created_from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Filter by submission time (created_at) starting at this timestamp (inclusive)
+        - name: created_to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Filter by submission time (created_at) ending at this timestamp (inclusive)
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by claim ID (exact match) or claimant name (case-insensitive partial match)
         - name: limit
           in: query
           schema:
@@ -71,7 +94,7 @@ paths:
     post:
       tags: [Claims]
       summary: Create a new claim
-      description: Submit a new insurance claim (goes to incoming queue)
+      description: Submit a new insurance claim (auto-enqueued for AI processing)
       operationId: createClaim
       requestBody:
         required: true
@@ -113,7 +136,7 @@ paths:
     post:
       tags: [Claims]
       summary: Assign claim to handler
-      description: Claim a task from the queue. Uses optimistic locking to prevent race conditions.
+      description: Claim a task from the review queue. Uses optimistic locking to prevent race conditions.
       operationId: assignClaim
       parameters:
         - $ref: '#/components/parameters/ClaimId'
@@ -143,7 +166,7 @@ paths:
     post:
       tags: [Claims]
       summary: Unassign claim (return to queue)
-      description: Release a claim back to the incoming queue
+      description: Release a claim back to the review queue
       operationId: unassignClaim
       parameters:
         - $ref: '#/components/parameters/ClaimId'
@@ -196,15 +219,21 @@ paths:
           $ref: '#/components/responses/NotFound'
 
   # ============================================================================
-  # QUEUE - Incoming claims queue
+  # QUEUE - Review and AI processing queues
   # ============================================================================
   /claims/queue:
     get:
       tags: [Queue]
-      summary: Get incoming claims queue
-      description: List all unassigned claims available for pickup
+      summary: Get review queue
+      description: List AI-processed, unassigned claims available for human review
       operationId: getClaimsQueue
       parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [new, assigned, in_progress, awaiting_info, approved, denied]
+          description: Filter by claim status
         - name: limit
           in: query
           schema:
@@ -220,10 +249,89 @@ paths:
           in: query
           schema:
             type: string
+            enum: [auto, property, liability, health, other]
           description: Filter by claim type
+        - name: assessment_status
+          in: query
+          schema:
+            type: string
+            enum: [completed, failed]
+          description: Filter by latest AI assessment status
+        - name: created_from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Filter by submission time (created_at) starting at this timestamp (inclusive)
+        - name: created_to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Filter by submission time (created_at) ending at this timestamp (inclusive)
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by claim ID (exact match) or claimant name (case-insensitive partial match)
       responses:
         '200':
-          description: Queue of unassigned claims
+          description: Review queue of AI-processed, unassigned claims
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimListResponse'
+
+  /claims/processing-queue:
+    get:
+      tags: [Queue]
+      summary: Get AI processing queue
+      description: List claims currently pending or processing AI (read-only)
+      operationId: getProcessingQueue
+      parameters:
+        - name: claim_type
+          in: query
+          schema:
+            type: string
+            enum: [auto, property, liability, health, other]
+          description: Filter by claim type
+        - name: assessment_status
+          in: query
+          schema:
+            type: string
+            enum: [pending, processing]
+          description: Filter by latest AI assessment status
+        - name: created_from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Filter by submission time (created_at) starting at this timestamp (inclusive)
+        - name: created_to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Filter by submission time (created_at) ending at this timestamp (inclusive)
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by claim ID (exact match) or claimant name (case-insensitive partial match)
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: AI processing queue
           content:
             application/json:
               schema:
@@ -235,8 +343,8 @@ paths:
   /claims/{claim_id}/process:
     post:
       tags: [Processing]
-      summary: Start AI processing
-      description: Initiate multi-agent AI workflow for claim assessment
+      summary: Re-run AI processing
+      description: Manually re-run the multi-agent AI workflow for claim assessment
       operationId: startProcessing
       parameters:
         - $ref: '#/components/parameters/ClaimId'
@@ -459,6 +567,10 @@ components:
         updated_at:
           type: string
           format: date-time
+          nullable: true
+        latest_assessment_status:
+          type: string
+          enum: [pending, processing, completed, failed]
           nullable: true
 
     ClaimDetail:
@@ -705,7 +817,10 @@ components:
           description: Claims assigned to current handler
         queue_depth:
           type: integer
-          description: Total unassigned claims
+          description: Review queue depth (AI-processed, unassigned claims)
+        processing_queue_depth:
+          type: integer
+          description: AI processing queue depth (pending or processing)
         processed_today:
           type: integer
           description: Claims decided today by current handler

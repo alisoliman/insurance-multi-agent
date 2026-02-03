@@ -4,11 +4,13 @@ Feature 005 - Claims Workbench
 """
 
 import logging
+import asyncio
 import uuid
 from datetime import datetime
 from typing import List, Optional, Tuple
 
 from app.db.repositories.claim_repo import ClaimRepository
+from app.db.database import get_db_connection
 from app.workflow import process_claim_with_supervisor
 from app.models.workbench import (
     Claim,
@@ -28,6 +30,16 @@ from app.models.workbench import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Auto-approval rule (low-risk, low-value)
+AUTO_APPROVE_MAX_DAMAGE = 10000.0
+AUTO_APPROVE_MAX_RISK_SCORE = 25
+AUTO_APPROVE_RISK_LEVEL = "LOW_RISK"
+AUTO_APPROVE_VALIDITY = "VALID"
+AUTO_APPROVE_COVERAGE = "COVERED"
+AUTO_APPROVE_RECOMMENDATION = "APPROVE"
+AUTO_APPROVE_CONFIDENCE = "HIGH"
+AUTO_APPROVE_HANDLER_ID = "system"
 
 class ClaimService:
     """Service for managing claims and handler assignments."""
@@ -60,30 +72,81 @@ class ClaimService:
             action=AuditAction.CREATED,
             new_value=created.model_dump(mode="json")
         ))
-        
+
+        # Auto-start AI processing in background
+        asyncio.create_task(self._run_ai_processing(created.id))
+
         return created
 
+    async def _run_ai_processing(self, claim_id: str) -> None:
+        """Run AI processing in a background task with its own DB connection."""
+        try:
+            async with get_db_connection() as db:
+                repo = ClaimRepository(db)
+                service = ClaimService(repo)
+                await service.process_claim(claim_id, raise_on_error=False)
+        except Exception:
+            logger.exception("Background AI processing failed for claim %s", claim_id)
+
     async def get_assigned_claims(
-        self, 
-        handler_id: str, 
-        limit: int = 50, 
+        self,
+        handler_id: str,
+        status: Optional[ClaimStatus] = None,
+        claim_type: Optional[str] = None,
+        created_from: Optional[str] = None,
+        created_to: Optional[str] = None,
+        search: Optional[str] = None,
+        limit: int = 50,
         offset: int = 0
     ) -> Tuple[List[Claim], int]:
         """Get claims assigned to a specific handler."""
         return await self.repo.get_claims(
             handler_id=handler_id,
+            status=status,
+            claim_type=claim_type,
+            created_from=created_from,
+            created_to=created_to,
+            search=search,
             limit=limit,
             offset=offset
         )
 
-    async def get_incoming_claims(
+    async def get_review_queue(
         self,
+        status: Optional[ClaimStatus] = None,
+        claim_type: Optional[str] = None,
+        created_from: Optional[str] = None,
+        created_to: Optional[str] = None,
+        search: Optional[str] = None,
         limit: int = 50,
         offset: int = 0
     ) -> Tuple[List[Claim], int]:
-        """Get unassigned new claims."""
-        return await self.repo.get_claims(
-            status=ClaimStatus.NEW,
+        """Get AI-processed, unassigned claims ready for review."""
+        return await self.repo.get_review_queue(
+            status=status,
+            claim_type=claim_type,
+            created_from=created_from,
+            created_to=created_to,
+            search=search,
+            limit=limit,
+            offset=offset
+        )
+
+    async def get_processing_queue(
+        self,
+        claim_type: Optional[str] = None,
+        created_from: Optional[str] = None,
+        created_to: Optional[str] = None,
+        search: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0
+    ) -> Tuple[List[Claim], int]:
+        """Get claims currently pending or processing AI."""
+        return await self.repo.get_processing_queue(
+            claim_type=claim_type,
+            created_from=created_from,
+            created_to=created_to,
+            search=search,
             limit=limit,
             offset=offset
         )
@@ -96,7 +159,7 @@ class ClaimService:
         """Get list of active handlers."""
         return await self.repo.get_handlers()
 
-    async def process_claim(self, claim_id: str) -> Optional[AIAssessment]:
+    async def process_claim(self, claim_id: str, raise_on_error: bool = True) -> Optional[AIAssessment]:
         """Run multi-agent AI workflow on a claim."""
         claim = await self.repo.get_claim(claim_id)
         if not claim:
@@ -114,8 +177,6 @@ class ClaimService:
         )
         await self.repo.create_assessment(assessment)
 
-        # Update claim status
-        await self.repo.update_claim(claim_id, ClaimUpdate(status=ClaimStatus.IN_PROGRESS))
         await self.repo.create_audit_entry(AuditLogCreate(
             claim_id=claim_id,
             action=AuditAction.AI_PROCESSING_STARTED,
@@ -165,6 +226,9 @@ class ClaimService:
                 action=AuditAction.AI_PROCESSING_COMPLETED,
                 new_value={"assessment_id": assessment_id, "status": "completed"}
             ))
+
+            # Auto-approve low-risk, low-value claims
+            await self._maybe_auto_approve(claim, assessment)
             
             return assessment
 
@@ -174,7 +238,62 @@ class ClaimService:
             assessment.error_message = str(e)
             assessment.processing_completed_at = datetime.utcnow()
             await self.repo.update_assessment(assessment)
-            raise e
+            await self.repo.create_audit_entry(AuditLogCreate(
+                claim_id=claim_id,
+                action=AuditAction.AI_PROCESSING_COMPLETED,
+                new_value={"assessment_id": assessment_id, "status": "failed"}
+            ))
+            if raise_on_error:
+                raise e
+            return assessment
+
+    async def get_latest_assessment(self, claim_id: str) -> Optional[AIAssessment]:
+        """Get latest AI assessment for a claim."""
+        return await self.repo.get_latest_assessment(claim_id)
+
+    async def _maybe_auto_approve(self, claim: Claim, assessment: AIAssessment) -> None:
+        """Auto-approve low-risk, low-value claims based on structured outputs."""
+        if claim.status in (ClaimStatus.APPROVED, ClaimStatus.DENIED):
+            return
+        if claim.assigned_handler_id is not None:
+            return
+        if claim.estimated_damage is None or claim.estimated_damage > AUTO_APPROVE_MAX_DAMAGE:
+            return
+
+        outputs = assessment.agent_outputs or {}
+        risk = outputs.get("risk_analyst") or {}
+        validity = outputs.get("claim_assessor") or {}
+        coverage = outputs.get("policy_checker") or {}
+        final_out = outputs.get("synthesizer") or {}
+
+        risk_level = risk.get("risk_level")
+        risk_score = risk.get("risk_score")
+        validity_status = validity.get("validity_status")
+        coverage_status = coverage.get("coverage_status")
+        recommendation = final_out.get("recommendation") or assessment.final_recommendation
+        confidence = final_out.get("confidence")
+
+        if risk_level != AUTO_APPROVE_RISK_LEVEL:
+            return
+        if risk_score is not None and risk_score > AUTO_APPROVE_MAX_RISK_SCORE:
+            return
+        if validity_status != AUTO_APPROVE_VALIDITY:
+            return
+        if coverage_status != AUTO_APPROVE_COVERAGE:
+            return
+        if recommendation != AUTO_APPROVE_RECOMMENDATION:
+            return
+        if confidence is not None and confidence != AUTO_APPROVE_CONFIDENCE:
+            return
+
+        decision_in = ClaimDecisionCreate(
+            claim_id=claim.id,
+            handler_id=AUTO_APPROVE_HANDLER_ID,
+            decision_type=DecisionType.APPROVED,
+            notes="Auto-approved: low risk and low value",
+            ai_assessment_id=assessment.id
+        )
+        await self.record_decision(claim.id, decision_in)
 
     async def assign_claim(self, claim_id: str, handler_id: str) -> Optional[Claim]:
         """Assign a claim to a handler."""
@@ -194,6 +313,23 @@ class ClaimService:
                 new_value={"status": updated.status, "assigned_handler_id": updated.assigned_handler_id}
             ))
             
+        return updated
+
+    async def unassign_claim(self, claim_id: str, handler_id: str) -> Optional[Claim]:
+        """Unassign a claim and return it to the review queue."""
+        old_claim = await self.repo.get_claim(claim_id)
+        if not old_claim:
+            return None
+
+        updated = await self.repo.unassign_claim(claim_id, handler_id)
+        if updated:
+            await self.repo.create_audit_entry(AuditLogCreate(
+                claim_id=claim_id,
+                handler_id=handler_id,
+                action=AuditAction.UNASSIGNED,
+                old_value={"status": old_claim.status, "assigned_handler_id": old_claim.assigned_handler_id},
+                new_value={"status": updated.status, "assigned_handler_id": updated.assigned_handler_id}
+            ))
         return updated
 
     async def get_metrics(self, handler_id: str) -> dict:

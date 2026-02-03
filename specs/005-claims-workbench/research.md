@@ -54,10 +54,10 @@ async def assign_claim(claim_id: str, handler_id: str, expected_version: int) ->
 
 ### 3. Auto-Refresh Polling Implementation
 
-**Decision**: Client-side polling with SWR/React Query pattern (20-second interval)
+**Decision**: Client-side polling with SWR/React Query pattern (15-second interval)
 
 **Rationale**:
-- Spec requires 10-30 second refresh; 20s balances freshness vs server load
+- Spec requires 15 second refresh; 15s balances freshness vs server load
 - Next.js + React Query (or SWR) provides built-in polling with stale-while-revalidate
 - No WebSocket infrastructure needed; simpler deployment
 - Existing frontend uses standard fetch; React Query adds caching layer
@@ -73,8 +73,8 @@ async def assign_claim(claim_id: str, handler_id: str, expected_version: int) ->
 const { data: claims } = useQuery({
   queryKey: ['claims', 'queue'],
   queryFn: () => fetchClaimsQueue(),
-  refetchInterval: 20000, // 20 seconds
-  staleTime: 10000,
+  refetchInterval: 15000, // 15 seconds
+  staleTime: 7500,
 });
 ```
 
@@ -216,7 +216,7 @@ All technical decisions resolved. No remaining NEEDS CLARIFICATION items.
 |-------|----------|------------|
 | Persistence | SQLite (extend existing) | High |
 | Concurrency | Optimistic locking | High |
-| Auto-refresh | React Query polling @ 20s | High |
+| Auto-refresh | React Query polling @ 15s | High |
 | Handler identity | Session + demo users | Medium (acceptable for operationalization) |
 | State machine | Enum with transition validation | High |
 | Workflow integration | Internal API call | High |
