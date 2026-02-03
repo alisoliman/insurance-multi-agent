@@ -55,6 +55,12 @@ class ClaimIn(BaseModel):
     witness_statements: Optional[str] = None
     vehicle_info: Optional[Dict[str, Any]] = None
     supporting_images: Optional[list] = None
+    
+    # Workflow options
+    summary_language: Optional[str] = Field(
+        "english",
+        description="Language for the final summary: 'english' or 'original' (keep in claim's language)"
+    )
 
     # Allow additional fields for flexibility
     class Config:

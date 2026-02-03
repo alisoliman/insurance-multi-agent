@@ -1,18 +1,49 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { MetricsCards } from "@/components/dashboard/metrics-cards"
+import { DashboardMetrics, getMetrics } from "@/lib/api/claims"
 import { AppSidebar } from "@/components/app-sidebar"
-
-import { DataTable } from "@/components/data-table"
-import { SectionCards } from "@/components/section-cards"
 import { SiteHeader } from "@/components/site-header"
-
-import { QuickActions } from "@/components/dashboard/QuickActions"
 import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
+import { ClaimsTable } from "@/components/claims/claims-table"
+import { Claim, getClaims } from "@/lib/api/claims"
+import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
 
-import policyData from "./policy-data.json"
+const CURRENT_HANDLER_ID = "handler-001"
 
-export default function Home() {
+export default function WorkbenchHome() {
+  const router = useRouter()
+  const [metrics, setMetrics] = useState<DashboardMetrics>({
+    assigned_count: 0,
+    queue_depth: 0,
+    processed_today: 0
+  })
+  const [recentClaims, setRecentClaims] = useState<Claim[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadDashboard() {
+      try {
+        const [metricsData, claimsData] = await Promise.all([
+          getMetrics(CURRENT_HANDLER_ID),
+          getClaims({ handler_id: CURRENT_HANDLER_ID, limit: 5 })
+        ])
+        setMetrics(metricsData)
+        setRecentClaims(claimsData)
+      } catch (error) {
+        console.error("Failed to load dashboard", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadDashboard()
+  }, [])
+
   return (
     <SidebarProvider
       style={
@@ -25,16 +56,24 @@ export default function Home() {
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader />
-        <div className="flex flex-1 flex-col">
-          <div className="@container/main flex flex-1 flex-col gap-2">
-            <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-              <SectionCards />
+        <div className="flex flex-1 flex-col p-6 space-y-8">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Workbench Dashboard</h1>
+            <p className="text-muted-foreground mt-2">
+              Overview of your claims and daily activity.
+            </p>
+          </div>
 
-              <DataTable data={policyData} />
-              <div className="px-4 lg:px-6">
-                <QuickActions />
-              </div>
+          <MetricsCards metrics={metrics} isLoading={isLoading} />
+
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">My Recent Claims</h2>
+              <Button variant="outline" onClick={() => router.push("/claims")}>
+                View All
+              </Button>
             </div>
+            <ClaimsTable claims={recentClaims} isLoading={isLoading} />
           </div>
         </div>
       </SidebarInset>

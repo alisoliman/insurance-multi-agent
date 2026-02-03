@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -153,6 +154,8 @@ export function WorkflowDemo() {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [savedScenariosRefreshTrigger, setSavedScenariosRefreshTrigger] = useState(0)
   const [savingScenarioId, setSavingScenarioId] = useState<string | null>(null)
+  const [summaryLanguage, setSummaryLanguage] = useState<"english" | "original">("english")
+  const [lastRunLanguage, setLastRunLanguage] = useState<"english" | "original" | null>(null)
 
   // T040: Show loading indicator after 500ms delay to avoid flickering on fast responses
   useEffect(() => {
@@ -306,15 +309,15 @@ export function WorkflowDemo() {
       let requestBody: Record<string, unknown>
       if (claim.policy_number) {
         // Full claim data from generated scenario
-        requestBody = { ...claim }
+        requestBody = { ...claim, summary_language: summaryLanguage }
         if (paths.length > 0) {
           requestBody.supporting_images = paths
         }
       } else {
         // Sample claim - just send claim_id
         requestBody = paths.length > 0
-          ? { claim_id: claim.claim_id, supporting_images: paths }
-          : { claim_id: claim.claim_id }
+          ? { claim_id: claim.claim_id, supporting_images: paths, summary_language: summaryLanguage }
+          : { claim_id: claim.claim_id, summary_language: summaryLanguage }
       }
 
       const response = await fetch(`${apiUrl}/api/v1/workflow/run`, {
@@ -331,6 +334,7 @@ export function WorkflowDemo() {
 
       const data: WorkflowResult = await response.json()
       setWorkflowResult(data)
+      setLastRunLanguage(summaryLanguage)
       toast.success('Workflow completed successfully!')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
@@ -352,6 +356,7 @@ export function WorkflowDemo() {
     setWorkflowResult(null)
     setError(null)
     setUploadedFiles([])
+    setLastRunLanguage(null)
   }
 
   // Helper to determine if a conversation step should be skipped
@@ -436,6 +441,30 @@ export function WorkflowDemo() {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
+          
+          {/* Workflow Options */}
+          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+            <div className="space-y-0.5">
+              <Label htmlFor="summary-language" className="text-sm font-medium">
+                Workflow Language
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {summaryLanguage === "original" 
+                  ? "Workflow outputs will match the claim language" 
+                  : "Workflow outputs will be in English"}
+              </p>
+              <p className="text-xs text-muted-foreground">Applies to next run</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">English</span>
+              <Switch
+                id="summary-language"
+                checked={summaryLanguage === "original"}
+                onCheckedChange={(checked) => setSummaryLanguage(checked ? "original" : "english")}
+              />
+              <span className="text-xs text-muted-foreground">Original</span>
+            </div>
+          </div>
           
           {/* File Upload Section */}
           <div className="space-y-3">
@@ -635,6 +664,13 @@ export function WorkflowDemo() {
       {/* Results Section */}
       {(showLoadingIndicator || workflowResult) && (
         <div className="space-y-6">
+          {lastRunLanguage && (
+            <div>
+              <Badge variant="outline" className="text-xs">
+                Last run: {lastRunLanguage === "original" ? "Original" : "English"}
+              </Badge>
+            </div>
+          )}
           {/* Workflow Summary for Viewers (T037-T039) */}
           {workflowResult && (
             <WorkflowSummary result={workflowResult} />

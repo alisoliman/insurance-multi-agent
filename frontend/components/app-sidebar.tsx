@@ -9,6 +9,7 @@ import {
   IconMoon,
   IconSun,
   IconUsers,
+  IconBriefcase
 } from "@tabler/icons-react"
 import { useTheme } from "next-themes"
 
@@ -56,6 +57,22 @@ function SidebarThemeToggle() {
 
 const data = {
   navMain: [
+    {
+      title: "Claims Workbench",
+      url: "#",
+      icon: IconBriefcase,
+      isActive: true,
+      items: [
+        {
+          title: "My Claims",
+          url: "/claims",
+        },
+        {
+          title: "Incoming Queue",
+          url: "/claims/queue",
+        },
+      ],
+    },
     {
       title: "Live Dashboard",
       url: "/",

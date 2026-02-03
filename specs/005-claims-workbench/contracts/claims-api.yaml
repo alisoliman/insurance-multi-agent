@@ -1,0 +1,744 @@
+openapi: 3.1.0
+info:
+  title: Claims Workbench API
+  description: API for the Claims Handler Workbench - managing insurance claims, assignments, and AI-assisted processing
+  version: 1.0.0
+  contact:
+    name: Contoso Claims Team
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local development
+  - url: https://api.contoso-claims.azurecontainerapps.io/api/v1
+    description: Production
+
+tags:
+  - name: Claims
+    description: Claim management operations
+  - name: Queue
+    description: Incoming claims queue operations
+  - name: Processing
+    description: AI workflow processing
+  - name: Handlers
+    description: Handler management
+  - name: Metrics
+    description: Dashboard metrics
+
+paths:
+  # ============================================================================
+  # CLAIMS - Core claim operations
+  # ============================================================================
+  /claims:
+    get:
+      tags: [Claims]
+      summary: List claims for current handler
+      description: Returns claims assigned to the specified handler, sorted by priority
+      operationId: listMyClaims
+      parameters:
+        - name: handler_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Handler ID to filter by
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [new, assigned, in_progress, awaiting_info, approved, denied]
+          description: Filter by status
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of claims
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+    post:
+      tags: [Claims]
+      summary: Create a new claim
+      description: Submit a new insurance claim (goes to incoming queue)
+      operationId: createClaim
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimCreate'
+      responses:
+        '201':
+          description: Claim created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Claim'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /claims/{claim_id}:
+    get:
+      tags: [Claims]
+      summary: Get claim details
+      description: Retrieve full details of a specific claim including AI assessment if available
+      operationId: getClaim
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      responses:
+        '200':
+          description: Claim details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /claims/{claim_id}/assign:
+    post:
+      tags: [Claims]
+      summary: Assign claim to handler
+      description: Claim a task from the queue. Uses optimistic locking to prevent race conditions.
+      operationId: assignClaim
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignRequest'
+      responses:
+        '200':
+          description: Claim assigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Claim'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Conflict - claim already assigned or version mismatch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /claims/{claim_id}/unassign:
+    post:
+      tags: [Claims]
+      summary: Unassign claim (return to queue)
+      description: Release a claim back to the incoming queue
+      operationId: unassignClaim
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [handler_id]
+              properties:
+                handler_id:
+                  type: string
+      responses:
+        '200':
+          description: Claim unassigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Claim'
+        '403':
+          description: Forbidden - handler does not own this claim
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /claims/{claim_id}/decision:
+    post:
+      tags: [Claims]
+      summary: Record claim decision
+      description: Record final decision (approve, deny, or request more info)
+      operationId: recordDecision
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionRequest'
+      responses:
+        '200':
+          description: Decision recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimDecision'
+        '400':
+          description: Invalid state transition
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============================================================================
+  # QUEUE - Incoming claims queue
+  # ============================================================================
+  /claims/queue:
+    get:
+      tags: [Queue]
+      summary: Get incoming claims queue
+      description: List all unassigned claims available for pickup
+      operationId: getClaimsQueue
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: claim_type
+          in: query
+          schema:
+            type: string
+          description: Filter by claim type
+      responses:
+        '200':
+          description: Queue of unassigned claims
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimListResponse'
+
+  # ============================================================================
+  # PROCESSING - AI workflow
+  # ============================================================================
+  /claims/{claim_id}/process:
+    post:
+      tags: [Processing]
+      summary: Start AI processing
+      description: Initiate multi-agent AI workflow for claim assessment
+      operationId: startProcessing
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                summary_language:
+                  type: string
+                  enum: [english, original]
+                  default: english
+      responses:
+        '202':
+          description: Processing started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIAssessment'
+        '400':
+          description: Claim not in valid state for processing
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /claims/{claim_id}/assessment:
+    get:
+      tags: [Processing]
+      summary: Get AI assessment results
+      description: Retrieve results of AI processing including agent outputs
+      operationId: getAssessment
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      responses:
+        '200':
+          description: Assessment results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIAssessment'
+        '404':
+          description: No assessment found for this claim
+
+  # ============================================================================
+  # HANDLERS - Handler management
+  # ============================================================================
+  /handlers:
+    get:
+      tags: [Handlers]
+      summary: List available handlers
+      description: Get list of all active claim handlers (for demo user selection)
+      operationId: listHandlers
+      responses:
+        '200':
+          description: List of handlers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  handlers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Handler'
+
+  /handlers/{handler_id}:
+    get:
+      tags: [Handlers]
+      summary: Get handler details
+      operationId: getHandler
+      parameters:
+        - name: handler_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Handler details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Handler'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============================================================================
+  # METRICS - Dashboard metrics
+  # ============================================================================
+  /metrics:
+    get:
+      tags: [Metrics]
+      summary: Get workbench metrics
+      description: Dashboard metrics for the current handler
+      operationId: getMetrics
+      parameters:
+        - name: handler_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Metrics data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Metrics'
+
+  # ============================================================================
+  # AUDIT - Audit trail
+  # ============================================================================
+  /claims/{claim_id}/audit:
+    get:
+      tags: [Claims]
+      summary: Get claim audit trail
+      description: Full history of actions on a claim
+      operationId: getClaimAudit
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      responses:
+        '200':
+          description: Audit trail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditEntry'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  parameters:
+    ClaimId:
+      name: claim_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Unique claim identifier
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+  schemas:
+    # --------------------------------------------------------------------------
+    # Core entities
+    # --------------------------------------------------------------------------
+    Claim:
+      type: object
+      required:
+        - id
+        - claimant_name
+        - claimant_id
+        - policy_number
+        - claim_type
+        - description
+        - incident_date
+        - status
+        - priority
+        - version
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        claimant_name:
+          type: string
+        claimant_id:
+          type: string
+        policy_number:
+          type: string
+        claim_type:
+          type: string
+          enum: [auto, property, liability, health, other]
+        description:
+          type: string
+        incident_date:
+          type: string
+          format: date
+        estimated_damage:
+          type: number
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ClaimStatus'
+        priority:
+          $ref: '#/components/schemas/Priority'
+        assigned_handler_id:
+          type: string
+          nullable: true
+        version:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    ClaimDetail:
+      allOf:
+        - $ref: '#/components/schemas/Claim'
+        - type: object
+          properties:
+            assigned_handler:
+              $ref: '#/components/schemas/Handler'
+            latest_assessment:
+              $ref: '#/components/schemas/AIAssessment'
+            decisions:
+              type: array
+              items:
+                $ref: '#/components/schemas/ClaimDecision'
+
+    ClaimCreate:
+      type: object
+      required:
+        - claimant_name
+        - claimant_id
+        - policy_number
+        - claim_type
+        - description
+        - incident_date
+      properties:
+        claimant_name:
+          type: string
+          minLength: 2
+        claimant_id:
+          type: string
+        policy_number:
+          type: string
+        claim_type:
+          type: string
+          enum: [auto, property, liability, health, other]
+        description:
+          type: string
+        incident_date:
+          type: string
+          format: date
+        estimated_damage:
+          type: number
+        location:
+          type: string
+        priority:
+          $ref: '#/components/schemas/Priority'
+
+    ClaimStatus:
+      type: string
+      enum: [new, assigned, in_progress, awaiting_info, approved, denied]
+
+    Priority:
+      type: string
+      enum: [low, medium, high, urgent]
+      default: medium
+
+    Handler:
+      type: object
+      required:
+        - id
+        - name
+        - is_active
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+          nullable: true
+        is_active:
+          type: boolean
+        caseload_count:
+          type: integer
+          description: Number of currently assigned claims
+
+    ClaimDecision:
+      type: object
+      required:
+        - id
+        - claim_id
+        - handler_id
+        - decision_type
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        claim_id:
+          type: string
+        handler_id:
+          type: string
+        decision_type:
+          type: string
+          enum: [approved, denied, request_info]
+        notes:
+          type: string
+          nullable: true
+        ai_assessment_id:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    AIAssessment:
+      type: object
+      required:
+        - id
+        - claim_id
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        claim_id:
+          type: string
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+        agent_outputs:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/AgentOutput'
+        final_recommendation:
+          type: string
+          nullable: true
+        confidence_scores:
+          type: object
+          additionalProperties:
+            type: number
+        processing_started_at:
+          type: string
+          format: date-time
+          nullable: true
+        processing_completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        error_message:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    AgentOutput:
+      type: object
+      properties:
+        agent_name:
+          type: string
+        structured_output:
+          type: object
+        tool_calls:
+          type: array
+          items:
+            type: object
+        raw_text:
+          type: string
+
+    AuditEntry:
+      type: object
+      required:
+        - id
+        - claim_id
+        - action
+        - timestamp
+      properties:
+        id:
+          type: string
+        claim_id:
+          type: string
+        handler_id:
+          type: string
+          nullable: true
+        action:
+          type: string
+          enum: [created, assigned, unassigned, status_changed, ai_processing_started, ai_processing_completed, decision_recorded, priority_changed]
+        old_value:
+          type: object
+          nullable: true
+        new_value:
+          type: object
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+
+    # --------------------------------------------------------------------------
+    # Request/Response wrappers
+    # --------------------------------------------------------------------------
+    AssignRequest:
+      type: object
+      required:
+        - handler_id
+        - version
+      properties:
+        handler_id:
+          type: string
+        version:
+          type: integer
+          description: Expected version for optimistic locking
+
+    DecisionRequest:
+      type: object
+      required:
+        - handler_id
+        - decision_type
+      properties:
+        handler_id:
+          type: string
+        decision_type:
+          type: string
+          enum: [approved, denied, request_info]
+        notes:
+          type: string
+          description: Required for 'denied' decisions
+        ai_assessment_id:
+          type: string
+          description: Reference to AI assessment used for decision
+
+    ClaimListResponse:
+      type: object
+      properties:
+        claims:
+          type: array
+          items:
+            $ref: '#/components/schemas/Claim'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    Metrics:
+      type: object
+      properties:
+        my_caseload:
+          type: integer
+          description: Claims assigned to current handler
+        queue_depth:
+          type: integer
+          description: Total unassigned claims
+        processed_today:
+          type: integer
+          description: Claims decided today by current handler
+        avg_processing_time_minutes:
+          type: number
+          description: Average time from assignment to decision
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+
+    ValidationError:
+      type: object
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            properties:
+              loc:
+                type: array
+                items:
+                  type: string
+              msg:
+                type: string
+              type:
+                type: string

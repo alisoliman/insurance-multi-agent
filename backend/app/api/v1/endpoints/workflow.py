@@ -109,8 +109,11 @@ async def workflow_run(claim: ClaimIn):  # noqa: D401
         seen_lengths: dict[str, int] = {}
         agent_outputs: Dict[str, AgentOutputOut] = {}  # NEW: collect structured outputs
 
+        # Extract summary_language preference (default to "english")
+        summary_language = claim.summary_language or "english"
+
         # Run the async workflow and get all chunks
-        chunks = await run_workflow(claim_data)
+        chunks = await run_workflow(claim_data, summary_language=summary_language)
 
         # Process each chunk (agent output)
         for chunk in chunks:

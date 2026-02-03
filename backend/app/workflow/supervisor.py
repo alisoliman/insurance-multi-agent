@@ -191,11 +191,15 @@ def _build_conversation_message(role: str, content: str) -> Dict[str, Any]:
     return {"role": role, "content": content}
 
 
-async def _execute_workflow_async(claim_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+async def _execute_workflow_async(
+    claim_data: Dict[str, Any],
+    summary_language: str = "english"
+) -> List[Dict[str, Any]]:
     """Execute the sequential workflow asynchronously.
     
     Args:
         claim_data: The claim data to process.
+        summary_language: Language for final summary - "english" or "original".
     
     Returns:
         List of chunk dicts compatible with the previous API format.
@@ -204,10 +208,17 @@ async def _execute_workflow_async(claim_data: Dict[str, Any]) -> List[Dict[str, 
     context = WorkflowContext(claim_data=claim_data)
     chunks: List[Dict[str, Any]] = []
     
-    # Initial user message
+    # Build language instruction for agents
+    language_requirement = (
+        "LANGUAGE REQUIREMENT: All free-text fields must be in the same language as the claim description. "
+        "Keep enum/status fields exactly as specified in the output format (e.g., VALID, QUESTIONABLE, INVALID, "
+        "COVERED, NOT_COVERED, PARTIALLY_COVERED, INSUFFICIENT_EVIDENCE, LOW_RISK, MEDIUM_RISK, HIGH_RISK, "
+        "APPROVE, DENY, INVESTIGATE, HIGH, MEDIUM, LOW). Do NOT translate field names."
+    )
+    # Initial user message (keep internal instructions out of trace)
     initial_message = _build_conversation_message(
         "user",
-        f"Please process this insurance claim:\n\n{json.dumps(claim_data, indent=2)}"
+        f"Please process this insurance claim:\n\n{json.dumps(claim_data, indent=2, ensure_ascii=False)}"
     )
     context.conversation_history.append(initial_message)
     
@@ -223,17 +234,24 @@ async def _execute_workflow_async(claim_data: Dict[str, Any]) -> List[Dict[str, 
         logger.info("📍 %s", status_msg)
         
         agent = agents[agent_name]
+        # Provide a per-agent language reminder for original-language mode
+        agent_history = context.conversation_history
+        if summary_language == "original":
+            agent_history = context.conversation_history + [
+                _build_conversation_message("user", language_requirement)
+            ]
+
         response = await _run_agent(
-            agent, 
-            agent_name, 
-            context.conversation_history, 
+            agent,
+            agent_name,
+            agent_history,
             context,
             response_format=response_format
         )
         
         # Add agent response to conversation history (serialize if structured)
         if isinstance(response, BaseModel):
-            response_text = response.model_dump_json(indent=2)
+            response_text = response.model_dump_json(indent=2, ensure_ascii=False)
         else:
             response_text = str(response)
         agent_message = _build_conversation_message("assistant", response_text)
@@ -272,17 +290,24 @@ async def _execute_workflow_async(claim_data: Dict[str, Any]) -> List[Dict[str, 
     if needs_communication:
         logger.info("📍 Drafting customer communication for missing information...")
         agent = agents["communication_agent"]
+        # Provide a per-agent language reminder for original-language mode
+        agent_history = context.conversation_history
+        if summary_language == "original":
+            agent_history = context.conversation_history + [
+                _build_conversation_message("user", language_requirement)
+            ]
+
         response = await _run_agent(
             agent,
             "communication_agent",
-            context.conversation_history,
+            agent_history,
             context,
             response_format=CustomerCommunication  # T024: Pass CustomerCommunication model
         )
         
         # Serialize response for conversation history (T025)
         if isinstance(response, BaseModel):
-            response_text = response.model_dump_json(indent=2)
+            response_text = response.model_dump_json(indent=2, ensure_ascii=False)
         else:
             response_text = str(response)
         
@@ -305,14 +330,34 @@ async def _execute_workflow_async(claim_data: Dict[str, Any]) -> List[Dict[str, 
     
     # Build synthesis prompt with structured agent outputs (T020)
     synthesis_context = "Based on the following specialist assessments, provide your final synthesis:\n\n"
+    
+    # Include original claim data when using original language mode
+    if summary_language == "original":
+        synthesis_context += f"=== ORIGINAL CLAIM DATA ===\n{json.dumps(context.claim_data, indent=2, ensure_ascii=False)}\n\n"
+    
     for agent_name, output in context.agent_outputs.items():
         if agent_name != "synthesizer":
             # Format structured outputs nicely for synthesis
             if isinstance(output, BaseModel):
-                output_text = output.model_dump_json(indent=2)
+                output_text = output.model_dump_json(indent=2, ensure_ascii=False)
             else:
                 output_text = str(output)
             synthesis_context += f"=== {agent_name.upper()} ASSESSMENT ===\n{output_text}\n\n"
+    
+    # Capture display-only context before adding internal language requirements
+    synthesis_display_context = synthesis_context
+
+    # Add language instruction based on summary_language preference
+    if summary_language == "original":
+        synthesis_context += (
+            "\n\n**CRITICAL LANGUAGE REQUIREMENT**: All free-text fields (summary, key_findings, next_steps, and any "
+            "other narrative content) MUST be in the same language as the ORIGINAL CLAIM DATA above. Keep enum/status "
+            "fields exactly as specified in the output format (e.g., APPROVE/DENY/INVESTIGATE, HIGH/MEDIUM/LOW). "
+            "Do NOT translate field names. The specialist assessments above may be in English, but your synthesis must "
+            "match the language of the original claim for all free-text content."
+        )
+    else:
+        synthesis_context += "\n\nIMPORTANT: Generate your response in English."
     
     synthesis_message = _build_conversation_message("user", synthesis_context)
     synthesis_history = [synthesis_message]
@@ -335,7 +380,7 @@ async def _execute_workflow_async(claim_data: Dict[str, Any]) -> List[Dict[str, 
     chunk = {
         "synthesizer": {
             "messages": [
-                {"role": "user", "content": synthesis_context},
+                {"role": "user", "content": synthesis_display_context},
                 {"role": "assistant", "content": final_response_text}
             ],
             "structured_output": final_response.model_dump() if isinstance(final_response, BaseModel) else None
@@ -346,7 +391,10 @@ async def _execute_workflow_async(claim_data: Dict[str, Any]) -> List[Dict[str, 
     return chunks
 
 
-async def process_claim_with_supervisor(claim_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+async def process_claim_with_supervisor(
+    claim_data: Dict[str, Any],
+    summary_language: str = "english"
+) -> List[Dict[str, Any]]:
     """Run the claim through the workflow and return detailed trace information.
 
     Returns comprehensive trace data including:
@@ -355,16 +403,21 @@ async def process_claim_with_supervisor(claim_data: Dict[str, Any]) -> List[Dict
     - Message history per agent
     - Workflow state transitions
     
+    Args:
+        claim_data: The claim data to process.
+        summary_language: Language for final summary - "english" or "original".
+    
     This is an async function that runs the workflow directly.
     """
     logger.info("")
     logger.info("🚀 Starting supervisor-based claim processing…")
     logger.info("📋 Processing Claim ID: %s", claim_data.get("claim_id", "Unknown"))
+    logger.info("🌐 Summary language: %s", summary_language)
     logger.info("%s", "=" * 60)
     
     try:
         # Run the async workflow directly
-        chunks = await _execute_workflow_async(claim_data)
+        chunks = await _execute_workflow_async(claim_data, summary_language=summary_language)
         
         logger.info("✅ Workflow completed with %d agent responses", len(chunks))
         return chunks
