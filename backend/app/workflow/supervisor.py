@@ -22,6 +22,8 @@ from app.models.agent_outputs import (
     RiskAssessment,
     CustomerCommunication,
     FinalAssessment,
+    ValidityStatus,
+    CoverageStatus,
 )
 
 from .client import get_chat_client
@@ -269,23 +271,44 @@ async def _execute_workflow_async(
         }
         chunks.append(chunk)
     
-    # Check if communication agent is needed (based on information gaps in structured outputs)
-    def _check_for_missing_info(output) -> bool:
-        """Check if an output mentions missing information."""
-        if isinstance(output, BaseModel):
-            # Check structured output fields for missing info keywords
-            output_text = output.model_dump_json().lower()
-        else:
-            output_text = str(output).lower()
-        return any(
-            keyword in output_text 
-            for keyword in ["missing", "incomplete", "need more", "additional information"]
-        )
-    
-    needs_communication = any(
-        _check_for_missing_info(output) 
-        for output in context.agent_outputs.values()
-    )
+    def _derive_missing_items(context: WorkflowContext) -> List[str]:
+        claim_type = (context.claim_data.get("claim_type") or "").lower()
+        items: List[str] = []
+
+        assessor = context.structured_outputs.get("claim_assessor")
+        if isinstance(assessor, ClaimAssessment):
+            if assessor.validity_status == ValidityStatus.QUESTIONABLE:
+                if claim_type == "auto":
+                    items.append("Photos of vehicle damage (front/back/side angles)")
+                    items.append("Police report or incident report (if available)")
+                else:
+                    items.append("Photos of damage and affected areas")
+                    items.append("Repair estimate or contractor invoice")
+            if assessor.validity_status == ValidityStatus.INVALID:
+                items.append("Clarify incident details and provide supporting documentation")
+            if assessor.red_flags:
+                items.extend([f"Clarify: {flag}" for flag in assessor.red_flags])
+
+        coverage = context.structured_outputs.get("policy_checker")
+        if isinstance(coverage, CoverageVerification):
+            if coverage.coverage_status == CoverageStatus.INSUFFICIENT_EVIDENCE:
+                items.append("Policy documentation or confirmation of coverage details")
+
+        risk = context.structured_outputs.get("risk_analyst")
+        if isinstance(risk, RiskAssessment) and risk.fraud_indicators:
+            items.append("Proof of ownership and identity verification")
+
+        # De-duplicate while preserving order
+        deduped: List[str] = []
+        seen = set()
+        for item in items:
+            if item not in seen:
+                deduped.append(item)
+                seen.add(item)
+        return deduped
+
+    missing_items = _derive_missing_items(context)
+    needs_communication = len(missing_items) > 0
     
     if needs_communication:
         logger.info("📍 Drafting customer communication for missing information...")
@@ -295,6 +318,15 @@ async def _execute_workflow_async(
         if summary_language == "original":
             agent_history = context.conversation_history + [
                 _build_conversation_message("user", language_requirement)
+            ]
+        if missing_items:
+            missing_text = "\n".join(f"- {item}" for item in missing_items)
+            agent_history = agent_history + [
+                _build_conversation_message(
+                    "user",
+                    f"MISSING INFORMATION SUMMARY:\n{missing_text}\n\n"
+                    "Use these items to populate requested_items and explain why each is needed."
+                )
             ]
 
         response = await _run_agent(
@@ -507,22 +539,43 @@ async def process_claim_with_supervisor_stream(
             }
         }
     
-    # Check if communication agent is needed (using helper function for structured outputs)
-    def _check_for_missing_info_stream(output) -> bool:
-        """Check if an output mentions missing information."""
-        if isinstance(output, BaseModel):
-            output_text = output.model_dump_json().lower()
-        else:
-            output_text = str(output).lower()
-        return any(
-            keyword in output_text 
-            for keyword in ["missing", "incomplete", "need more", "additional information"]
-        )
-    
-    needs_communication = any(
-        _check_for_missing_info_stream(output) 
-        for output in context.agent_outputs.values()
-    )
+    def _derive_missing_items_stream(context: WorkflowContext) -> List[str]:
+        claim_type = (context.claim_data.get("claim_type") or "").lower()
+        items: List[str] = []
+
+        assessor = context.structured_outputs.get("claim_assessor")
+        if isinstance(assessor, ClaimAssessment):
+            if assessor.validity_status == ValidityStatus.QUESTIONABLE:
+                if claim_type == "auto":
+                    items.append("Photos of vehicle damage (front/back/side angles)")
+                    items.append("Police report or incident report (if available)")
+                else:
+                    items.append("Photos of damage and affected areas")
+                    items.append("Repair estimate or contractor invoice")
+            if assessor.validity_status == ValidityStatus.INVALID:
+                items.append("Clarify incident details and provide supporting documentation")
+            if assessor.red_flags:
+                items.extend([f"Clarify: {flag}" for flag in assessor.red_flags])
+
+        coverage = context.structured_outputs.get("policy_checker")
+        if isinstance(coverage, CoverageVerification):
+            if coverage.coverage_status == CoverageStatus.INSUFFICIENT_EVIDENCE:
+                items.append("Policy documentation or confirmation of coverage details")
+
+        risk = context.structured_outputs.get("risk_analyst")
+        if isinstance(risk, RiskAssessment) and risk.fraud_indicators:
+            items.append("Proof of ownership and identity verification")
+
+        deduped: List[str] = []
+        seen = set()
+        for item in items:
+            if item not in seen:
+                deduped.append(item)
+                seen.add(item)
+        return deduped
+
+    missing_items = _derive_missing_items_stream(context)
+    needs_communication = len(missing_items) > 0
     
     if needs_communication:
         yield {
@@ -533,10 +586,20 @@ async def process_claim_with_supervisor_stream(
         }
         
         agent = agents["communication_agent"]
+        agent_history = context.conversation_history
+        if missing_items:
+            missing_text = "\n".join(f"- {item}" for item in missing_items)
+            agent_history = agent_history + [
+                _build_conversation_message(
+                    "user",
+                    f"MISSING INFORMATION SUMMARY:\n{missing_text}\n\n"
+                    "Use these items to populate requested_items and explain why each is needed."
+                )
+            ]
         response = await _run_agent(
             agent,
             "communication_agent",
-            context.conversation_history,
+            agent_history,
             context,
             response_format=CustomerCommunication
         )

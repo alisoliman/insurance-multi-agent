@@ -9,6 +9,7 @@ import { DecisionForm } from "@/components/claims/decision-form"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
+import { OnboardingCue } from "@/components/onboarding/onboarding-cue"
 
 export default function ClaimPage() {
   const params = useParams()
@@ -110,6 +111,8 @@ export default function ClaimPage() {
         <ArrowLeft className="w-4 h-4 mr-2" />
         Back to Claims
       </Button>
+
+      <OnboardingCue stepId="detail" />
 
       <ClaimDetail 
         claim={claim} 

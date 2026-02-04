@@ -7,6 +7,7 @@ import { ClaimsTable } from "@/components/claims/claims-table"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { CreateClaimForm } from "@/components/claims/create-claim-form"
+import { OnboardingCue } from "@/components/onboarding/onboarding-cue"
 
 // Hardcoded for demo - Phase 3/4
 const CURRENT_HANDLER_ID = "handler-001"
@@ -116,6 +117,8 @@ export default function ReviewQueuePage() {
           </Button>
         </div>
       </div>
+
+      <OnboardingCue stepId="review" />
 
       {claims.length > 0 && (
         <div className="grid gap-4 md:grid-cols-4">

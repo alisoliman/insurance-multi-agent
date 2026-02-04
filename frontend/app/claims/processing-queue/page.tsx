@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Claim, ClaimsFilter, getProcessingQueue } from "@/lib/api/claims"
 import { ClaimsTable } from "@/components/claims/claims-table"
 import { Button } from "@/components/ui/button"
+import { OnboardingCue } from "@/components/onboarding/onboarding-cue"
 
 const POLLING_INTERVAL_MS = 15000
 
@@ -53,6 +54,8 @@ export default function ProcessingQueuePage() {
           Back to Dashboard
         </Button>
       </div>
+
+      <OnboardingCue stepId="processing" />
 
       {claims.length > 0 && (
         <div className="grid gap-4 md:grid-cols-3">

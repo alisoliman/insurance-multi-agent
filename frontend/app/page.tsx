@@ -13,6 +13,8 @@ import { ClaimsTable } from "@/components/claims/claims-table"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { QueueInsights } from "@/components/dashboard/queue-insights"
+import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist"
+import { OnboardingCue } from "@/components/onboarding/onboarding-cue"
 import { CreateClaimForm } from "@/components/claims/create-claim-form"
 import { toast } from "sonner"
 
@@ -124,7 +126,11 @@ export default function WorkbenchHome() {
             </div>
           </div>
 
+          <OnboardingCue stepId="seed" />
+
           <MetricsCards metrics={metrics} isLoading={isLoading} />
+
+          <OnboardingChecklist />
 
           <QueueInsights metrics={metrics} reviewQueue={reviewQueue} processingQueue={processingQueue} />
 

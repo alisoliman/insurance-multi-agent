@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Claim, ClaimsFilter, getClaims } from "@/lib/api/claims"
 import { ClaimsTable } from "@/components/claims/claims-table"
 import { Button } from "@/components/ui/button"
+import { OnboardingCue } from "@/components/onboarding/onboarding-cue"
 
 // Hardcoded for demo - Phase 3
 const CURRENT_HANDLER_ID = "handler-001"
@@ -48,6 +49,8 @@ export default function MyClaimsPage() {
           View Review Queue
           </Button>
       </div>
+
+      <OnboardingCue stepId="decision" />
 
       <ClaimsTable 
         claims={claims} 

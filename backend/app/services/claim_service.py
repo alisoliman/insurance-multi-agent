@@ -54,7 +54,7 @@ class ClaimService:
         
         # Generate claimant_id if not provided (for demo/seed data)
         if not claim_data.get("claimant_id"):
-            claim_data["claimant_id"] = f"CLM-{str(uuid.uuid4())[:8].upper()}"
+            claim_data["claimant_id"] = f"CLT-{str(uuid.uuid4())[:8].upper()}"
         
         claim = Claim(
             id=str(uuid.uuid4()),
@@ -272,19 +272,28 @@ class ClaimService:
         coverage_status = coverage.get("coverage_status")
         recommendation = final_out.get("recommendation") or assessment.final_recommendation
         confidence = final_out.get("confidence")
-
         if not risk_level or risk_level not in AUTO_APPROVE_RISK_LEVELS:
             return
         if risk_score is not None and risk_score > AUTO_APPROVE_MAX_RISK_SCORE:
             return
-        if validity_status and validity_status not in AUTO_APPROVE_VALIDITY_ALLOWED:
+        if validity_status and validity_status == "INVALID":
             return
-        if coverage_status and coverage_status not in AUTO_APPROVE_COVERAGE_ALLOWED:
+        if coverage_status and coverage_status == "NOT_COVERED":
             return
-        if not recommendation or recommendation != AUTO_APPROVE_RECOMMENDATION:
-            return
+        if recommendation:
+            if recommendation == "DENY":
+                return
+            if recommendation not in {AUTO_APPROVE_RECOMMENDATION, "INVESTIGATE"}:
+                return
         if confidence is not None and confidence not in AUTO_APPROVE_CONFIDENCE_ALLOWED:
             return
+        # Red flags are advisory; low-risk, low-value claims may still auto-approve in demo mode.
+
+        # Mark as handled by the system for UI visibility before recording the decision.
+        await self.repo.update_claim(
+            claim.id,
+            ClaimUpdate(assigned_handler_id=AUTO_APPROVE_HANDLER_ID)
+        )
 
         decision_in = ClaimDecisionCreate(
             claim_id=claim.id,

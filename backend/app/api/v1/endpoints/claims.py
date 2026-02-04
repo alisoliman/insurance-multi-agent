@@ -45,80 +45,93 @@ class ClaimDecisionRequest(BaseModel):
 # Sample Claims for Seeding (Development/Demo)
 # ---------------------------------------------------------------------------
 
-SAMPLE_CLAIMS = [
+AUTO_APPROVE_SAMPLES = [
     {
         "claimant_name": "John Smith",
-        "policy_number": "POL-AUTO-2024-001",
+        "claimant_id": "CLT-1001",
+        "policy_number": "POL-2024-001",
         "claim_type": "auto",
-        "description": "Rear-end collision at intersection of Main St and Oak Ave. Other driver admitted fault. Damage to rear bumper and trunk.",
-        "estimated_damage": 5200.00,
+        "description": "Low-speed parking lot scrape. Photos and repair estimate attached. No injuries.",
+        "estimated_damage": 1200.00,
         "location": "Portland, OR",
+        "priority": ClaimPriority.LOW,
+    },
+    {
+        "claimant_name": "Sarah Johnson",
+        "claimant_id": "CLT-1002",
+        "policy_number": "POL-2024-002",
+        "claim_type": "auto",
+        "description": "Windshield chip from highway debris. Photos and invoice from glass shop attached. No other damage.",
+        "estimated_damage": 450.00,
+        "location": "Seattle, WA",
+        "priority": ClaimPriority.LOW,
+    },
+    {
+        "claimant_name": "John Smith",
+        "claimant_id": "CLT-1003",
+        "policy_number": "POL-2024-001",
+        "claim_type": "auto",
+        "description": "Rear-end collision at stoplight. Other driver admitted fault; police report filed. Photos and repair estimate attached.",
+        "estimated_damage": 5200.00,
+        "location": "Austin, TX",
         "priority": ClaimPriority.MEDIUM,
     },
     {
         "claimant_name": "Sarah Johnson",
-        "policy_number": "POL-PROP-2024-015",
-        "claim_type": "property",
-        "description": "Water damage from burst pipe in upstairs bathroom. Affected ceiling, walls, and flooring in two rooms.",
-        "estimated_damage": 15750.00,
-        "location": "Seattle, WA",
-        "priority": ClaimPriority.HIGH,
+        "claimant_id": "CLT-1004",
+        "policy_number": "POL-2024-002",
+        "claim_type": "auto",
+        "description": "Minor hail damage to roof and hood. Photos and body shop estimate attached.",
+        "estimated_damage": 1800.00,
+        "location": "Denver, CO",
+        "priority": ClaimPriority.MEDIUM,
     },
+]
+
+REVIEW_SAMPLES = [
     {
         "claimant_name": "Michael Davis",
-        "policy_number": "POL-LIAB-2024-008",
-        "claim_type": "liability",
-        "description": "Customer slipped on wet floor in retail store. Sustained injuries requiring medical attention. Seeking compensation for medical bills and lost wages.",
-        "estimated_damage": 52000.00,
+        "claimant_id": "CLT-2001",
+        "policy_number": "POL-2024-001",
+        "claim_type": "auto",
+        "description": "Multi-vehicle collision with reported injuries. Vehicle potentially totaled. Conflicting statements in report.",
+        "estimated_damage": 48000.00,
         "location": "San Francisco, CA",
         "priority": ClaimPriority.URGENT,
     },
     {
         "claimant_name": "Emily Chen",
-        "policy_number": "POL-AUTO-2024-022",
-        "claim_type": "auto",
-        "description": "Vehicle struck by fallen tree branch during windstorm. Damage to hood, windshield, and roof.",
-        "estimated_damage": 8500.00,
-        "location": "Denver, CO",
-        "priority": ClaimPriority.MEDIUM,
-    },
-    {
-        "claimant_name": "Robert Martinez",
+        "claimant_id": "CLT-2002",
         "policy_number": "POL-PROP-2024-031",
         "claim_type": "property",
-        "description": "Fire damage in kitchen from stove malfunction. Fire contained to kitchen but smoke damage throughout home.",
+        "description": "Kitchen fire and smoke damage. Limited documentation and delayed report. Cause under investigation.",
         "estimated_damage": 45000.00,
         "location": "Phoenix, AZ",
         "priority": ClaimPriority.URGENT,
     },
     {
-        "claimant_name": "Jennifer Williams",
-        "policy_number": "POL-AUTO-2024-045",
-        "claim_type": "auto",
-        "description": "Side-swipe accident in parking garage. Minor damage to driver side door and mirror.",
-        "estimated_damage": 2100.00,
-        "location": "Austin, TX",
-        "priority": ClaimPriority.LOW,
-    },
-    {
         "claimant_name": "David Thompson",
+        "claimant_id": "CLT-2003",
         "policy_number": "POL-LIAB-2024-012",
         "claim_type": "liability",
-        "description": "Dog bite incident at insured's property. Visitor required emergency room treatment and follow-up care.",
-        "estimated_damage": 18500.00,
+        "description": "Slip-and-fall claim with legal representation. Medical bills and wage loss requested. Incident details disputed.",
+        "estimated_damage": 52000.00,
         "location": "Chicago, IL",
         "priority": ClaimPriority.HIGH,
     },
     {
         "claimant_name": "Amanda Garcia",
-        "policy_number": "POL-PROP-2024-028",
-        "claim_type": "property",
-        "description": "Theft of electronics and jewelry during home break-in. Security system was disabled.",
-        "estimated_damage": 12300.00,
+        "claimant_id": "CLT-2004",
+        "policy_number": "POL-2024-002",
+        "claim_type": "auto",
+        "description": "Reported vehicle theft with missing keys; police report pending. Prior claims in last 12 months noted.",
+        "estimated_damage": 26000.00,
         "location": "Miami, FL",
-        "priority": ClaimPriority.MEDIUM,
+        "priority": ClaimPriority.HIGH,
     },
 ]
+
+SAMPLE_CLAIMS = AUTO_APPROVE_SAMPLES + REVIEW_SAMPLES
 
 
 router = APIRouter()
@@ -215,8 +228,18 @@ async def seed_claims(
     """
     created_ids = []
     
-    # Shuffle and pick 'count' claims from samples
-    samples = random.sample(SAMPLE_CLAIMS, min(count, len(SAMPLE_CLAIMS)))
+    def pick_from_pool(pool: List[dict], k: int) -> List[dict]:
+        if k <= 0:
+            return []
+        if k <= len(pool):
+            return random.sample(pool, k)
+        return random.choices(pool, k=k)
+
+    auto_count = min(len(AUTO_APPROVE_SAMPLES), max(1, count // 2))
+    review_count = max(0, count - auto_count)
+
+    samples = pick_from_pool(AUTO_APPROVE_SAMPLES, auto_count) + pick_from_pool(REVIEW_SAMPLES, review_count)
+    random.shuffle(samples)
     
     for sample in samples:
         # Randomize incident date within last 7 days
@@ -225,6 +248,7 @@ async def seed_claims(
         
         claim_create = ClaimCreate(
             claimant_name=sample["claimant_name"],
+            claimant_id=sample.get("claimant_id"),
             policy_number=sample["policy_number"],
             claim_type=sample["claim_type"],
             description=sample["description"],

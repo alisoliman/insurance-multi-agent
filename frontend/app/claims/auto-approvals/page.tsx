@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Claim, ClaimsFilter, DashboardMetrics, getClaims, getMetrics } from "@/lib/api/claims"
 import { ClaimsTable } from "@/components/claims/claims-table"
 import { Button } from "@/components/ui/button"
+import { OnboardingCue } from "@/components/onboarding/onboarding-cue"
 
 const SYSTEM_HANDLER_ID = "system"
 const REFRESH_INTERVAL_MS = 15000
@@ -48,6 +49,8 @@ export default function AutoApprovalsPage() {
         </div>
         <Button variant="outline" onClick={() => router.push("/")}>Back to Dashboard</Button>
       </div>
+
+      <OnboardingCue stepId="auto" />
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-md border p-4">
