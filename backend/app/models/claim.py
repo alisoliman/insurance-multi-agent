@@ -1,6 +1,6 @@
 """Pydantic schemas for claim workflow endpoints."""
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 # ---------------------------------------------------------------------------
@@ -63,8 +63,7 @@ class ClaimIn(BaseModel):
     )
 
     # Allow additional fields for flexibility
-    class Config:
-        extra = "allow"
+    model_config = ConfigDict(extra="allow")
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary, excluding None values."""

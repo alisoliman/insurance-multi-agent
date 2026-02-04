@@ -2,6 +2,7 @@
 from agent_framework import ChatAgent
 from agent_framework.azure import AzureOpenAIChatClient
 
+from app.models.agent_outputs import ClaimAssessment
 from ..tools import get_vehicle_details, analyze_image
 
 
@@ -45,4 +46,5 @@ def create_claim_assessor_agent(chat_client: AzureOpenAIChatClient) -> ChatAgent
         name="claim_assessor",
         instructions=CLAIM_ASSESSOR_PROMPT,
         tools=[get_vehicle_details, analyze_image],
+        default_options={"response_format": ClaimAssessment},
     )

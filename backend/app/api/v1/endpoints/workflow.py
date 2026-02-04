@@ -296,14 +296,43 @@ def _serialize_msg(node: str, msg: Any, *, include_node: bool = True) -> dict:  
                 content_repr = f"🔧 Tool Response ({tool_name}):\n{content_repr}"
             role = "tool"
     else:
-        # Handle LangChain message objects
+        # Handle ChatMessage-like objects
         role = getattr(msg, "role", getattr(msg, "type", "assistant"))
-        
+        role_value = getattr(role, "value", role)
+
+        def _format_tool_calls(tool_calls_obj) -> str:
+            calls = tool_calls_obj if isinstance(tool_calls_obj, list) else [tool_calls_obj]
+            formatted = []
+            for call in calls:
+                if isinstance(call, dict):
+                    name = call.get("name", "tool")
+                    args = call.get("arguments")
+                else:
+                    name = getattr(call, "name", "tool")
+                    args = getattr(call, "arguments", getattr(call, "args", None))
+                if isinstance(args, str):
+                    try:
+                        args = json_mod.loads(args)
+                    except Exception:
+                        args = {"raw": args}
+                formatted.append(
+                    f"🔧 Calling tool: {name}\nArguments: {json_mod.dumps(args, indent=2, default=json_safe)}"
+                )
+            return "\n".join(formatted)
+
         # Handle tool call messages (AIMessage with tool_calls attr)
         if hasattr(msg, "tool_calls") and msg.tool_calls:
-            content_repr = f"TOOL_CALL: {msg.tool_calls}"
+            content_repr = _format_tool_calls(msg.tool_calls)
+        elif str(role_value) == "tool":
+            tool_name = getattr(msg, "name", None) or getattr(msg, "author_name", None) or "tool"
+            tool_content = getattr(msg, "content", None) or getattr(msg, "text", None) or str(msg)
+            if isinstance(tool_content, str) and tool_content.startswith("🔧 Tool Response"):
+                content_repr = tool_content
+            else:
+                content_repr = f"🔧 Tool Response ({tool_name}):\n{tool_content}"
+            role = "tool"
         else:
-            content_repr = getattr(msg, "content", str(msg)) or ""
+            content_repr = getattr(msg, "content", None) or getattr(msg, "text", None) or str(msg) or ""
 
     data = {
         "role": role,

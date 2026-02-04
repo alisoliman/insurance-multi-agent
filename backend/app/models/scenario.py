@@ -4,7 +4,7 @@ Pydantic models for AI-powered demo scenario generation.
 Based on data-model.md from specs/004-ai-demo-examples/ and 005-complete-demo-pipeline/
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 from uuid import uuid4
@@ -306,7 +306,7 @@ class GeneratedScenario(BaseModel):
     complexity: Complexity = Field(..., description="Complexity level")
     claim: GeneratedClaim = Field(..., description="Claim data")
     policy: GeneratedPolicy = Field(..., description="Policy data")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Creation timestamp")
 
 
 class ScenarioGenerationRequest(BaseModel):

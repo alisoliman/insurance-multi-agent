@@ -20,7 +20,16 @@ dependencies = [
     "langchain-community>=0.3.0",
     # Async SQLite for scenario persistence (004-ai-demo-examples)
     "aiosqlite>=0.19.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
 ]
 
 [tool.uv]
 prerelease = "allow"
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:.*SwigPyPacked.*:DeprecationWarning",
+    "ignore:.*SwigPyObject.*:DeprecationWarning",
+    "ignore:.*swigvarlink.*:DeprecationWarning",
+]

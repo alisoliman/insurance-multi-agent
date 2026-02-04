@@ -6,7 +6,7 @@ Based on data-model.md from specs/005-complete-demo-pipeline/
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from pydantic import BaseModel
@@ -53,7 +53,7 @@ async def create_vehicle(vehicle: VehicleCreate) -> VehicleRecord:
     Returns:
         The created VehicleRecord
     """
-    created_at = datetime.utcnow().isoformat()
+    created_at = datetime.now(timezone.utc).isoformat()
     
     async with get_db_connection() as db:
         await db.execute(

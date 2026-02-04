@@ -6,7 +6,7 @@ Matches schema in backend/app/db/database.py and specs/005-claims-workbench/data
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, ConfigDict
 
 # ---------------------------------------------------------------------------
 # Enums
@@ -63,8 +63,7 @@ class Handler(HandlerBase):
     id: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # ---------------------------------------------------------------------------
 # Claim Models
@@ -103,8 +102,7 @@ class Claim(ClaimBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # ---------------------------------------------------------------------------
 # AI Assessment Models
@@ -127,8 +125,7 @@ class AIAssessment(AIAssessmentBase):
     error_message: Optional[str] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # ---------------------------------------------------------------------------
 # Decision Models
@@ -148,8 +145,7 @@ class ClaimDecision(ClaimDecisionBase):
     handler_id: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # ---------------------------------------------------------------------------
 # Audit Log Models
@@ -171,5 +167,4 @@ class ClaimAuditLog(BaseModel):
     new_value: Optional[Dict[str, Any]] = None
     timestamp: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

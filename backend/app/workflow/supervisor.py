@@ -1,31 +1,30 @@
 """Supervisor orchestration for the insurance claim workflow.
 
-This module creates the specialized agents using Microsoft Agent Framework,
-builds a sequential workflow, and exposes a `process_claim_with_supervisor` 
-helper used by the service layer.
+This module now uses Microsoft Agent Framework (MAF) workflow orchestration
+(Sequential + Concurrent) to reduce custom glue while preserving structured
+outputs and streaming compatibility.
 """
-from __future__ import annotations
-
 import json
 import logging
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Dict, List, AsyncIterator, Optional, Type, Union
+from dataclasses import dataclass
+from typing import Any, Dict, List, AsyncIterator, Optional, Never
 
 from dotenv import load_dotenv
-from pydantic import BaseModel
+
+from agent_framework import (
+    ChatMessage,
+    Role,
+    SequentialBuilder,
+    ConcurrentBuilder,
+    WorkflowExecutor,
+    WorkflowOutputEvent,
+    Executor,
+    handler,
+    AgentExecutorResponse,
+)
+from agent_framework._workflows._workflow_context import WorkflowContext
 
 from app.core.logging_config import configure_logging
-from app.models.agent_outputs import (
-    ClaimAssessment,
-    CoverageVerification,
-    RiskAssessment,
-    CustomerCommunication,
-    FinalAssessment,
-    ValidityStatus,
-    CoverageStatus,
-)
-
 from .client import get_chat_client
 from .agents.claim_assessor import create_claim_assessor_agent
 from .agents.policy_checker import create_policy_checker_agent
@@ -36,39 +35,269 @@ from .agents.synthesizer import create_synthesizer_agent
 load_dotenv()
 
 # ---------------------------------------------------------------------------
-# Configure logging (pretty icons + single-line formatter)
+# Configure logging
 # ---------------------------------------------------------------------------
 
 configure_logging()
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Workflow context dataclass
+# Constants
+# ---------------------------------------------------------------------------
+
+AGENT_ORDER = [
+    "claim_assessor",
+    "policy_checker",
+    "risk_analyst",
+    "communication_agent",
+    "synthesizer",
+]
+
+SHARED_OUTPUT_PREFIX = "agent_output:"
+SHARED_TEXT_PREFIX = "agent_text:"
+
+# ---------------------------------------------------------------------------
+# Helper models
 # ---------------------------------------------------------------------------
 
 
 @dataclass
-class WorkflowContext:
-    """Context maintained across workflow execution."""
-    claim_data: Dict[str, Any]
-    agent_outputs: Dict[str, Union[BaseModel, str]] = field(default_factory=dict)
-    structured_outputs: Dict[str, BaseModel] = field(default_factory=dict)  # Typed Pydantic models
-    conversation_history: List[Dict[str, Any]] = field(default_factory=list)
-    start_time: datetime = field(default_factory=datetime.now)
+class WorkflowResult:
+    messages: List[ChatMessage]
+    structured_outputs: Dict[str, Dict[str, Any]]
+    agent_texts: Dict[str, str]
+    agent_messages: Dict[str, List[Any]]
+
+
+@dataclass
+class SpecialistBundle:
+    messages: List[ChatMessage]
+    structured_outputs: Dict[str, Dict[str, Any]]
+    agent_texts: Dict[str, str]
+    agent_messages: Dict[str, List[Any]]
 
 
 # ---------------------------------------------------------------------------
-# Shared chat client and agents
+# Shared-state helpers (compatible with MAF shared states)
+# ---------------------------------------------------------------------------
+
+
+async def _set_shared_state(ctx: WorkflowContext, key: str, value: Any) -> None:
+    if hasattr(ctx, "set_shared_state"):
+        await ctx.set_shared_state(key, value)
+        return
+    if hasattr(ctx, "shared_state"):
+        ctx.shared_state[key] = value
+
+
+async def _get_shared_state(ctx: WorkflowContext, key: str) -> Any:
+    if hasattr(ctx, "get_shared_state"):
+        return await ctx.get_shared_state(key)
+    if hasattr(ctx, "shared_state"):
+        return ctx.shared_state.get(key)
+    return None
+
+
+def _build_user_prompt(claim_data: Dict[str, Any]) -> str:
+    claim_payload = json.dumps(claim_data, indent=2, ensure_ascii=False)
+    return f"Please process this insurance claim:\n\n{claim_payload}"
+
+
+def _last_assistant_message(messages: Optional[List[ChatMessage]]) -> Optional[ChatMessage]:
+    if not messages:
+        return None
+    return next((m for m in reversed(messages) if m.role == Role.ASSISTANT and m.text), None)
+
+
+def _strip_leading_context(messages: List[ChatMessage]) -> List[ChatMessage]:
+    idx = 0
+    while idx < len(messages) and messages[idx].role in {Role.SYSTEM, Role.USER}:
+        idx += 1
+    return messages[idx:]
+
+
+def _log_openai_error(context: str, exc: Exception) -> None:
+    status = getattr(exc, "status_code", None)
+    response = getattr(exc, "response", None)
+    body = None
+    if response is not None:
+        status = status or getattr(response, "status_code", None)
+        body = getattr(response, "text", None)
+        if callable(body):
+            try:
+                body = body()
+            except Exception:
+                body = None
+
+    # Azure/OpenAI errors often include `body` or `message`/`error` fields.
+    extra_body = getattr(exc, "body", None)
+    message = getattr(exc, "message", None)
+    error = getattr(exc, "error", None)
+    detail = getattr(exc, "detail", None)
+
+    logger.error(
+        "OpenAI request failed in %s status=%s exc=%s body=%s extra_body=%s message=%s error=%s detail=%s",
+        context,
+        status,
+        repr(exc),
+        body,
+        extra_body,
+        message,
+        error,
+        detail,
+    )
+
+
+async def _persist_agent_response(
+    ctx: WorkflowContext,
+    agent_name: str,
+    response: Any,
+    base_messages: List[ChatMessage],
+) -> List[ChatMessage]:
+    if response.value is not None:
+        await _set_shared_state(
+            ctx,
+            f"{SHARED_OUTPUT_PREFIX}{agent_name}",
+            response.value.model_dump(mode="json"),
+        )
+
+    last_assistant = _last_assistant_message(getattr(response, "messages", None))
+    if last_assistant:
+        await _set_shared_state(
+            ctx,
+            f"{SHARED_TEXT_PREFIX}{agent_name}",
+            last_assistant.text,
+        )
+        full_conversation = list(base_messages) + [last_assistant]
+    else:
+        full_conversation = list(base_messages)
+
+    response_messages = None
+    if hasattr(response, "to_dict"):
+        response_dict = response.to_dict()
+        response_messages = response_dict.get("messages")
+    if not response_messages:
+        response_messages = getattr(response, "messages", None)
+
+    if response_messages:
+        await _set_shared_state(ctx, f"{SHARED_TEXT_PREFIX}{agent_name}:messages", list(response_messages))
+    else:
+        await _set_shared_state(ctx, f"{SHARED_TEXT_PREFIX}{agent_name}:messages", full_conversation)
+
+    return full_conversation
+
+
+# ---------------------------------------------------------------------------
+# Executors
+# ---------------------------------------------------------------------------
+
+
+class CommunicationExecutor(Executor):
+    def __init__(self, agent, id: str = "communication_executor"):
+        super().__init__(id=id)
+        self.agent = agent
+
+    @handler
+    async def handle(self, messages: List[ChatMessage], ctx: WorkflowContext) -> None:
+        outputs = {
+            name: await _get_shared_state(ctx, f"{SHARED_OUTPUT_PREFIX}{name}")
+            for name in ["claim_assessor", "policy_checker", "risk_analyst"]
+        }
+        claim_type = ""
+        for msg in messages:
+            if msg.role == Role.USER and msg.text:
+                claim_type = msg.text.lower()
+                break
+        missing_items = _derive_missing_items(outputs, claim_type)
+        if not missing_items:
+            await ctx.send_message(messages)
+            return
+
+        summary = "MISSING INFORMATION SUMMARY:\n" + "\n".join(
+            f"- {item}" for item in missing_items
+        ) + "\n\nUse these items to populate requested_items and explain why each is needed."
+
+        next_messages = list(messages) + [
+            ChatMessage(role=Role.USER, text=summary)
+        ]
+
+        try:
+            response = await self.agent.run(next_messages)
+        except Exception as exc:
+            _log_openai_error("communication_agent", exc)
+            raise
+        full_conversation = await _persist_agent_response(
+            ctx,
+            "communication_agent",
+            response,
+            next_messages,
+        )
+        await ctx.send_message(full_conversation)
+
+
+class SynthesizerExecutor(Executor):
+    def __init__(self, agent, id: str = "synthesizer_executor"):
+        super().__init__(id=id)
+        self.agent = agent
+
+    @handler
+    async def handle(self, messages: List[ChatMessage], ctx: WorkflowContext) -> None:
+        try:
+            response = await self.agent.run(messages)
+        except Exception as exc:
+            _log_openai_error("synthesizer", exc)
+            raise
+        full_conversation = await _persist_agent_response(
+            ctx,
+            "synthesizer",
+            response,
+            messages,
+        )
+        await ctx.send_message(full_conversation)
+
+
+class ResultEmitterExecutor(Executor):
+    def __init__(self, id: str = "result_emitter"):
+        super().__init__(id=id)
+
+    @handler
+    async def handle(self, messages: List[ChatMessage], ctx: WorkflowContext) -> None:
+        structured_outputs: Dict[str, Dict[str, Any]] = {}
+        agent_texts: Dict[str, str] = {}
+        agent_messages: Dict[str, List[ChatMessage]] = {}
+
+        for name in AGENT_ORDER:
+            output = await _get_shared_state(ctx, f"{SHARED_OUTPUT_PREFIX}{name}")
+            if output is not None:
+                structured_outputs[name] = output
+            text = await _get_shared_state(ctx, f"{SHARED_TEXT_PREFIX}{name}")
+            if text:
+                agent_texts[name] = text
+            messages_for_agent = await _get_shared_state(ctx, f"{SHARED_TEXT_PREFIX}{name}:messages")
+            if messages_for_agent:
+                agent_messages[name] = messages_for_agent
+
+        await ctx.yield_output(
+            WorkflowResult(
+                messages=messages,
+                structured_outputs=structured_outputs,
+                agent_texts=agent_texts,
+                agent_messages=agent_messages,
+            )
+        )
+
+
+# ---------------------------------------------------------------------------
+# Workflow construction
 # ---------------------------------------------------------------------------
 
 
 def _initialize_agents():
-    """Initialize all agents with the shared chat client."""
     chat_client = get_chat_client()
-    
+
     logger.info("✅ Configuration loaded successfully")
     logger.info("✅ Building agents with Microsoft Agent Framework")
-    
+
     agents = {
         "claim_assessor": create_claim_assessor_agent(chat_client),
         "policy_checker": create_policy_checker_agent(chat_client),
@@ -76,630 +305,274 @@ def _initialize_agents():
         "communication_agent": create_communication_agent(chat_client),
         "synthesizer": create_synthesizer_agent(chat_client),
     }
-    
+
     logger.info("✅ Specialized agents created successfully:")
     logger.info("- 🔍 Claim Assessor: Damage evaluation and cost assessment")
     logger.info("- 📋 Policy Checker: Coverage verification and policy validation")
     logger.info("- ⚠️ Risk Analyst: Fraud detection and risk scoring")
     logger.info("- 📧 Communication Agent: Customer outreach for missing information")
     logger.info("- 📊 Synthesizer: Final assessment generation")
-    
+
     return agents
 
 
-# Initialize agents at module load
-_AGENTS = None
+class SpecialistAggregator(Executor):
+    def __init__(self, id: str = "specialist_aggregator"):
+        super().__init__(id=id)
+
+    @handler
+    async def aggregate(
+        self,
+        results: List[AgentExecutorResponse],
+        ctx: WorkflowContext[Never, SpecialistBundle],
+    ) -> None:
+        if not results:
+            await ctx.yield_output(
+                SpecialistBundle(messages=[], structured_outputs={}, agent_texts={}, agent_messages={})
+            )
+            return
+
+        structured_outputs: Dict[str, Dict[str, Any]] = {}
+        agent_texts: Dict[str, str] = {}
+        agent_messages: Dict[str, List[Any]] = {}
+        conversations: List[List[ChatMessage]] = []
+        for result in results:
+            agent_name = result.executor_id
+            response = result.agent_response
+
+            conversation = result.full_conversation or list(getattr(response, "messages", []) or [])
+            conversations.append(conversation)
+            response_messages = None
+            if hasattr(response, "to_dict"):
+                response_dict = response.to_dict()
+                response_messages = response_dict.get("messages")
+            if response_messages:
+                agent_messages[agent_name] = response_messages
+            elif conversation:
+                agent_messages[agent_name] = conversation
+
+            if response.value is not None:
+                structured_outputs[agent_name] = response.value.model_dump(mode="json")
+
+            last_assistant = _last_assistant_message(response.messages)
+            if last_assistant:
+                agent_texts[agent_name] = last_assistant.text
+
+        combined_messages: List[ChatMessage] = []
+        for idx, conversation in enumerate(conversations):
+            if not conversation:
+                continue
+            if idx == 0:
+                combined_messages.extend(conversation)
+            else:
+                combined_messages.extend(_strip_leading_context(conversation))
+
+        await ctx.yield_output(
+            SpecialistBundle(
+                messages=combined_messages,
+                structured_outputs=structured_outputs,
+                agent_texts=agent_texts,
+                agent_messages=agent_messages,
+            )
+        )
 
 
-def get_agents():
-    """Get or initialize the agent instances."""
-    global _AGENTS
-    if _AGENTS is None:
-        _AGENTS = _initialize_agents()
-    return _AGENTS
+class SpecialistBundleExtractor(Executor):
+    def __init__(self, id: str = "specialist_bundle_extractor"):
+        super().__init__(id=id)
+
+    @handler
+    async def handle(self, bundle: SpecialistBundle, ctx: WorkflowContext) -> None:
+        for name, output in bundle.structured_outputs.items():
+            await _set_shared_state(ctx, f"{SHARED_OUTPUT_PREFIX}{name}", output)
+        for name, text in bundle.agent_texts.items():
+            await _set_shared_state(ctx, f"{SHARED_TEXT_PREFIX}{name}", text)
+        for name, messages in bundle.agent_messages.items():
+            await _set_shared_state(ctx, f"{SHARED_TEXT_PREFIX}{name}:messages", messages)
+        await ctx.send_message(bundle.messages)
 
 
-# ---------------------------------------------------------------------------
-# Workflow execution
-# ---------------------------------------------------------------------------
-
-
-def create_insurance_supervisor():
-    """Create the workflow coordinator.
-    
-    Returns the agents dict for use in workflow processing.
-    """
-    agents = get_agents()
-    
-    logger.info("✅ Insurance supervisor created successfully")
-    logger.info("📊 Workflow: Sequential Agent Execution → Synthesized Decision")
-    logger.info("%s", "=" * 80)
-    logger.info("🚀 MULTI-AGENT INSURANCE CLAIM PROCESSING SYSTEM")
-    logger.info("%s", "=" * 80)
-    
-    return agents
-
-
-async def _run_agent(
-    agent, 
-    agent_name: str, 
-    messages: List[Dict[str, Any]], 
-    context: WorkflowContext,
-    response_format: Optional[Type[BaseModel]] = None
-) -> Union[BaseModel, str]:
-    """Run a single agent and return its response.
-    
-    Args:
-        agent: The ChatAgent instance to run.
-        agent_name: Name of the agent for logging.
-        messages: Current conversation history.
-        context: Workflow context for tracking.
-        response_format: Optional Pydantic model class for structured output.
-    
-    Returns:
-        The agent's response - either a Pydantic model instance (if response_format 
-        was provided and successful) or a string.
-    """
-    logger.info("🔄 Running agent: %s", agent_name)
-    
-    try:
-        # Build the task for the agent including conversation context
-        task = "\n\n".join([
-            f"[{m['role'].upper()}]: {m['content']}" 
-            for m in messages
+def _build_specialists_workflow(agents) -> Any:
+    specialists_workflow = (
+        ConcurrentBuilder()
+        .participants([
+            agents["claim_assessor"],
+            agents["policy_checker"],
+            agents["risk_analyst"],
         ])
-        
-        # Run the agent with optional structured output format via options
-        if response_format:
-            # Pass response_format through options parameter per Microsoft Agent Framework docs
-            options = {"response_format": response_format}
-            result = await agent.run(task, options=options)
-        else:
-            result = await agent.run(task)
-        
-        # Extract structured data via response.value if available
-        if response_format and hasattr(result, 'value') and result.value is not None:
-            # Structured output - response.value is already a Pydantic model instance
-            structured_output = result.value
-            context.structured_outputs[agent_name] = structured_output
-            # Also store string representation for conversation history
-            response_text = structured_output.model_dump_json(indent=2)
-            context.agent_outputs[agent_name] = response_text
-            logger.info("✅ Agent %s completed with structured output: %s", agent_name, type(structured_output).__name__)
-            return structured_output
-        elif response_format and (not hasattr(result, 'value') or result.value is None):
-            # Structured output was requested but response.value is None - log error
-            logger.error("❌ Agent %s: structured output requested but response.value is None", agent_name)
-            # Fall back to string representation
-            response_text = str(result) if result else ""
-            context.agent_outputs[agent_name] = response_text
-            return response_text
-        else:
-            # No structured output requested - use string response
-            response_text = str(result) if result else ""
-            context.agent_outputs[agent_name] = response_text
-            logger.info("✅ Agent %s completed", agent_name)
-            return response_text
-        
-    except Exception as e:
-        logger.error("❌ Agent %s failed: %s", agent_name, e, exc_info=True)
-        error_msg = f"Agent {agent_name} encountered an error: {str(e)}"
-        context.agent_outputs[agent_name] = error_msg
-        return error_msg
+        .with_aggregator(SpecialistAggregator())
+        .build()
+    )
+    return specialists_workflow
 
 
-def _build_conversation_message(role: str, content: str) -> Dict[str, Any]:
-    """Build a conversation message dict."""
-    return {"role": role, "content": content}
+def _build_workflow():
+    agents = _initialize_agents()
+
+    specialists_workflow = _build_specialists_workflow(agents)
+    specialists_executor = WorkflowExecutor(specialists_workflow, id="specialists")
+
+    workflow = (
+        SequentialBuilder()
+        .participants(
+            [
+                specialists_executor,
+                SpecialistBundleExtractor(),
+                CommunicationExecutor(agents["communication_agent"]),
+                SynthesizerExecutor(agents["synthesizer"]),
+                ResultEmitterExecutor(),
+            ]
+        )
+        .build()
+    )
+
+    return workflow
 
 
-async def _execute_workflow_async(
-    claim_data: Dict[str, Any],
-    summary_language: str = "english"
-) -> List[Dict[str, Any]]:
-    """Execute the sequential workflow asynchronously.
-    
-    Args:
-        claim_data: The claim data to process.
-        summary_language: Language for final summary - "english" or "original".
-    
-    Returns:
-        List of chunk dicts compatible with the previous API format.
-    """
-    agents = get_agents()
-    context = WorkflowContext(claim_data=claim_data)
-    chunks: List[Dict[str, Any]] = []
-    
-    # Build language instruction for agents
+def get_insurance_supervisor():
+    return _build_workflow()
+
+
+# ---------------------------------------------------------------------------
+# Utilities
+# ---------------------------------------------------------------------------
+
+
+def _derive_missing_items(outputs: Dict[str, Any], claim_text: str) -> List[str]:
+    items: List[str] = []
+    claim_type = "auto" if "\"claim_type\": \"auto\"" in claim_text else ""
+
+    assessor = outputs.get("claim_assessor") or {}
+    if isinstance(assessor, dict):
+        validity = assessor.get("validity_status")
+        red_flags = assessor.get("red_flags") or []
+        if validity == "QUESTIONABLE":
+            if claim_type == "auto":
+                items.append("Photos of vehicle damage (front/back/side angles)")
+                items.append("Police report or incident report (if available)")
+            else:
+                items.append("Photos of damage and affected areas")
+                items.append("Repair estimate or contractor invoice")
+        if validity == "INVALID":
+            items.append("Clarify incident details and provide supporting documentation")
+        if red_flags:
+            items.extend([f"Clarify: {flag}" for flag in red_flags])
+
+    coverage = outputs.get("policy_checker") or {}
+    if isinstance(coverage, dict):
+        if coverage.get("coverage_status") == "INSUFFICIENT_EVIDENCE":
+            items.append("Policy documentation or confirmation of coverage details")
+
+    risk = outputs.get("risk_analyst") or {}
+    if isinstance(risk, dict):
+        fraud_indicators = risk.get("fraud_indicators") or []
+        risk_level = risk.get("risk_level")
+        if fraud_indicators:
+            items.append("Proof of ownership and identity verification")
+        elif risk_level in {"MEDIUM_RISK", "HIGH_RISK"}:
+            items.append("Detailed incident timeline with corroborating evidence")
+            if claim_type == "auto":
+                items.append("Police report or incident report (if available)")
+
+    deduped: List[str] = []
+    seen = set()
+    for item in items:
+        if item not in seen:
+            deduped.append(item)
+            seen.add(item)
+    return deduped
+
+
+def _build_initial_messages(claim_data: Dict[str, Any], summary_language: str) -> List[ChatMessage]:
     language_requirement = (
         "LANGUAGE REQUIREMENT: All free-text fields must be in the same language as the claim description. "
-        "Keep enum/status fields exactly as specified in the output format (e.g., VALID, QUESTIONABLE, INVALID, "
-        "COVERED, NOT_COVERED, PARTIALLY_COVERED, INSUFFICIENT_EVIDENCE, LOW_RISK, MEDIUM_RISK, HIGH_RISK, "
-        "APPROVE, DENY, INVESTIGATE, HIGH, MEDIUM, LOW). Do NOT translate field names."
+        "Keep enum/status fields exactly as specified in the output format."
     )
-    # Initial user message (keep internal instructions out of trace)
-    initial_message = _build_conversation_message(
-        "user",
-        f"Please process this insurance claim:\n\n{json.dumps(claim_data, indent=2, ensure_ascii=False)}"
-    )
-    context.conversation_history.append(initial_message)
-    
-    # Define the sequential workflow order with response formats
-    workflow_order = [
-        ("claim_assessor", "Evaluating damage and documentation...", ClaimAssessment),
-        ("policy_checker", "Verifying coverage and policy terms...", CoverageVerification),
-        ("risk_analyst", "Analyzing fraud risk and claimant history...", RiskAssessment),
-    ]
-    
-    # Run each specialist agent in sequence
-    for agent_name, status_msg, response_format in workflow_order:
-        logger.info("📍 %s", status_msg)
-        
-        agent = agents[agent_name]
-        # Provide a per-agent language reminder for original-language mode
-        agent_history = context.conversation_history
-        if summary_language == "original":
-            agent_history = context.conversation_history + [
-                _build_conversation_message("user", language_requirement)
-            ]
+    user_prompt = _build_user_prompt(claim_data)
 
-        response = await _run_agent(
-            agent,
-            agent_name,
-            agent_history,
-            context,
-            response_format=response_format
-        )
-        
-        # Add agent response to conversation history (serialize if structured)
-        if isinstance(response, BaseModel):
-            response_text = response.model_dump_json(indent=2, ensure_ascii=False)
-        else:
-            response_text = str(response)
-        agent_message = _build_conversation_message("assistant", response_text)
-        context.conversation_history.append(agent_message)
-        
-        # Build chunk in the expected format with structured output
-        chunk = {
-            agent_name: {
-                "messages": [
-                    {"role": "user", "content": context.conversation_history[0]["content"]},
-                    {"role": "assistant", "content": response_text}
-                ],
-                "structured_output": response.model_dump() if isinstance(response, BaseModel) else None
-            }
-        }
-        chunks.append(chunk)
-    
-    def _derive_missing_items(context: WorkflowContext) -> List[str]:
-        claim_type = (context.claim_data.get("claim_type") or "").lower()
-        items: List[str] = []
-
-        assessor = context.structured_outputs.get("claim_assessor")
-        if isinstance(assessor, ClaimAssessment):
-            if assessor.validity_status == ValidityStatus.QUESTIONABLE:
-                if claim_type == "auto":
-                    items.append("Photos of vehicle damage (front/back/side angles)")
-                    items.append("Police report or incident report (if available)")
-                else:
-                    items.append("Photos of damage and affected areas")
-                    items.append("Repair estimate or contractor invoice")
-            if assessor.validity_status == ValidityStatus.INVALID:
-                items.append("Clarify incident details and provide supporting documentation")
-            if assessor.red_flags:
-                items.extend([f"Clarify: {flag}" for flag in assessor.red_flags])
-
-        coverage = context.structured_outputs.get("policy_checker")
-        if isinstance(coverage, CoverageVerification):
-            if coverage.coverage_status == CoverageStatus.INSUFFICIENT_EVIDENCE:
-                items.append("Policy documentation or confirmation of coverage details")
-
-        risk = context.structured_outputs.get("risk_analyst")
-        if isinstance(risk, RiskAssessment) and risk.fraud_indicators:
-            items.append("Proof of ownership and identity verification")
-
-        # De-duplicate while preserving order
-        deduped: List[str] = []
-        seen = set()
-        for item in items:
-            if item not in seen:
-                deduped.append(item)
-                seen.add(item)
-        return deduped
-
-    missing_items = _derive_missing_items(context)
-    needs_communication = len(missing_items) > 0
-    
-    if needs_communication:
-        logger.info("📍 Drafting customer communication for missing information...")
-        agent = agents["communication_agent"]
-        # Provide a per-agent language reminder for original-language mode
-        agent_history = context.conversation_history
-        if summary_language == "original":
-            agent_history = context.conversation_history + [
-                _build_conversation_message("user", language_requirement)
-            ]
-        if missing_items:
-            missing_text = "\n".join(f"- {item}" for item in missing_items)
-            agent_history = agent_history + [
-                _build_conversation_message(
-                    "user",
-                    f"MISSING INFORMATION SUMMARY:\n{missing_text}\n\n"
-                    "Use these items to populate requested_items and explain why each is needed."
-                )
-            ]
-
-        response = await _run_agent(
-            agent,
-            "communication_agent",
-            agent_history,
-            context,
-            response_format=CustomerCommunication  # T024: Pass CustomerCommunication model
-        )
-        
-        # Serialize response for conversation history (T025)
-        if isinstance(response, BaseModel):
-            response_text = response.model_dump_json(indent=2, ensure_ascii=False)
-        else:
-            response_text = str(response)
-        
-        agent_message = _build_conversation_message("assistant", response_text)
-        context.conversation_history.append(agent_message)
-        
-        chunk = {
-            "communication_agent": {
-                "messages": [
-                    {"role": "user", "content": context.conversation_history[0]["content"]},
-                    {"role": "assistant", "content": response_text}
-                ],
-                "structured_output": response.model_dump() if isinstance(response, BaseModel) else None
-            }
-        }
-        chunks.append(chunk)
-    
-    # Run synthesizer to produce final assessment
-    logger.info("📍 Synthesizing final assessment...")
-    
-    # Build synthesis prompt with structured agent outputs (T020)
-    synthesis_context = "Based on the following specialist assessments, provide your final synthesis:\n\n"
-    
-    # Include original claim data when using original language mode
+    messages: List[ChatMessage] = []
     if summary_language == "original":
-        synthesis_context += f"=== ORIGINAL CLAIM DATA ===\n{json.dumps(context.claim_data, indent=2, ensure_ascii=False)}\n\n"
-    
-    for agent_name, output in context.agent_outputs.items():
-        if agent_name != "synthesizer":
-            # Format structured outputs nicely for synthesis
-            if isinstance(output, BaseModel):
-                output_text = output.model_dump_json(indent=2, ensure_ascii=False)
-            else:
-                output_text = str(output)
-            synthesis_context += f"=== {agent_name.upper()} ASSESSMENT ===\n{output_text}\n\n"
-    
-    # Capture display-only context before adding internal language requirements
-    synthesis_display_context = synthesis_context
+        messages.append(ChatMessage(role=Role.SYSTEM, text=language_requirement))
+    messages.append(ChatMessage(role=Role.USER, text=user_prompt))
+    return messages
 
-    # Add language instruction based on summary_language preference
-    if summary_language == "original":
-        synthesis_context += (
-            "\n\n**CRITICAL LANGUAGE REQUIREMENT**: All free-text fields (summary, key_findings, next_steps, and any "
-            "other narrative content) MUST be in the same language as the ORIGINAL CLAIM DATA above. Keep enum/status "
-            "fields exactly as specified in the output format (e.g., APPROVE/DENY/INVESTIGATE, HIGH/MEDIUM/LOW). "
-            "Do NOT translate field names. The specialist assessments above may be in English, but your synthesis must "
-            "match the language of the original claim for all free-text content."
-        )
-    else:
-        synthesis_context += "\n\nIMPORTANT: Generate your response in English."
-    
-    synthesis_message = _build_conversation_message("user", synthesis_context)
-    synthesis_history = [synthesis_message]
-    
-    synthesizer = agents["synthesizer"]
-    final_response = await _run_agent(
-        synthesizer,
-        "synthesizer", 
-        synthesis_history,
-        context,
-        response_format=FinalAssessment  # T021: Pass FinalAssessment model
-    )
-    
-    # Add synthesizer output to chunks with structured output (T022)
-    if isinstance(final_response, BaseModel):
-        final_response_text = final_response.model_dump_json(indent=2)
-    else:
-        final_response_text = str(final_response)
-    
-    chunk = {
-        "synthesizer": {
-            "messages": [
-                {"role": "user", "content": synthesis_display_context},
-                {"role": "assistant", "content": final_response_text}
-            ],
-            "structured_output": final_response.model_dump() if isinstance(final_response, BaseModel) else None
-        }
-    }
-    chunks.append(chunk)
-    
-    return chunks
+
+# ---------------------------------------------------------------------------
+# Workflow entry points
+# ---------------------------------------------------------------------------
 
 
 async def process_claim_with_supervisor(
     claim_data: Dict[str, Any],
-    summary_language: str = "english"
+    summary_language: str = "english",
 ) -> List[Dict[str, Any]]:
-    """Run the claim through the workflow and return detailed trace information.
-
-    Returns comprehensive trace data including:
-    - Agent interactions and handoffs
-    - Tool calls and results
-    - Message history per agent
-    - Workflow state transitions
-    
-    Args:
-        claim_data: The claim data to process.
-        summary_language: Language for final summary - "english" or "original".
-    
-    This is an async function that runs the workflow directly.
-    """
+    """Run the claim through the MAF workflow and return chunked outputs."""
     logger.info("")
-    logger.info("🚀 Starting supervisor-based claim processing…")
+    logger.info("🚀 Starting MAF-based claim processing…")
     logger.info("📋 Processing Claim ID: %s", claim_data.get("claim_id", "Unknown"))
     logger.info("🌐 Summary language: %s", summary_language)
     logger.info("%s", "=" * 60)
-    
-    try:
-        # Run the async workflow directly
-        chunks = await _execute_workflow_async(claim_data, summary_language=summary_language)
-        
-        logger.info("✅ Workflow completed with %d agent responses", len(chunks))
-        return chunks
-        
-    except Exception as e:
-        logger.error("Error in workflow processing: %s", e, exc_info=True)
-        raise
 
+    workflow = get_insurance_supervisor()
+    messages = _build_initial_messages(claim_data, summary_language=summary_language)
 
-# ---------------------------------------------------------------------------
-# Streaming support for real-time updates
-# ---------------------------------------------------------------------------
+    output_evt: Optional[WorkflowOutputEvent] = None
+    async for event in workflow.run_stream(messages):
+        if isinstance(event, WorkflowOutputEvent):
+            output_evt = event
+            break
+
+    if output_evt is None:
+        raise RuntimeError("Workflow produced no output")
+
+    result = output_evt.data
+    if not isinstance(result, WorkflowResult):
+        raise RuntimeError("Unexpected workflow output type")
+
+    user_prompt = _build_user_prompt(claim_data)
+
+    chunks: List[Dict[str, Any]] = []
+    for agent_name in AGENT_ORDER:
+        structured_output = result.structured_outputs.get(agent_name)
+        agent_text = result.agent_texts.get(agent_name)
+        agent_messages = result.agent_messages.get(agent_name)
+        if structured_output is None and not agent_text and not agent_messages:
+            continue
+        if agent_messages:
+            messages_payload = agent_messages
+        else:
+            assistant_content = agent_text or json.dumps(structured_output, indent=2, ensure_ascii=False)
+            messages_payload = [
+                {"role": "user", "content": user_prompt},
+                {"role": "assistant", "content": assistant_content},
+            ]
+
+        chunk = {
+            agent_name: {
+                "messages": messages_payload,
+                "structured_output": structured_output,
+            }
+        }
+        chunks.append(chunk)
+
+    logger.info("✅ Workflow completed with %d agent responses", len(chunks))
+    return chunks
 
 
 async def process_claim_with_supervisor_stream(
-    claim_data: Dict[str, Any]
-) -> AsyncIterator[Dict[str, Any]]:
-    """Stream workflow events for real-time frontend updates.
-    
-    Yields events as agents start and complete their work.
-    
-    Args:
-        claim_data: The claim data to process.
-    
-    Yields:
-        Event dicts with agent status and outputs.
-    """
-    agents = get_agents()
-    context = WorkflowContext(claim_data=claim_data)
-    
-    # Initial user message
-    initial_message = _build_conversation_message(
-        "user",
-        f"Please process this insurance claim:\n\n{json.dumps(claim_data, indent=2)}"
-    )
-    context.conversation_history.append(initial_message)
-    
-    # Define the sequential workflow order with response formats
-    workflow_order = [
-        ("claim_assessor", "Evaluating damage and documentation...", ClaimAssessment),
-        ("policy_checker", "Verifying coverage and policy terms...", CoverageVerification),
-        ("risk_analyst", "Analyzing fraud risk and claimant history...", RiskAssessment),
-    ]
-    
-    # Run each specialist agent in sequence, yielding events
-    for agent_name, status_msg, response_format in workflow_order:
-        # Yield agent start event
-        yield {
-            "event_type": "agent_start",
-            "agent_name": agent_name,
-            "status": status_msg,
-            "timestamp": datetime.now().isoformat()
-        }
-        
-        agent = agents[agent_name]
-        response = await _run_agent(
-            agent, 
-            agent_name, 
-            context.conversation_history, 
-            context,
-            response_format=response_format
-        )
-        
-        # Serialize response for conversation history
-        if isinstance(response, BaseModel):
-            response_text = response.model_dump_json(indent=2)
-        else:
-            response_text = str(response)
-        
-        # Add agent response to conversation history
-        agent_message = _build_conversation_message("assistant", response_text)
-        context.conversation_history.append(agent_message)
-        
-        # Yield agent complete event with output
-        yield {
-            "event_type": "agent_complete",
-            "agent_name": agent_name,
-            "content": response_text,
-            "timestamp": datetime.now().isoformat(),
-            "structured_output": response.model_dump() if isinstance(response, BaseModel) else None,
-            agent_name: {
-                "messages": [
-                    {"role": "user", "content": context.conversation_history[0]["content"]},
-                    {"role": "assistant", "content": response_text}
-                ],
-                "structured_output": response.model_dump() if isinstance(response, BaseModel) else None
-            }
-        }
-    
-    def _derive_missing_items_stream(context: WorkflowContext) -> List[str]:
-        claim_type = (context.claim_data.get("claim_type") or "").lower()
-        items: List[str] = []
+    claim_data: Dict[str, Any],
+    summary_language: str = "english",
+) -> AsyncIterator[Any]:
+    """Stream raw MAF workflow events for real-time consumers."""
+    workflow = get_insurance_supervisor()
+    messages = _build_initial_messages(claim_data, summary_language=summary_language)
 
-        assessor = context.structured_outputs.get("claim_assessor")
-        if isinstance(assessor, ClaimAssessment):
-            if assessor.validity_status == ValidityStatus.QUESTIONABLE:
-                if claim_type == "auto":
-                    items.append("Photos of vehicle damage (front/back/side angles)")
-                    items.append("Police report or incident report (if available)")
-                else:
-                    items.append("Photos of damage and affected areas")
-                    items.append("Repair estimate or contractor invoice")
-            if assessor.validity_status == ValidityStatus.INVALID:
-                items.append("Clarify incident details and provide supporting documentation")
-            if assessor.red_flags:
-                items.extend([f"Clarify: {flag}" for flag in assessor.red_flags])
-
-        coverage = context.structured_outputs.get("policy_checker")
-        if isinstance(coverage, CoverageVerification):
-            if coverage.coverage_status == CoverageStatus.INSUFFICIENT_EVIDENCE:
-                items.append("Policy documentation or confirmation of coverage details")
-
-        risk = context.structured_outputs.get("risk_analyst")
-        if isinstance(risk, RiskAssessment) and risk.fraud_indicators:
-            items.append("Proof of ownership and identity verification")
-
-        deduped: List[str] = []
-        seen = set()
-        for item in items:
-            if item not in seen:
-                deduped.append(item)
-                seen.add(item)
-        return deduped
-
-    missing_items = _derive_missing_items_stream(context)
-    needs_communication = len(missing_items) > 0
-    
-    if needs_communication:
-        yield {
-            "event_type": "agent_start",
-            "agent_name": "communication_agent",
-            "status": "Drafting customer communication...",
-            "timestamp": datetime.now().isoformat()
-        }
-        
-        agent = agents["communication_agent"]
-        agent_history = context.conversation_history
-        if missing_items:
-            missing_text = "\n".join(f"- {item}" for item in missing_items)
-            agent_history = agent_history + [
-                _build_conversation_message(
-                    "user",
-                    f"MISSING INFORMATION SUMMARY:\n{missing_text}\n\n"
-                    "Use these items to populate requested_items and explain why each is needed."
-                )
-            ]
-        response = await _run_agent(
-            agent,
-            "communication_agent",
-            agent_history,
-            context,
-            response_format=CustomerCommunication
-        )
-        
-        # Serialize response
-        if isinstance(response, BaseModel):
-            response_text = response.model_dump_json(indent=2)
-        else:
-            response_text = str(response)
-        
-        agent_message = _build_conversation_message("assistant", response_text)
-        context.conversation_history.append(agent_message)
-        
-        yield {
-            "event_type": "agent_complete",
-            "agent_name": "communication_agent",
-            "content": response_text,
-            "timestamp": datetime.now().isoformat(),
-            "structured_output": response.model_dump() if isinstance(response, BaseModel) else None,
-            "communication_agent": {
-                "messages": [
-                    {"role": "user", "content": context.conversation_history[0]["content"]},
-                    {"role": "assistant", "content": response_text}
-                ],
-                "structured_output": response.model_dump() if isinstance(response, BaseModel) else None
-            }
-        }
-    
-    # Run synthesizer
-    yield {
-        "event_type": "agent_start",
-        "agent_name": "synthesizer",
-        "status": "Synthesizing final assessment...",
-        "timestamp": datetime.now().isoformat()
-    }
-    
-    # Build synthesis prompt with structured outputs
-    synthesis_context = "Based on the following specialist assessments, provide your final synthesis:\n\n"
-    for agent_name, output in context.agent_outputs.items():
-        if agent_name != "synthesizer":
-            if isinstance(output, BaseModel):
-                output_text = output.model_dump_json(indent=2)
-            else:
-                output_text = str(output)
-            synthesis_context += f"=== {agent_name.upper()} ASSESSMENT ===\n{output_text}\n\n"
-    
-    synthesis_message = _build_conversation_message("user", synthesis_context)
-    synthesis_history = [synthesis_message]
-    
-    synthesizer = agents["synthesizer"]
-    final_response = await _run_agent(
-        synthesizer,
-        "synthesizer", 
-        synthesis_history,
-        context,
-        response_format=FinalAssessment
-    )
-    
-    # Serialize final response
-    if isinstance(final_response, BaseModel):
-        final_response_text = final_response.model_dump_json(indent=2)
-    else:
-        final_response_text = str(final_response)
-    
-    yield {
-        "event_type": "agent_complete",
-        "agent_name": "synthesizer",
-        "content": final_response_text,
-        "timestamp": datetime.now().isoformat(),
-        "structured_output": final_response.model_dump() if isinstance(final_response, BaseModel) else None,
-        "synthesizer": {
-            "messages": [
-                {"role": "user", "content": synthesis_context},
-                {"role": "assistant", "content": final_response_text}
-            ],
-            "structured_output": final_response.model_dump() if isinstance(final_response, BaseModel) else None
-        }
-    }
-    
-    # Final workflow complete event
-    yield {
-        "event_type": "workflow_complete",
-        "agent_name": None,
-        "timestamp": datetime.now().isoformat()
-    }
+    async for event in workflow.run_stream(messages):
+        yield event
 
 
-# Lazy initialization of the supervisor (maintains compatibility)
-# The supervisor is now initialized on first use rather than at module import
-# This allows the module to be imported even when Azure credentials aren't available
-_insurance_supervisor = None
-
-
-def get_insurance_supervisor():
-    """Get or create the insurance supervisor singleton.
-    
-    This function provides lazy initialization of the supervisor,
-    allowing the module to be imported without requiring Azure credentials.
-    """
-    global _insurance_supervisor
-    if _insurance_supervisor is None:
-        _insurance_supervisor = create_insurance_supervisor()
-    return _insurance_supervisor
+__all__ = [
+    "process_claim_with_supervisor",
+    "process_claim_with_supervisor_stream",
+    "get_insurance_supervisor",
+]

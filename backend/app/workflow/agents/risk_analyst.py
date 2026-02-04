@@ -2,6 +2,7 @@
 from agent_framework import ChatAgent
 from agent_framework.azure import AzureOpenAIChatClient
 
+from app.models.agent_outputs import RiskAssessment
 from ..tools import get_claimant_history
 
 
@@ -39,4 +40,5 @@ def create_risk_analyst_agent(chat_client: AzureOpenAIChatClient) -> ChatAgent: 
         name="risk_analyst",
         instructions=RISK_ANALYST_PROMPT,
         tools=[get_claimant_history],
+        default_options={"response_format": RiskAssessment},
     )

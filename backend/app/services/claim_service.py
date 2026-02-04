@@ -6,7 +6,7 @@ Feature 005 - Claims Workbench
 import logging
 import asyncio
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Tuple
 
 from app.db.repositories.claim_repo import ClaimRepository
@@ -49,7 +49,7 @@ class ClaimService:
 
     async def create_claim(self, claim_in: ClaimCreate) -> Claim:
         """Create a new claim submission."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         claim_data = claim_in.model_dump()
         
         # Generate claimant_id if not provided (for demo/seed data)
@@ -166,7 +166,7 @@ class ClaimService:
             return None
 
         # Create initial assessment record
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         assessment_id = str(uuid.uuid4())
         assessment = AIAssessment(
             id=assessment_id,
@@ -195,6 +195,9 @@ class ClaimService:
             final_rec = None
             confidence_scores = {} # Not strictly in current output, but placeholder
             
+            def _coerce_enum(value):  # noqa: WPS430 - small local helper for enum normalization
+                return value.value if hasattr(value, "value") else value
+
             for chunk in chunks:
                 for agent_name, data in chunk.items():
                     if "structured_output" in data and data["structured_output"]:
@@ -204,9 +207,9 @@ class ClaimService:
                         # Assuming FinalAssessment has recommendation field
                         final_out = data["structured_output"]
                         if "final_recommendation" in final_out:
-                            final_rec = final_out["final_recommendation"]
+                            final_rec = _coerce_enum(final_out["final_recommendation"])
                         elif "recommendation" in final_out:
-                             final_rec = final_out["recommendation"]
+                             final_rec = _coerce_enum(final_out["recommendation"])
                         
                         # Extract confidence scores if available (mocking for now if not deep in structure)
                         if "confidence_score" in final_out:
@@ -215,9 +218,9 @@ class ClaimService:
             # Update assessment record
             assessment.status = AssessmentStatus.COMPLETED
             assessment.agent_outputs = agent_outputs
-            assessment.final_recommendation = str(final_rec) if final_rec else None
+            assessment.final_recommendation = str(final_rec) if final_rec is not None else None
             assessment.confidence_scores = confidence_scores
-            assessment.processing_completed_at = datetime.utcnow()
+            assessment.processing_completed_at = datetime.now(timezone.utc)
             
             await self.repo.update_assessment(assessment)
             
@@ -236,7 +239,7 @@ class ClaimService:
             logger.error(f"AI processing failed for claim {claim_id}: {e}")
             assessment.status = AssessmentStatus.FAILED
             assessment.error_message = str(e)
-            assessment.processing_completed_at = datetime.utcnow()
+            assessment.processing_completed_at = datetime.now(timezone.utc)
             await self.repo.update_assessment(assessment)
             await self.repo.create_audit_entry(AuditLogCreate(
                 claim_id=claim_id,
@@ -266,19 +269,27 @@ class ClaimService:
         coverage = outputs.get("policy_checker") or {}
         final_out = outputs.get("synthesizer") or {}
 
-        risk_level = risk.get("risk_level")
+        def _coerce_enum(value):  # noqa: WPS430 - small local helper for enum normalization
+            return value.value if hasattr(value, "value") else value
+
+        risk_level = _coerce_enum(risk.get("risk_level"))
         risk_score = risk.get("risk_score")
-        validity_status = validity.get("validity_status")
-        coverage_status = coverage.get("coverage_status")
-        recommendation = final_out.get("recommendation") or assessment.final_recommendation
-        confidence = final_out.get("confidence")
+        if isinstance(risk_score, str):
+            try:
+                risk_score = float(risk_score)
+            except ValueError:
+                risk_score = None
+        validity_status = _coerce_enum(validity.get("validity_status"))
+        coverage_status = _coerce_enum(coverage.get("coverage_status"))
+        recommendation = _coerce_enum(final_out.get("recommendation") or assessment.final_recommendation)
+        confidence = _coerce_enum(final_out.get("confidence"))
         if not risk_level or risk_level not in AUTO_APPROVE_RISK_LEVELS:
             return
         if risk_score is not None and risk_score > AUTO_APPROVE_MAX_RISK_SCORE:
             return
-        if validity_status and validity_status == "INVALID":
+        if validity_status and validity_status not in AUTO_APPROVE_VALIDITY_ALLOWED:
             return
-        if coverage_status and coverage_status == "NOT_COVERED":
+        if coverage_status and coverage_status not in AUTO_APPROVE_COVERAGE_ALLOWED:
             return
         if recommendation:
             if recommendation == "DENY":
@@ -351,7 +362,7 @@ class ClaimService:
         if not claim:
             return None
             
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         decision_id = str(uuid.uuid4())
         
         decision = ClaimDecision(

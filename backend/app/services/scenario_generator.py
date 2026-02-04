@@ -8,7 +8,7 @@ import asyncio
 import json
 import logging
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import uuid4
 
@@ -621,7 +621,7 @@ class ScenarioGenerator:
             complexity=request.complexity,
             claim=claim,
             policy=policy,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
 
     def _build_scenario(
@@ -723,7 +723,7 @@ class ScenarioGenerator:
             complexity=request.complexity,
             claim=claim,
             policy=policy,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
 
     def get_templates(self) -> list[PresetTemplate]:

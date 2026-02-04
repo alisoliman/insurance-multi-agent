@@ -200,7 +200,7 @@ export async function recordDecision(claimId: string, decision: Omit<ClaimDecisi
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ ...decision, claim_id: claimId })
+    body: JSON.stringify(decision)
   })
   if (!response.ok) {
     throw new Error(`Failed to record decision: ${response.statusText}`)

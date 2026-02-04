@@ -6,6 +6,7 @@ final structured assessment that matches the expected API output format.
 from agent_framework import ChatAgent
 from agent_framework.azure import AzureOpenAIChatClient
 
+from app.models.agent_outputs import FinalAssessment
 
 SYNTHESIZER_PROMPT = """You are a senior claims manager responsible for synthesizing the analysis from your specialist team into a comprehensive advisory assessment.
 
@@ -49,4 +50,5 @@ def create_synthesizer_agent(chat_client: AzureOpenAIChatClient) -> ChatAgent:  
         name="synthesizer",
         instructions=SYNTHESIZER_PROMPT,
         tools=[],  # No tools needed - synthesis only uses conversation context
+        default_options={"response_format": FinalAssessment},
     )

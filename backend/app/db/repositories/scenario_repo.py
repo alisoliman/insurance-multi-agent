@@ -6,7 +6,7 @@ Based on data-model.md from specs/004-ai-demo-examples/
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import aiosqlite
@@ -40,7 +40,7 @@ class ScenarioRepository:
         Returns:
             Summary of the saved scenario
         """
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         
         # Update scenario name if different
         scenario_dict = scenario.model_dump(mode="json")

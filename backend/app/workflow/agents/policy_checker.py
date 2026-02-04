@@ -2,6 +2,7 @@
 from agent_framework import ChatAgent
 from agent_framework.azure import AzureOpenAIChatClient
 
+from app.models.agent_outputs import CoverageVerification
 from ..tools import get_policy_details, search_policy_documents
 
 
@@ -64,4 +65,5 @@ def create_policy_checker_agent(chat_client: AzureOpenAIChatClient) -> ChatAgent
         name="policy_checker",
         instructions=POLICY_CHECKER_PROMPT,
         tools=[get_policy_details, search_policy_documents],
+        default_options={"response_format": CoverageVerification},
     )

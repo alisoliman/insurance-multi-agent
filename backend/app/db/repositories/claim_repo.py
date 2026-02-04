@@ -5,7 +5,7 @@ Feature 005 - Claims Workbench
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Tuple
 
 import aiosqlite
@@ -394,7 +394,7 @@ class ClaimRepository:
         
         # Always update timestamp and version
         set_parts.append("updated_at = ?")
-        params.append(datetime.utcnow().isoformat())
+        params.append(datetime.now(timezone.utc).isoformat())
         set_parts.append("version = version + 1")
         
         params.append(claim_id)
@@ -483,7 +483,7 @@ class ClaimRepository:
         if latest_status not in ("completed", "failed"):
             return None
 
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         
         query = """
         UPDATE claims 
@@ -506,7 +506,7 @@ class ClaimRepository:
 
     async def unassign_claim(self, claim_id: str, handler_id: str) -> Optional[Claim]:
         """Unassign a claim and return it to the review queue."""
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         query = """
         UPDATE claims
         SET assigned_handler_id = NULL,
@@ -654,7 +654,7 @@ class ClaimRepository:
     async def create_audit_entry(self, entry: AuditLogCreate) -> None:
         """Create an audit log entry."""
         import uuid
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         query = """
         INSERT INTO claim_audit_log (

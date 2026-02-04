@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
+import { useOnboarding } from "@/components/onboarding/onboarding-provider"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { getApiUrl } from "@/lib/config"
@@ -144,6 +145,8 @@ function renderAgentOutputCard(
 }
 
 export function WorkflowDemo() {
+  const TOOL_CALLS_STORAGE_KEY = "simai-workflow-tool-calls"
+
   const [availableClaims, setAvailableClaims] = useState<ClaimSummary[]>([])
   const [generatedScenarios, setGeneratedScenarios] = useState<GeneratedScenario[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -156,6 +159,8 @@ export function WorkflowDemo() {
   const [savingScenarioId, setSavingScenarioId] = useState<string | null>(null)
   const [summaryLanguage, setSummaryLanguage] = useState<"english" | "original">("english")
   const [lastRunLanguage, setLastRunLanguage] = useState<"english" | "original" | null>(null)
+  const [showToolCalls, setShowToolCalls] = useState(true)
+  const { isDisabled: onboardingDisabled, setDisabled: setOnboardingDisabled } = useOnboarding()
 
   // T040: Show loading indicator after 500ms delay to avoid flickering on fast responses
   useEffect(() => {
@@ -167,6 +172,24 @@ export function WorkflowDemo() {
     }
     return () => clearTimeout(timer)
   }, [isLoading])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const storedToolCalls = window.sessionStorage.getItem(TOOL_CALLS_STORAGE_KEY)
+    if (storedToolCalls !== null) {
+      setShowToolCalls(storedToolCalls === "true")
+    }
+  }, [setOnboardingDisabled])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    window.sessionStorage.setItem(TOOL_CALLS_STORAGE_KEY, String(showToolCalls))
+  }, [showToolCalls])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    // Onboarding persistence is handled in the OnboardingProvider (localStorage).
+  }, [onboardingDisabled])
 
   // Handle newly generated scenario
   const handleScenarioGenerated = (scenario: GeneratedScenario) => {
@@ -361,10 +384,16 @@ export function WorkflowDemo() {
 
   // Helper to determine if a conversation step should be skipped
   const shouldSkipStep = (step: ConversationEntry) => {
-    return step.content.startsWith('TOOL_CALL:') || 
-           step.content.includes('transfer_back_to_supervisor') || 
-           step.content.includes('"type": "tool_call"') ||
-           step.content.match(/\[.*"tool_call".*\]/)
+    if (step.content.includes('transfer_back_to_supervisor')) {
+      return true
+    }
+    if (!showToolCalls) {
+      return step.content.startsWith('TOOL_CALL:') || 
+             step.content.startsWith('🔧 Calling tool:') ||
+             step.content.startsWith('🔧 Tool Response') ||
+             step.role === 'tool'
+    }
+    return false
   }
 
   return (
@@ -463,6 +492,39 @@ export function WorkflowDemo() {
                 onCheckedChange={(checked) => setSummaryLanguage(checked ? "original" : "english")}
               />
               <span className="text-xs text-muted-foreground">Original</span>
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+              <div className="space-y-0.5">
+                <Label htmlFor="show-tool-calls" className="text-sm font-medium">
+                  Tool Call Trace
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {showToolCalls ? "Show tool calls and responses in the trace" : "Hide tool calls and responses"}
+                </p>
+              </div>
+              <Switch
+                id="show-tool-calls"
+                checked={showToolCalls}
+                onCheckedChange={setShowToolCalls}
+              />
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+              <div className="space-y-0.5">
+                <Label htmlFor="disable-onboarding" className="text-sm font-medium">
+                  Onboarding
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {onboardingDisabled ? "Onboarding is disabled" : "Disable onboarding and mark complete"}
+                </p>
+              </div>
+              <Switch
+                id="disable-onboarding"
+                checked={onboardingDisabled}
+                onCheckedChange={(checked) => setOnboardingDisabled(checked)}
+              />
             </div>
           </div>
           
@@ -707,7 +769,7 @@ export function WorkflowDemo() {
           )}
 
           {/* Tool Calls Section - Collapsible per agent */}
-          {workflowResult?.agent_outputs && hasAnyToolCalls(workflowResult.agent_outputs) && (
+          {showToolCalls && workflowResult?.agent_outputs && hasAnyToolCalls(workflowResult.agent_outputs) && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Tool Calls</CardTitle>

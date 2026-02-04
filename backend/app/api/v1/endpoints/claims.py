@@ -4,7 +4,7 @@ Feature 005 - Claims Workbench
 """
 
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -244,7 +244,7 @@ async def seed_claims(
     for sample in samples:
         # Randomize incident date within last 7 days
         days_ago = random.randint(0, 7)
-        incident_date = datetime.utcnow() - timedelta(days=days_ago)
+        incident_date = datetime.now(timezone.utc) - timedelta(days=days_ago)
         
         claim_create = ClaimCreate(
             claimant_name=sample["claimant_name"],

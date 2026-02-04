@@ -6,6 +6,7 @@ import { OnboardingModal } from "./onboarding-modal"
 import { OnboardingDock } from "./onboarding-dock"
 
 const STORAGE_KEY = "simai-onboarding-v1"
+const DISABLED_KEY = "simai-onboarding-disabled"
 
 interface OnboardingState {
   hasSeen: boolean
@@ -17,6 +18,7 @@ interface OnboardingContextValue {
   isOpen: boolean
   currentStep: number
   completed: Set<string>
+  isDisabled: boolean
   open: (stepIndex?: number) => void
   goTo: (stepIndex: number) => void
   close: () => void
@@ -24,6 +26,7 @@ interface OnboardingContextValue {
   prev: () => void
   markComplete: (stepId: string) => void
   reset: () => void
+  setDisabled: (value: boolean) => void
 }
 
 const OnboardingContext = React.createContext<OnboardingContextValue | null>(null)
@@ -41,14 +44,23 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const [currentStep, setCurrentStep] = React.useState(0)
   const [completed, setCompleted] = React.useState<Set<string>>(new Set())
   const [hasSeen, setHasSeen] = React.useState(false)
+  const [isDisabled, setIsDisabled] = React.useState(false)
   const hasHydrated = React.useRef(false)
 
   React.useEffect(() => {
     if (typeof window === "undefined") return
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY)
+      const disabled = window.localStorage.getItem(DISABLED_KEY)
+      if (disabled === "true") {
+        setIsDisabled(true)
+        setHasSeen(true)
+        setIsOpen(false)
+      }
       if (!stored) {
-        setIsOpen(true)
+        if (disabled !== "true") {
+          setIsOpen(true)
+        }
         hasHydrated.current = true
         return
       }
@@ -56,9 +68,13 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       setCurrentStep(parsed.currentStep ?? 0)
       setCompleted(new Set(parsed.completed ?? []))
       setHasSeen(Boolean(parsed.hasSeen))
-      setIsOpen(!parsed.hasSeen)
+      if (disabled !== "true") {
+        setIsOpen(!parsed.hasSeen)
+      }
     } catch {
-      setIsOpen(true)
+      if (window.localStorage.getItem(DISABLED_KEY) !== "true") {
+        setIsOpen(true)
+      }
     } finally {
       hasHydrated.current = true
     }
@@ -72,7 +88,8 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       currentStep
     }
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  }, [hasSeen, completed, currentStep])
+    window.localStorage.setItem(DISABLED_KEY, String(isDisabled))
+  }, [hasSeen, completed, currentStep, isDisabled])
 
   const open = React.useCallback((stepIndex?: number) => {
     if (typeof stepIndex === "number") {
@@ -106,9 +123,22 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     setCompleted(new Set())
     setCurrentStep(0)
     setHasSeen(false)
+    setIsDisabled(false)
     setIsOpen(true)
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(STORAGE_KEY)
+      window.localStorage.removeItem(DISABLED_KEY)
+    }
+  }, [])
+
+  const setDisabled = React.useCallback((value: boolean) => {
+    setIsDisabled(value)
+    if (value) {
+      setHasSeen(true)
+      setIsOpen(false)
+    } else {
+      setHasSeen(false)
+      setIsOpen(true)
     }
   }, [])
 
@@ -117,22 +147,24 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       isOpen,
       currentStep,
       completed,
+      isDisabled,
       open,
       goTo,
       close,
       next,
       prev,
       markComplete,
-      reset
+      reset,
+      setDisabled,
     }),
-    [isOpen, currentStep, completed, open, goTo, close, next, prev, markComplete, reset]
+    [isOpen, currentStep, completed, isDisabled, open, goTo, close, next, prev, markComplete, reset, setDisabled]
   )
 
   return (
     <OnboardingContext.Provider value={value}>
       {children}
-      <OnboardingModal />
-      <OnboardingDock />
+      {!isDisabled && <OnboardingModal />}
+      {!isDisabled && <OnboardingDock />}
     </OnboardingContext.Provider>
   )
 }
