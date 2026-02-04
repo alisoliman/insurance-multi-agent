@@ -75,6 +75,100 @@ CREATE TABLE IF NOT EXISTS policies (
 
 CREATE INDEX IF NOT EXISTS idx_policies_scenario_id ON policies(scenario_id);
 CREATE INDEX IF NOT EXISTS idx_policies_customer ON policies(customer_name);
+
+-- Handlers table (Feature 005)
+CREATE TABLE IF NOT EXISTS handlers (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL
+);
+
+-- Claims table (Feature 005)
+CREATE TABLE IF NOT EXISTS claims (
+    id TEXT PRIMARY KEY,
+    claimant_name TEXT NOT NULL,
+    claimant_id TEXT NOT NULL,
+    policy_number TEXT NOT NULL,
+    claim_type TEXT NOT NULL,
+    description TEXT NOT NULL,
+    incident_date TEXT NOT NULL,
+    estimated_damage REAL,
+    location TEXT,
+    status TEXT NOT NULL DEFAULT 'new',
+    priority TEXT NOT NULL DEFAULT 'medium',
+    assigned_handler_id TEXT,
+    version INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT,
+    FOREIGN KEY (assigned_handler_id) REFERENCES handlers(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_claims_status ON claims(status);
+CREATE INDEX IF NOT EXISTS idx_claims_assigned_handler ON claims(assigned_handler_id);
+CREATE INDEX IF NOT EXISTS idx_claims_priority_status ON claims(priority DESC, status);
+CREATE INDEX IF NOT EXISTS idx_claims_created_at ON claims(created_at DESC);
+
+-- AI Assessments table (Feature 005)
+CREATE TABLE IF NOT EXISTS ai_assessments (
+    id TEXT PRIMARY KEY,
+    claim_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    agent_outputs TEXT,
+    final_recommendation TEXT,
+    confidence_scores TEXT,
+    processing_started_at TEXT,
+    processing_completed_at TEXT,
+    error_message TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (claim_id) REFERENCES claims(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_assessments_claim ON ai_assessments(claim_id);
+CREATE INDEX IF NOT EXISTS idx_assessments_status ON ai_assessments(status);
+
+-- Decisions table (Feature 005)
+CREATE TABLE IF NOT EXISTS claim_decisions (
+    id TEXT PRIMARY KEY,
+    claim_id TEXT NOT NULL,
+    handler_id TEXT NOT NULL,
+    decision_type TEXT NOT NULL,
+    notes TEXT,
+    ai_assessment_id TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (claim_id) REFERENCES claims(id),
+    FOREIGN KEY (handler_id) REFERENCES handlers(id),
+    FOREIGN KEY (ai_assessment_id) REFERENCES ai_assessments(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_decisions_claim ON claim_decisions(claim_id);
+CREATE INDEX IF NOT EXISTS idx_decisions_handler ON claim_decisions(handler_id);
+CREATE INDEX IF NOT EXISTS idx_decisions_created_at ON claim_decisions(created_at DESC);
+
+-- Audit Log table (Feature 005)
+CREATE TABLE IF NOT EXISTS claim_audit_log (
+    id TEXT PRIMARY KEY,
+    claim_id TEXT NOT NULL,
+    handler_id TEXT,
+    action TEXT NOT NULL,
+    old_value TEXT,
+    new_value TEXT,
+    timestamp TEXT NOT NULL,
+    FOREIGN KEY (claim_id) REFERENCES claims(id),
+    FOREIGN KEY (handler_id) REFERENCES handlers(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_claim ON claim_audit_log(claim_id);
+CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON claim_audit_log(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_handler ON claim_audit_log(handler_id);
+
+-- Seed demo handlers
+INSERT OR IGNORE INTO handlers (id, name, email, is_active, created_at) VALUES
+    ('handler-001', 'Alice Johnson', 'alice@contoso.com', 1, datetime('now')),
+    ('handler-002', 'Bob Smith', 'bob@contoso.com', 1, datetime('now')),
+    ('handler-003', 'Carol Williams', 'carol@contoso.com', 1, datetime('now')),
+    ('system', 'Auto Approver', 'system@contoso.com', 0, datetime('now'));
 """
 
 
@@ -106,6 +200,14 @@ async def get_db() -> AsyncGenerator[aiosqlite.Connection, None]:
     
     db = await aiosqlite.connect(DB_PATH)
     db.row_factory = aiosqlite.Row
+    # Ensure newer tables exist even if the DB file pre-dates claims workbench.
+    cursor = await db.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='claims'"
+    )
+    has_claims_table = await cursor.fetchone()
+    if not has_claims_table:
+        await db.executescript(SCHEMA)
+        await db.commit()
     try:
         yield db
     finally:
@@ -127,6 +229,13 @@ async def get_db_connection() -> AsyncGenerator[aiosqlite.Connection, None]:
     
     db = await aiosqlite.connect(DB_PATH)
     db.row_factory = aiosqlite.Row
+    cursor = await db.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='claims'"
+    )
+    has_claims_table = await cursor.fetchone()
+    if not has_claims_table:
+        await db.executescript(SCHEMA)
+        await db.commit()
     try:
         yield db
     finally:

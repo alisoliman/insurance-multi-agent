@@ -128,12 +128,48 @@ function hasToolResponses(content: string): boolean {
 // Parse tool calls from content
 function parseToolCalls(content: string): Array<{ name: string; args: Record<string, unknown> }> {
   const toolCalls: Array<{ name: string; args: Record<string, unknown> }> = []
+
+  if (content.includes('TOOL_CALL:')) {
+    const payload = content.split('TOOL_CALL:')[1]?.trim() || ''
+    const tryParse = (value: string) => {
+      try {
+        return JSON.parse(value)
+      } catch {
+        return null
+      }
+    }
+    let parsed = tryParse(payload)
+    if (!parsed) {
+      const sanitized = payload
+        .replace(/None/g, 'null')
+        .replace(/True/g, 'true')
+        .replace(/False/g, 'false')
+        .replace(/'/g, '"')
+      parsed = tryParse(sanitized)
+    }
+    if (Array.isArray(parsed)) {
+      parsed.forEach((call) => {
+        const name = call?.name || call?.function?.name || 'tool'
+        const args = call?.arguments ?? call?.function?.arguments ?? {}
+        toolCalls.push({ name, args: typeof args === 'string' ? { raw: args } : args })
+      })
+      return toolCalls
+    }
+    if (parsed && typeof parsed === 'object') {
+      const name = (parsed as Record<string, unknown>).name || 'tool'
+      const args = (parsed as Record<string, unknown>).arguments ?? {}
+      toolCalls.push({ name: String(name), args: typeof args === 'string' ? { raw: args } : (args as Record<string, unknown>) })
+      return toolCalls
+    }
+    toolCalls.push({ name: 'tool', args: { raw: payload } })
+    return toolCalls
+  }
+
   const lines = content.split('\n')
-  
   let currentTool: string | null = null
   let argsBuffer: string[] = []
   let collectingArgs = false
-  
+
   const saveCurrentTool = () => {
     if (currentTool) {
       if (argsBuffer.length > 0) {
@@ -142,27 +178,23 @@ function parseToolCalls(content: string): Array<{ name: string; args: Record<str
           const args = JSON.parse(argsStr)
           toolCalls.push({ name: currentTool, args })
         } catch {
-          // If JSON parsing fails, show empty args
           toolCalls.push({ name: currentTool, args: {} })
         }
       } else {
-        // No arguments - tool was called without args
         toolCalls.push({ name: currentTool, args: {} })
       }
       argsBuffer = []
       collectingArgs = false
     }
   }
-  
+
   for (const line of lines) {
     const toolMatch = line.match(/🔧 Calling tool:\s*(\w+)/)
     if (toolMatch) {
-      // Save previous tool before starting new one
       saveCurrentTool()
       currentTool = toolMatch[1]
     } else if (line.trim().startsWith('Arguments:')) {
       collectingArgs = true
-      // Check if Arguments is inline: "Arguments: {...}"
       const inlineMatch = line.match(/Arguments:\s*(\{.*)/)
       if (inlineMatch) {
         argsBuffer.push(inlineMatch[1])
@@ -170,15 +202,12 @@ function parseToolCalls(content: string): Array<{ name: string; args: Record<str
     } else if (collectingArgs && line.trim()) {
       argsBuffer.push(line.trim())
     } else if (currentTool && !collectingArgs && line.trim() && line.trim().startsWith('{')) {
-      // Sometimes args come directly after tool name without "Arguments:" label
       collectingArgs = true
       argsBuffer.push(line.trim())
     }
   }
-  
-  // Don't forget the last tool
+
   saveCurrentTool()
-  
   return toolCalls
 }
 
@@ -206,6 +235,27 @@ function parseToolResponses(content: string): Array<{ name: string; result: unkn
 // Check if content is structured output format (like "- validity_status: QUESTIONABLE")
 function isStructuredOutput(content: string): boolean {
   return content.match(/^- \w+:/) !== null || content.match(/\n- \w+:/) !== null
+}
+
+function isJsonObject(content: string): boolean {
+  try {
+    const parsed = JSON.parse(content.trim())
+    return !!parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+  } catch {
+    return false
+  }
+}
+
+function parseJsonObject(content: string): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(content.trim())
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>
+    }
+    return null
+  } catch {
+    return null
+  }
 }
 
 // Parse structured output format
@@ -467,7 +517,7 @@ function ToolResponsesDisplay({ responses }: { responses: Array<{ name: string; 
 }
 
 // Component: Structured Output Display
-function StructuredOutputDisplay({ data }: { data: Record<string, string | string[]> }) {
+function StructuredOutputDisplay({ data }: { data: Record<string, unknown> }) {
   // Field display configuration
   const fieldConfig: Record<string, { label: string; type: 'status' | 'text' | 'list' }> = {
     validity_status: { label: 'Validity Status', type: 'status' },
@@ -527,7 +577,22 @@ function StructuredOutputDisplay({ data }: { data: Record<string, string | strin
           )
         }
         
-        if (config.type === 'list' && Array.isArray(value)) {
+        if (Array.isArray(value)) {
+          const isPrimitiveList = value.every(
+            (item) => typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean'
+          )
+          if (!isPrimitiveList) {
+            return (
+              <div key={key}>
+                <div className="text-sm font-medium text-muted-foreground mb-1 capitalize">
+                  {config.label}
+                </div>
+                <pre className="text-xs rounded p-2 bg-background/60 border overflow-x-auto">
+                  {JSON.stringify(value, null, 2)}
+                </pre>
+              </div>
+            )
+          }
           return (
             <div key={key}>
               <div className="text-sm font-medium text-muted-foreground mb-1.5 flex items-center gap-1.5">
@@ -544,10 +609,23 @@ function StructuredOutputDisplay({ data }: { data: Record<string, string | strin
                     "text-sm",
                     (key === 'red_flags' || key === 'fraud_indicators') && "text-red-700 dark:text-red-400"
                   )}>
-                    • {item}
+                    • {String(item)}
                   </li>
                 ))}
               </ul>
+            </div>
+          )
+        }
+
+        if (value && typeof value === 'object') {
+          return (
+            <div key={key}>
+              <div className="text-sm font-medium text-muted-foreground mb-1 capitalize">
+                {config.label}
+              </div>
+              <pre className="text-xs rounded p-2 bg-background/60 border overflow-x-auto">
+                {JSON.stringify(value, null, 2)}
+              </pre>
             </div>
           )
         }
@@ -577,9 +655,7 @@ export const ConversationStep = React.memo(function ConversationStep({
   const agentConfig = AGENT_CONFIG[nodeOrAgent]
   
   // Skip internal messages
-  if (step.content.includes('transfer_back_to_supervisor') || 
-      step.content.includes('"type": "tool_call"') ||
-      step.content.match(/\[.*"tool_call".*\]/)) {
+  if (step.content.includes('transfer_back_to_supervisor')) {
     return null
   }
 
@@ -587,8 +663,11 @@ export const ConversationStep = React.memo(function ConversationStep({
   const claimData = isUser && isClaimJson(step.content) ? parseClaimJson(step.content) : null
   const toolCalls = hasToolCalls(step.content) ? parseToolCalls(step.content) : null
   const toolResponses = hasToolResponses(step.content) ? parseToolResponses(step.content) : null
-  const structuredOutput = !claimData && !toolCalls && !toolResponses && isStructuredOutput(step.content) 
-    ? parseStructuredOutput(step.content) 
+  const jsonOutput = !claimData && !toolCalls && !toolResponses && isJsonObject(step.content)
+    ? parseJsonObject(step.content)
+    : null
+  const structuredOutput = !claimData && !toolCalls && !toolResponses && !jsonOutput && isStructuredOutput(step.content)
+    ? parseStructuredOutput(step.content)
     : null
 
   return (
@@ -648,6 +727,8 @@ export const ConversationStep = React.memo(function ConversationStep({
                 <ToolCallsDisplay toolCalls={toolCalls} />
               ) : toolResponses ? (
                 <ToolResponsesDisplay responses={toolResponses} />
+              ) : jsonOutput ? (
+                <StructuredOutputDisplay data={jsonOutput} />
               ) : structuredOutput ? (
                 <StructuredOutputDisplay data={structuredOutput} />
               ) : (

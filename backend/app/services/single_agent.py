@@ -36,6 +36,45 @@ class UnknownAgentError(ValueError):
     """Raised when a requested agent name does not exist in the registry."""
 
 
+def _build_task(claim_data: Dict[str, Any]) -> str:
+    return "Please process this insurance claim:\n\n" + json.dumps(claim_data, indent=2)
+
+
+def _extract_messages_from_result(result: Any, task: str) -> List[Dict[str, Any]]:
+    messages: List[Dict[str, Any]] = [{"role": "user", "content": task}]
+
+    if hasattr(result, "to_dict"):
+        result_dict = result.to_dict()
+        raw_messages = result_dict.get("messages") or []
+        if raw_messages:
+            call_id_to_name: Dict[str, str] = {}
+            for msg in raw_messages:
+                for item in msg.get("contents", []):
+                    if item.get("type") == "function_call":
+                        call_id = item.get("call_id", "")
+                        name = item.get("name", "")
+                        if call_id and name:
+                            call_id_to_name[call_id] = name
+
+            for msg in raw_messages:
+                enriched_msg = dict(msg)
+                enriched_contents = []
+                for item in msg.get("contents", []):
+                    enriched_item = dict(item)
+                    if item.get("type") == "function_result":
+                        call_id = item.get("call_id", "")
+                        if call_id in call_id_to_name:
+                            enriched_item["name"] = call_id_to_name[call_id]
+                    enriched_contents.append(enriched_item)
+                enriched_msg["contents"] = enriched_contents
+                messages.append(enriched_msg)
+            return messages
+
+    response_text = str(result) if result else ""
+    messages.append({"role": "assistant", "content": response_text})
+    return messages
+
+
 async def run(agent_name: str, claim_data: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], Optional[Dict[str, Any]]]:  # noqa: D401
     """Run *one* agent on the claim data and return its message list and structured output.
 
@@ -54,69 +93,30 @@ async def run(agent_name: str, claim_data: Dict[str, Any]) -> Tuple[List[Dict[st
 
     agent = AGENTS[agent_name]
 
-    # Build the task string (same pattern supervisor uses)
-    task = "Please process this insurance claim:\n\n" + json.dumps(claim_data, indent=2)
+    task = _build_task(claim_data)
 
     # Get the response format for structured output (if available for this agent)
     response_format = AGENT_RESPONSE_FORMATS.get(agent_name)
     
     # Run the agent with optional structured output format
-    if response_format:
-        options = {"response_format": response_format}
-        result = await agent.run(task, options=options)
-    else:
-        result = await agent.run(task)
+    options = {"response_format": response_format} if response_format else None
+    result = await agent.run(task, options=options) if options else await agent.run(task)
     
     # Extract full message history from the AgentResponse
-    messages: List[Dict[str, Any]] = []
     structured_output: Optional[Dict[str, Any]] = None
-    
-    # Add the initial user message
-    messages.append({"role": "user", "content": task})
-    
-    # Check for structured output (Pydantic model) in result.value
-    if response_format and hasattr(result, 'value') and result.value is not None:
-        structured_output = result.value.model_dump()
-        logger.info("✅ Agent %s returned structured output: %s", agent_name, type(result.value).__name__)
-    elif hasattr(result, 'value') and isinstance(result.value, BaseModel):
-        structured_output = result.value.model_dump()
-        logger.info("✅ Agent %s returned structured output: %s", agent_name, type(result.value).__name__)
-    
-    # Get messages from the AgentResponse
-    if hasattr(result, 'to_dict'):
-        result_dict = result.to_dict()
-        if 'messages' in result_dict and result_dict['messages']:
-            # Build call_id → function_name mapping from function_calls
-            call_id_to_name: Dict[str, str] = {}
-            for msg in result_dict['messages']:
-                for item in msg.get('contents', []):
-                    if item.get('type') == 'function_call':
-                        call_id = item.get('call_id', '')
-                        name = item.get('name', '')
-                        if call_id and name:
-                            call_id_to_name[call_id] = name
-            
-            # Now process messages and enrich function_results with names
-            for msg in result_dict['messages']:
-                enriched_msg = dict(msg)
-                enriched_contents = []
-                for item in msg.get('contents', []):
-                    enriched_item = dict(item)
-                    if item.get('type') == 'function_result':
-                        call_id = item.get('call_id', '')
-                        if call_id in call_id_to_name:
-                            enriched_item['name'] = call_id_to_name[call_id]
-                    enriched_contents.append(enriched_item)
-                enriched_msg['contents'] = enriched_contents
-                messages.append(enriched_msg)
-        else:
-            # Fallback: use the response string
-            response_text = str(result) if result else ""
-            messages.append({"role": "assistant", "content": response_text})
-    else:
-        # Fallback: use the response string
-        response_text = str(result) if result else ""
-        messages.append({"role": "assistant", "content": response_text})
+    value = getattr(result, "value", None)
+    if value is not None:
+        if isinstance(value, BaseModel):
+            structured_output = value.model_dump(mode="json")
+            logger.info("✅ Agent %s returned structured output: %s", agent_name, type(value).__name__)
+        elif hasattr(value, "model_dump"):
+            structured_output = value.model_dump(mode="json")
+            logger.info("✅ Agent %s returned structured output.", agent_name)
+        elif isinstance(value, dict):
+            structured_output = value
+            logger.info("✅ Agent %s returned structured output dict.", agent_name)
+
+    messages = _extract_messages_from_result(result, task)
 
     logger.info("✅ Single-agent run finished: %s messages", len(messages))
     return messages, structured_output

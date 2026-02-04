@@ -9,6 +9,7 @@ import {
   IconMoon,
   IconSun,
   IconUsers,
+  IconBriefcase
 } from "@tabler/icons-react"
 import { useTheme } from "next-themes"
 
@@ -60,6 +61,36 @@ const data = {
       title: "Live Dashboard",
       url: "/",
       icon: IconDashboard,
+    },
+    {
+      title: "Queues",
+      url: "#",
+      icon: IconFileAi,
+      items: [
+        {
+          title: "Review Queue",
+          url: "/claims/queue",
+        },
+        {
+          title: "AI Processing Queue",
+          url: "/claims/processing-queue",
+        },
+        {
+          title: "Auto-Approvals",
+          url: "/claims/auto-approvals",
+        },
+      ],
+    },
+    {
+      title: "My Work",
+      url: "#",
+      icon: IconBriefcase,
+      items: [
+        {
+          title: "My Claims",
+          url: "/claims",
+        },
+      ],
     },
     {
       title: "Agent Demos",

@@ -2,6 +2,7 @@
 from agent_framework import ChatAgent
 from agent_framework.azure import AzureOpenAIChatClient
 
+from app.models.agent_outputs import CustomerCommunication
 
 COMMUNICATION_AGENT_PROMPT = """You are a communication specialist responsible for drafting clear, professional emails to insurance customers.
 
@@ -40,4 +41,5 @@ def create_communication_agent(chat_client: AzureOpenAIChatClient) -> ChatAgent:
         name="communication_agent",
         instructions=COMMUNICATION_AGENT_PROMPT,
         tools=[],  # email generation only needs language model
+        default_options={"response_format": CustomerCommunication},
     )

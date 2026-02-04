@@ -3,6 +3,9 @@
 import { usePathname } from "next/navigation"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import { Button } from "@/components/ui/button"
+import { Sparkles, RotateCcw } from "lucide-react"
+import { useOnboarding } from "@/components/onboarding/onboarding-provider"
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -14,6 +17,7 @@ import {
 
 export function SiteHeader() {
   const pathname = usePathname()
+  const { open, reset } = useOnboarding()
 
   const getBreadcrumbs = () => {
     const segments = pathname.split('/').filter(Boolean)
@@ -99,7 +103,16 @@ export function SiteHeader() {
         <Breadcrumb>
           {getBreadcrumbs()}
         </Breadcrumb>
-
+        <div className="ml-auto flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => open()}>
+            <Sparkles className="mr-2 h-4 w-4" />
+            Demo Guide
+          </Button>
+          <Button variant="ghost" size="sm" onClick={reset}>
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Restart Tour
+          </Button>
+        </div>
       </div>
     </header>
   )

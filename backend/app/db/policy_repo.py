@@ -6,7 +6,7 @@ Based on data-model.md from specs/005-complete-demo-pipeline/
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from pydantic import BaseModel
@@ -76,7 +76,7 @@ async def create_policy(policy: PolicyCreate) -> PolicyRecord:
     Returns:
         The created PolicyRecord
     """
-    created_at = datetime.utcnow().isoformat()
+    created_at = datetime.now(timezone.utc).isoformat()
     
     # Serialize list and dict fields to JSON
     coverage_types_json = json.dumps(policy.coverage_types)
