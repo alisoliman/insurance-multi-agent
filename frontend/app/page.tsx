@@ -112,7 +112,7 @@ export default function WorkbenchHome() {
         <div className="flex flex-1 flex-col p-6 space-y-8">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Workbench Dashboard</h1>
+              <h1 className="text-3xl font-bold tracking-tight">Claims Workbench</h1>
               <p className="text-muted-foreground mt-2">
                 Overview of your claims and daily activity.
               </p>
