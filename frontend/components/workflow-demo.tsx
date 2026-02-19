@@ -65,9 +65,31 @@ import {
   IconSparkles,
   IconDeviceFloppy,
   IconFolder,
+  IconPhoto,
+  IconDownload,
 } from '@tabler/icons-react'
 
 import { AGENT_CONFIG, getAgentConfig, getSpecialistAgents } from '@/lib/agent-config'
+
+// Evidence images mapped to sample claims for demo storytelling
+const DEMO_EVIDENCE: Record<string, { file: string; label: string }[]> = {
+  "CLM-2024-001": [
+    { file: "/demo-evidence/CLM-2024-001/rear-bumper-damage.jpg", label: "Rear bumper damage" },
+    { file: "/demo-evidence/CLM-2024-001/trunk-damage.jpg", label: "Trunk & tail lights" },
+    { file: "/demo-evidence/generic/police-report.jpg", label: "Police report" },
+  ],
+  "CLM-2024-002": [
+    { file: "/demo-evidence/CLM-2024-002/highway-collision.jpg", label: "Highway scene" },
+    { file: "/demo-evidence/CLM-2024-002/front-end-damage.jpg", label: "Front-end crush" },
+    { file: "/demo-evidence/CLM-2024-002/tow-truck-scene.jpg", label: "Tow truck recovery" },
+    { file: "/demo-evidence/generic/police-report.jpg", label: "Police report" },
+  ],
+  "CLM-2024-004": [
+    { file: "/demo-evidence/CLM-2024-004/side-damage.jpg", label: "Right-side impact" },
+    { file: "/demo-evidence/CLM-2024-004/bumper-closeup.jpg", label: "Bumper detail" },
+    { file: "/demo-evidence/generic/police-report.jpg", label: "Police report" },
+  ],
+}
 
 interface ClaimSummary {
   claim_id: string
@@ -161,6 +183,27 @@ export function WorkflowDemo() {
   const [lastRunLanguage, setLastRunLanguage] = useState<"english" | "original" | null>(null)
   const [showToolCalls, setShowToolCalls] = useState(true)
   const { isDisabled: onboardingDisabled, setDisabled: setOnboardingDisabled } = useOnboarding()
+  const [evidencePreview, setEvidencePreview] = useState<string | null>(null)
+
+  // Auto-load evidence images for a given claim as File objects
+  const loadEvidenceForClaim = async (claimId: string) => {
+    const evidence = DEMO_EVIDENCE[claimId]
+    if (!evidence) return
+    try {
+      const files = await Promise.all(
+        evidence.map(async (ev) => {
+          const resp = await fetch(ev.file)
+          const blob = await resp.blob()
+          const name = ev.file.split('/').pop() || 'evidence.jpg'
+          return new File([blob], name, { type: blob.type })
+        })
+      )
+      setUploadedFiles(files)
+      toast.success(`Loaded ${files.length} evidence photos for ${claimId}`)
+    } catch {
+      toast.error('Failed to load evidence images')
+    }
+  }
 
   // T040: Show loading indicator after 500ms delay to avoid flickering on fast responses
   useEffect(() => {
@@ -537,6 +580,77 @@ export function WorkflowDemo() {
             />
           </div>
 
+          {/* Demo Evidence Gallery */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <IconPhoto className="h-4 w-4" />
+                Demo Evidence Photos
+              </Label>
+              <p className="text-xs text-muted-foreground">Click a claim to auto-attach its evidence</p>
+            </div>
+            <div className="space-y-4">
+              {Object.entries(DEMO_EVIDENCE).map(([claimId, images]) => (
+                <div key={claimId} className="rounded-lg border p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs font-mono">{claimId}</Badge>
+                      <span className="text-xs text-muted-foreground">{images.length} photos</span>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="h-7 text-xs gap-1"
+                      onClick={() => loadEvidenceForClaim(claimId)}
+                    >
+                      <IconDownload className="h-3 w-3" />
+                      Attach All
+                    </Button>
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {images.map((img) => (
+                      <button
+                        key={img.file}
+                        type="button"
+                        className="group relative flex-shrink-0 rounded-md overflow-hidden border hover:ring-2 hover:ring-primary focus:ring-2 focus:ring-primary outline-none"
+                        onClick={() => setEvidencePreview(evidencePreview === img.file ? null : img.file)}
+                      >
+                        <img
+                          src={img.file}
+                          alt={img.label}
+                          className="h-16 w-24 object-cover"
+                        />
+                        <span className="absolute inset-x-0 bottom-0 bg-black/60 text-white text-[10px] px-1 py-0.5 truncate">
+                          {img.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Lightbox preview */}
+            {evidencePreview && (
+              <div className="rounded-lg border overflow-hidden bg-muted/30">
+                <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/50">
+                  <span className="text-xs font-medium">
+                    {DEMO_EVIDENCE[Object.keys(DEMO_EVIDENCE).find(k => DEMO_EVIDENCE[k].some(i => i.file === evidencePreview)) || '']
+                      ?.find(i => i.file === evidencePreview)?.label || 'Preview'}
+                  </span>
+                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setEvidencePreview(null)}>
+                    Close
+                  </Button>
+                </div>
+                <img
+                  src={evidencePreview}
+                  alt="Evidence preview"
+                  className="w-full max-h-80 object-contain bg-black/5"
+                />
+              </div>
+            )}
+          </div>
+
           {/* Generated Scenarios Section */}
           {generatedScenarios.length > 0 && (
             <div className="space-y-3">
@@ -686,6 +800,23 @@ export function WorkflowDemo() {
                       <p className="text-xs text-muted-foreground line-clamp-2">
                         {claim.description}
                       </p>
+                      {DEMO_EVIDENCE[claim.claim_id] && (
+                        <div className="flex gap-1 mt-1">
+                          {DEMO_EVIDENCE[claim.claim_id].slice(0, 3).map((img) => (
+                            <img
+                              key={img.file}
+                              src={img.file}
+                              alt={img.label}
+                              className="h-8 w-12 rounded object-cover border"
+                            />
+                          ))}
+                          {DEMO_EVIDENCE[claim.claim_id].length > 3 && (
+                            <span className="h-8 w-12 rounded border bg-muted flex items-center justify-center text-[10px] text-muted-foreground">
+                              +{DEMO_EVIDENCE[claim.claim_id].length - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       <Button
                         onClick={() => runWorkflow(claim)}
                         disabled={isLoading}

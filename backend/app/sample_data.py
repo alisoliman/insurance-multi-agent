@@ -27,8 +27,8 @@ sample_claim = {
         "license_plate": "ABC123"
     },
     "supporting_images": [
-        "workflow/data/claims/invoice.png",
-        "workflow/data/claims/crash2.jpg"
+        "/demo-evidence/CLM-2024-001/rear-bumper-damage.jpg",
+        "/demo-evidence/CLM-2024-001/trunk-damage.jpg"
     ]
 }
 
@@ -52,7 +52,12 @@ high_value_claim = {
         "model": "Civic",
         "year": 2021,
         "license_plate": "ABC123"
-    }
+    },
+    "supporting_images": [
+        "/demo-evidence/CLM-2024-002/highway-collision.jpg",
+        "/demo-evidence/CLM-2024-002/front-end-damage.jpg",
+        "/demo-evidence/CLM-2024-002/tow-truck-scene.jpg"
+    ]
 }
 
 # Dutch auto insurance claim for policy checker demo
@@ -75,7 +80,11 @@ dutch_auto_claim = {
         "model": "Golf",
         "year": 2022,
         "license_plate": "12-ABC-3"
-    }
+    },
+    "supporting_images": [
+        "/demo-evidence/CLM-2024-004/side-damage.jpg",
+        "/demo-evidence/CLM-2024-004/bumper-closeup.jpg"
+    ]
 }
 
 # List of all sample claims for easy access

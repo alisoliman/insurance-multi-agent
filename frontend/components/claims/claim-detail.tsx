@@ -7,7 +7,36 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { PlayCircle } from "lucide-react"
+import { PlayCircle, ShieldCheck, ShieldAlert, AlertTriangle, ImageIcon } from "lucide-react"
+
+// Evidence images matched to known sample claims by description keywords
+const EVIDENCE_SETS: { match: (c: Claim) => boolean; images: { src: string; label: string }[] }[] = [
+  {
+    match: (c) => c.description?.toLowerCase().includes("rear-end") || c.description?.toLowerCase().includes("rear bumper"),
+    images: [
+      { src: "/demo-evidence/CLM-2024-001/rear-bumper-damage.jpg", label: "Rear bumper damage" },
+      { src: "/demo-evidence/CLM-2024-001/trunk-damage.jpg", label: "Trunk & tail lights" },
+      { src: "/demo-evidence/generic/police-report.jpg", label: "Police report" },
+    ],
+  },
+  {
+    match: (c) => c.description?.toLowerCase().includes("highway") || c.description?.toLowerCase().includes("multi-vehicle") || c.description?.toLowerCase().includes("airbag"),
+    images: [
+      { src: "/demo-evidence/CLM-2024-002/highway-collision.jpg", label: "Highway scene" },
+      { src: "/demo-evidence/CLM-2024-002/front-end-damage.jpg", label: "Front-end damage" },
+      { src: "/demo-evidence/CLM-2024-002/tow-truck-scene.jpg", label: "Tow truck recovery" },
+      { src: "/demo-evidence/generic/police-report.jpg", label: "Police report" },
+    ],
+  },
+  {
+    match: (c) => c.description?.toLowerCase().includes("parkeer") || c.description?.toLowerCase().includes("parking"),
+    images: [
+      { src: "/demo-evidence/CLM-2024-004/side-damage.jpg", label: "Right-side impact" },
+      { src: "/demo-evidence/CLM-2024-004/bumper-closeup.jpg", label: "Bumper detail" },
+      { src: "/demo-evidence/generic/police-report.jpg", label: "Police report" },
+    ],
+  },
+]
 
 interface ClaimDetailProps {
   claim: Claim
@@ -24,12 +53,26 @@ export function ClaimDetail({ claim, onProcessAI, isProcessing, aiStatus }: Clai
   }
 
   const formatMoney = (value?: number) => {
-    if (value === undefined || value === null) return "N/A"
+    if (value === undefined || value === null) return "—"
     return `$${value.toLocaleString()}`
   }
 
   const riskScore = claim.ai_risk_score ?? null
   const riskProgress = riskScore !== null ? Math.min(Math.max(riskScore, 0), 100) : 0
+
+  const getRiskProgressColor = () => {
+    if (riskScore === null) return "bg-muted"
+    if (riskScore < 30) return "bg-green-500"
+    if (riskScore < 70) return "bg-amber-500"
+    return "bg-red-500"
+  }
+
+  const getRiskIcon = () => {
+    if (!claim.ai_risk_level) return null
+    if (claim.ai_risk_level.includes("LOW")) return <ShieldCheck className="w-4 h-4 text-green-600" />
+    if (claim.ai_risk_level.includes("HIGH")) return <ShieldAlert className="w-4 h-4 text-red-600" />
+    return <AlertTriangle className="w-4 h-4 text-amber-600" />
+  }
 
   return (
     <div className="space-y-6">
@@ -80,7 +123,7 @@ export function ClaimDetail({ claim, onProcessAI, isProcessing, aiStatus }: Clai
         </div>
         <div className="rounded-md border p-4">
           <div className="text-xs text-muted-foreground">Location</div>
-          <div className="text-lg font-semibold">{claim.location || "N/A"}</div>
+          <div className="text-lg font-semibold">{claim.location || "—"}</div>
         </div>
       </div>
 
@@ -116,11 +159,11 @@ export function ClaimDetail({ claim, onProcessAI, isProcessing, aiStatus }: Clai
               <div className="col-span-2">{format(new Date(claim.incident_date), 'PPP')}</div>
               
               <div className="font-semibold">Location</div>
-              <div className="col-span-2">{claim.location || "N/A"}</div>
+              <div className="col-span-2">{claim.location || "—"}</div>
               
               <div className="font-semibold">Est. Damage</div>
               <div className="col-span-2">
-                {claim.estimated_damage ? `$${claim.estimated_damage.toLocaleString()}` : "N/A"}
+                {claim.estimated_damage ? `$${claim.estimated_damage.toLocaleString()}` : "—"}
               </div>
             </div>
           </CardContent>
@@ -148,21 +191,62 @@ export function ClaimDetail({ claim, onProcessAI, isProcessing, aiStatus }: Clai
             </div>
           </div>
           <div className="rounded-md border p-3">
-            <div className="text-xs text-muted-foreground">Risk Level</div>
-            <div className="mt-2 font-semibold">{claim.ai_risk_level || "Unknown"}</div>
+            <div className="text-xs text-muted-foreground flex items-center gap-1">
+              Risk Level {getRiskIcon()}
+            </div>
+            <div className="mt-2 font-semibold">{claim.ai_risk_level?.replace('_', ' ') || "Unknown"}</div>
           </div>
           <div className="rounded-md border p-3">
             <div className="text-xs text-muted-foreground">Risk Score</div>
             <div className="mt-2 flex items-center justify-between">
-              <span className="font-semibold">{riskScore !== null ? riskScore : "N/A"}</span>
+              <span className="font-semibold">{riskScore !== null ? riskScore : "—"}</span>
               <span className="text-xs text-muted-foreground">/ 100</span>
             </div>
             <div className="mt-2">
-              <Progress value={riskProgress} />
+              <Progress 
+                value={riskProgress} 
+                indicatorClassName={getRiskProgressColor()}
+                aria-label={`Risk score: ${riskScore ?? 0} out of 100`}
+              />
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Evidence Photos */}
+      {(() => {
+        const matched = EVIDENCE_SETS.find((s) => s.match(claim))
+        if (!matched) return null
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ImageIcon className="w-5 h-5" />
+                Submitted Evidence
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {matched.images.map((img) => (
+                  <div key={img.src} className="group relative rounded-lg overflow-hidden border">
+                    <img
+                      src={img.src}
+                      alt={img.label}
+                      className="w-full h-32 object-cover"
+                    />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                      <span className="text-white text-xs font-medium">{img.label}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                Photos provided by claimant at time of submission. AI agents analyze these as part of the claim assessment.
+              </p>
+            </CardContent>
+          </Card>
+        )
+      })()}
     </div>
   )
 }
