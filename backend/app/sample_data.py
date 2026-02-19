@@ -28,7 +28,8 @@ sample_claim = {
     },
     "supporting_images": [
         "/demo-evidence/CLM-2024-001/rear-bumper-damage.jpg",
-        "/demo-evidence/CLM-2024-001/trunk-damage.jpg"
+        "/demo-evidence/CLM-2024-001/trunk-damage.jpg",
+        "/demo-evidence/CLM-2024-001/intersection-scene.jpg"
     ]
 }
 
@@ -56,6 +57,7 @@ high_value_claim = {
     "supporting_images": [
         "/demo-evidence/CLM-2024-002/highway-collision.jpg",
         "/demo-evidence/CLM-2024-002/front-end-damage.jpg",
+        "/demo-evidence/CLM-2024-002/airbag-deployed.jpg",
         "/demo-evidence/CLM-2024-002/tow-truck-scene.jpg"
     ]
 }

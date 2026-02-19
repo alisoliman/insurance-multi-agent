@@ -74,19 +74,21 @@ import { AGENT_CONFIG, getAgentConfig, getSpecialistAgents } from '@/lib/agent-c
 // Evidence images mapped to sample claims for demo storytelling
 const DEMO_EVIDENCE: Record<string, { file: string; label: string }[]> = {
   "CLM-2024-001": [
-    { file: "/demo-evidence/CLM-2024-001/rear-bumper-damage.jpg", label: "Rear bumper damage" },
-    { file: "/demo-evidence/CLM-2024-001/trunk-damage.jpg", label: "Trunk & tail lights" },
+    { file: "/demo-evidence/CLM-2024-001/rear-bumper-damage.jpg", label: "Rear bumper crumpled" },
+    { file: "/demo-evidence/CLM-2024-001/trunk-damage.jpg", label: "Tail light cracked" },
+    { file: "/demo-evidence/CLM-2024-001/intersection-scene.jpg", label: "Intersection scene" },
     { file: "/demo-evidence/generic/police-report.jpg", label: "Police report" },
   ],
   "CLM-2024-002": [
-    { file: "/demo-evidence/CLM-2024-002/highway-collision.jpg", label: "Highway scene" },
-    { file: "/demo-evidence/CLM-2024-002/front-end-damage.jpg", label: "Front-end crush" },
+    { file: "/demo-evidence/CLM-2024-002/highway-collision.jpg", label: "Highway pileup scene" },
+    { file: "/demo-evidence/CLM-2024-002/front-end-damage.jpg", label: "Front-end crushed" },
+    { file: "/demo-evidence/CLM-2024-002/airbag-deployed.jpg", label: "Airbag deployed" },
     { file: "/demo-evidence/CLM-2024-002/tow-truck-scene.jpg", label: "Tow truck recovery" },
     { file: "/demo-evidence/generic/police-report.jpg", label: "Police report" },
   ],
   "CLM-2024-004": [
-    { file: "/demo-evidence/CLM-2024-004/side-damage.jpg", label: "Right-side impact" },
-    { file: "/demo-evidence/CLM-2024-004/bumper-closeup.jpg", label: "Bumper detail" },
+    { file: "/demo-evidence/CLM-2024-004/side-damage.jpg", label: "Right-side impact dent" },
+    { file: "/demo-evidence/CLM-2024-004/bumper-closeup.jpg", label: "Fender scrape detail" },
     { file: "/demo-evidence/generic/police-report.jpg", label: "Police report" },
   ],
 }

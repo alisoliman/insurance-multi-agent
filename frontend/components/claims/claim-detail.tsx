@@ -14,16 +14,18 @@ const EVIDENCE_SETS: { match: (c: Claim) => boolean; images: { src: string; labe
   {
     match: (c) => c.description?.toLowerCase().includes("rear-end") || c.description?.toLowerCase().includes("rear bumper"),
     images: [
-      { src: "/demo-evidence/CLM-2024-001/rear-bumper-damage.jpg", label: "Rear bumper damage" },
-      { src: "/demo-evidence/CLM-2024-001/trunk-damage.jpg", label: "Trunk & tail lights" },
+      { src: "/demo-evidence/CLM-2024-001/rear-bumper-damage.jpg", label: "Rear bumper crumpled" },
+      { src: "/demo-evidence/CLM-2024-001/trunk-damage.jpg", label: "Tail light cracked" },
+      { src: "/demo-evidence/CLM-2024-001/intersection-scene.jpg", label: "Intersection scene" },
       { src: "/demo-evidence/generic/police-report.jpg", label: "Police report" },
     ],
   },
   {
     match: (c) => c.description?.toLowerCase().includes("highway") || c.description?.toLowerCase().includes("multi-vehicle") || c.description?.toLowerCase().includes("airbag"),
     images: [
-      { src: "/demo-evidence/CLM-2024-002/highway-collision.jpg", label: "Highway scene" },
-      { src: "/demo-evidence/CLM-2024-002/front-end-damage.jpg", label: "Front-end damage" },
+      { src: "/demo-evidence/CLM-2024-002/highway-collision.jpg", label: "Highway pileup scene" },
+      { src: "/demo-evidence/CLM-2024-002/front-end-damage.jpg", label: "Front-end crushed" },
+      { src: "/demo-evidence/CLM-2024-002/airbag-deployed.jpg", label: "Airbag deployed" },
       { src: "/demo-evidence/CLM-2024-002/tow-truck-scene.jpg", label: "Tow truck recovery" },
       { src: "/demo-evidence/generic/police-report.jpg", label: "Police report" },
     ],
@@ -31,8 +33,8 @@ const EVIDENCE_SETS: { match: (c: Claim) => boolean; images: { src: string; labe
   {
     match: (c) => c.description?.toLowerCase().includes("parkeer") || c.description?.toLowerCase().includes("parking"),
     images: [
-      { src: "/demo-evidence/CLM-2024-004/side-damage.jpg", label: "Right-side impact" },
-      { src: "/demo-evidence/CLM-2024-004/bumper-closeup.jpg", label: "Bumper detail" },
+      { src: "/demo-evidence/CLM-2024-004/side-damage.jpg", label: "Right-side impact dent" },
+      { src: "/demo-evidence/CLM-2024-004/bumper-closeup.jpg", label: "Fender scrape detail" },
       { src: "/demo-evidence/generic/police-report.jpg", label: "Police report" },
     ],
   },
