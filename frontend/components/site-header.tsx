@@ -6,6 +6,14 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Sparkles, RotateCcw } from "lucide-react"
 import { useOnboarding } from "@/components/onboarding/onboarding-provider"
+import { useHandler } from "@/components/handler-context"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -18,6 +26,7 @@ import {
 export function SiteHeader() {
   const pathname = usePathname()
   const { open, reset } = useOnboarding()
+  const { handler, handlers, setHandlerId } = useHandler()
 
   const getBreadcrumbs = () => {
     const segments = pathname.split('/').filter(Boolean)
@@ -50,27 +59,49 @@ export function SiteHeader() {
         case 'agents':
           title = 'Agent Demos'
           break
-        case 'assessment':
-          title = 'Assessment Agent'
+        case 'claim-assessor':
+          title = 'Claim Assessor'
           break
-        case 'communication':
+        case 'policy-checker':
+          title = 'Policy Checker'
+          break
+        case 'risk-analyst':
+          title = 'Risk Analyst'
+          break
+        case 'communication-agent':
           title = 'Communication Agent'
-          break
-        case 'orchestrator':
-          title = 'Orchestrator Agent'
-          break
-
-        case 'tasks':
-          title = 'Tasks'
-          break
-        case 'feedback':
-          title = 'Feedback System'
           break
         case 'demo':
           title = 'Workflow Demo'
           break
+        case 'claims':
+          title = 'Claims'
+          break
+        case 'queue':
+          title = 'Review Queue'
+          break
+        case 'processing-queue':
+          title = 'Processing Queue'
+          break
+        case 'auto-approvals':
+          title = 'Auto-Approvals'
+          break
+        case 'documents':
+          title = 'Documents'
+          break
+        case 'manage':
+          title = 'Manage'
+          break
+        case 'index-management':
+          title = 'Index Management'
+          break
         default:
-          title = segment.charAt(0).toUpperCase() + segment.slice(1)
+          // For UUID-like segments (claim IDs), show truncated version
+          if (segment.length > 12 && segment.includes('-')) {
+            title = `Claim ${segment.substring(0, 8)}…`
+          } else {
+            title = segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ')
+          }
       }
 
       // Only add separator if there are already items in breadcrumbs
@@ -104,6 +135,22 @@ export function SiteHeader() {
           {getBreadcrumbs()}
         </Breadcrumb>
         <div className="ml-auto flex items-center gap-2">
+          <Select value={handler.id} onValueChange={setHandlerId}>
+            <SelectTrigger className="w-[180px] h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {handlers.map((h) => (
+                <SelectItem key={h.id} value={h.id}>
+                  <span className="flex items-center gap-2">
+                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-[10px] font-semibold">{h.avatar}</span>
+                    <span>{h.name}</span>
+                    <span className="text-muted-foreground">· {h.role}</span>
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button variant="outline" size="sm" onClick={() => open()}>
             <Sparkles className="mr-2 h-4 w-4" />
             Demo Guide

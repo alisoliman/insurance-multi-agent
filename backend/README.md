@@ -1,6 +1,6 @@
-# Shadcn-FastAPI Starter Backend
+# Insurance Claims Multi-Agent Backend
 
-This is the backend component of the Shadcn-FastAPI Starter boilerplate, built with FastAPI and managed by uv.
+This is the backend component of the multi-agent insurance claims processing system, built with FastAPI and Microsoft Agent Framework.
 
 ## Features
 

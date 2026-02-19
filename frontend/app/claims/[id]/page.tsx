@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { Claim, AIAssessment, getClaim, processClaim, getAssessment, unassignClaim } from "@/lib/api/claims"
 import { ClaimDetail } from "@/components/claims/claim-detail"
 import { AIResults } from "@/components/claims/ai-results"
@@ -10,17 +10,44 @@ import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
 import { OnboardingCue } from "@/components/onboarding/onboarding-cue"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useHandler } from "@/components/handler-context"
 
 export default function ClaimPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const claimId = params.id as string
+  const fromPage = searchParams.get("from")
+  const { handler } = useHandler()
 
   const [claim, setClaim] = useState<Claim | null>(null)
   const [assessment, setAssessment] = useState<AIAssessment | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
   const [isPolling, setIsPolling] = useState(false)
+
+  const getBackLabel = () => {
+    switch (fromPage) {
+      case "queue": return "Back to Review Queue"
+      case "processing": return "Back to Processing Queue"
+      case "dashboard": return "Back to Dashboard"
+      case "auto-approvals": return "Back to Auto-Approvals"
+      case "claims": return "Back to My Claims"
+      default: return "Back to Dashboard"
+    }
+  }
+
+  const getBackHref = () => {
+    switch (fromPage) {
+      case "queue": return "/claims/queue"
+      case "processing": return "/claims/processing-queue"
+      case "dashboard": return "/"
+      case "auto-approvals": return "/claims/auto-approvals"
+      case "claims": return "/claims"
+      default: return "/"
+    }
+  }
 
   useEffect(() => {
     async function loadData() {
@@ -88,7 +115,7 @@ export default function ClaimPage() {
   const handleUnassign = async () => {
     if (!claim) return
     try {
-      await unassignClaim(claim.id, "handler-001")
+      await unassignClaim(claim.id, handler.id)
       toast.success("Claim returned to review queue")
       router.push("/claims/queue")
     } catch (error) {
@@ -98,7 +125,24 @@ export default function ClaimPage() {
   }
 
   if (isLoading) {
-    return <div className="p-8 text-center">Loading claim details...</div>
+    return (
+      <div className="flex flex-1 flex-col p-6 space-y-8">
+        <Skeleton className="h-8 w-40" />
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-64" />
+          <div className="flex gap-2">
+            <Skeleton className="h-6 w-20" />
+            <Skeleton className="h-6 w-24" />
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-4">
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+        </div>
+      </div>
+    )
   }
 
   if (!claim) {
@@ -107,9 +151,9 @@ export default function ClaimPage() {
 
   return (
     <div className="flex flex-1 flex-col p-6 space-y-8">
-      <Button variant="ghost" onClick={() => router.back()} className="pl-0 w-fit">
+      <Button variant="ghost" onClick={() => router.push(getBackHref())} className="pl-0 w-fit">
         <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Claims
+        {getBackLabel()}
       </Button>
 
       <OnboardingCue stepId="detail" />
@@ -128,7 +172,7 @@ export default function ClaimPage() {
         />
       )}
 
-      {claim.assigned_handler_id === "handler-001" && claim.status !== 'approved' && claim.status !== 'denied' && (
+      {claim.assigned_handler_id === handler.id && claim.status !== 'approved' && claim.status !== 'denied' && (
         <div>
           <Button variant="outline" onClick={handleUnassign}>
             Return to Review Queue
@@ -139,7 +183,7 @@ export default function ClaimPage() {
       {claim.status !== 'approved' && claim.status !== 'denied' && (
          <DecisionForm 
             claimId={claim.id} 
-            handlerId="handler-001"
+            handlerId={handler.id}
             aiAssessmentId={assessment?.id}
             onDecisionRecorded={handleDecisionRecorded}
          />

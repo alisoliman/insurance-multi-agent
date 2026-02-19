@@ -8,13 +8,13 @@ import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { CreateClaimForm } from "@/components/claims/create-claim-form"
 import { OnboardingCue } from "@/components/onboarding/onboarding-cue"
+import { useHandler } from "@/components/handler-context"
 
-// Hardcoded for demo - Phase 3/4
-const CURRENT_HANDLER_ID = "handler-001"
 const POLLING_INTERVAL_MS = 15000 // 15 seconds
 
 export default function ReviewQueuePage() {
   const router = useRouter()
+  const { handler } = useHandler()
   const [claims, setClaims] = useState<Claim[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSeeding, setIsSeeding] = useState(false)
@@ -49,11 +49,11 @@ export default function ReviewQueuePage() {
 
   const handleAssign = async (claimId: string) => {
     try {
-      const assigned = await assignClaim(claimId, CURRENT_HANDLER_ID)
+      const assigned = await assignClaim(claimId, handler.id)
       toast.success("Claim assigned successfully")
       // Remove from list immediately for better UX
       setClaims(prev => prev.filter(c => c.id !== claimId))
-      router.push(`/claims/${assigned.id}`)
+      router.push(`/claims/${assigned.id}?from=queue`)
     } catch {
       toast.error("Failed to assign claim. It may have been picked up by someone else.")
       loadClaims(false) // Reload to get fresh state
@@ -161,6 +161,7 @@ export default function ReviewQueuePage() {
           showFilters={true}
           filters={filters}
           onFiltersChange={setFilters}
+          fromPage="queue"
         />
       )}
     </div>

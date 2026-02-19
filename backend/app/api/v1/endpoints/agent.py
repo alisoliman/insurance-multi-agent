@@ -17,7 +17,7 @@ from app.models.claim import ClaimIn, AgentOutputOut
 from app.models.agent import AgentRunOut
 from app.services.claim_data_helpers import ensure_vehicle_exists, ensure_policy_exists
 from app.services.single_agent import run as run_single_agent, UnknownAgentError
-from app.api.v1.endpoints.workflow import get_sample_claim_by_id, _serialize_msg
+from app.api.v1.endpoints.workflow import get_sample_claim_by_id, _serialize_msg, _extract_tool_calls_from_messages
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +86,7 @@ async def agent_run(agent_name: str, claim: ClaimIn):  # noqa: D401
             agent_output = AgentOutputOut(
                 agent_name=agent_name,
                 structured_output=structured_output,
+                tool_calls=_extract_tool_calls_from_messages(raw_msgs) or None,
             )
 
         return AgentRunOut(

@@ -6,27 +6,27 @@ import { Claim, ClaimsFilter, getClaims } from "@/lib/api/claims"
 import { ClaimsTable } from "@/components/claims/claims-table"
 import { Button } from "@/components/ui/button"
 import { OnboardingCue } from "@/components/onboarding/onboarding-cue"
+import { useHandler } from "@/components/handler-context"
 
-// Hardcoded for demo - Phase 3
-const CURRENT_HANDLER_ID = "handler-001"
 const REFRESH_INTERVAL_MS = 15000 // 15 seconds
 
 export default function MyClaimsPage() {
   const router = useRouter()
+  const { handler } = useHandler()
   const [claims, setClaims] = useState<Claim[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [filters, setFilters] = useState<ClaimsFilter>({})
 
   const loadClaims = useCallback(async () => {
     try {
-      const data = await getClaims({ handler_id: CURRENT_HANDLER_ID, ...filters })
+      const data = await getClaims({ handler_id: handler.id, ...filters })
       setClaims(data)
     } catch (error) {
       console.error("Failed to load claims", error)
     } finally {
       setIsLoading(false)
     }
-  }, [filters])
+  }, [filters, handler.id])
 
   useEffect(() => {
     loadClaims()
@@ -63,6 +63,7 @@ export default function MyClaimsPage() {
         showFilters={true}
         filters={filters}
         onFiltersChange={setFilters}
+        fromPage="claims"
       />
     </div>
   )

@@ -1,6 +1,6 @@
-# Frontend - Task Manager UI
+# Frontend - Insurance Claims Workbench
 
-Next.js 15 frontend application built with shadcn/ui components for the Task Manager.
+Next.js 15 frontend application built with shadcn/ui components for the multi-agent insurance claims processing system.
 
 ## Features
 

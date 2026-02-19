@@ -5,7 +5,7 @@ import { AIAssessment } from "@/lib/api/claims"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, CheckCircle2 } from "lucide-react"
+import { AlertCircle, CheckCircle2, AlertTriangle, ShieldCheck, ShieldAlert, ShieldQuestion } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 
 interface AIResultsProps {
@@ -37,6 +37,20 @@ export function AIResults({ assessment, isLoading }: AIResultsProps) {
     return "bg-muted text-foreground border-border"
   }
 
+  const getRiskProgressColor = (score: number | null) => {
+    if (score === null) return "bg-muted"
+    if (score < 30) return "bg-green-500"
+    if (score < 70) return "bg-amber-500"
+    return "bg-red-500"
+  }
+
+  const getRiskIcon = (level?: string) => {
+    if (!level) return <ShieldQuestion className="w-4 h-4" />
+    if (level.includes("LOW")) return <ShieldCheck className="w-4 h-4 text-green-600" />
+    if (level.includes("HIGH")) return <ShieldAlert className="w-4 h-4 text-red-600" />
+    return <AlertTriangle className="w-4 h-4 text-amber-600" />
+  }
+
   const renderList = (items?: string[]) => {
     if (!items || items.length === 0) {
       return <div className="text-sm text-muted-foreground">None reported.</div>
@@ -56,8 +70,8 @@ export function AIResults({ assessment, isLoading }: AIResultsProps) {
           <CardTitle>AI Processing</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center py-8 space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">Agents are analyzing the claim...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" role="status" aria-busy="true"></div>
+          <p className="text-muted-foreground" aria-live="polite">Agents are analyzing the claim...</p>
         </CardContent>
       </Card>
     )
@@ -77,8 +91,8 @@ export function AIResults({ assessment, isLoading }: AIResultsProps) {
           </div>
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center py-8 space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">Agents are analyzing the claim...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" role="status" aria-busy="true"></div>
+          <p className="text-muted-foreground" aria-live="polite">Agents are analyzing the claim...</p>
         </CardContent>
       </Card>
     )
@@ -133,10 +147,27 @@ export function AIResults({ assessment, isLoading }: AIResultsProps) {
         <CardHeader>
           <div className="flex justify-between items-start">
             <CardTitle className="text-xl">Supervisor Recommendation</CardTitle>
-            <Badge variant="outline" className="text-green-600 border-green-600 bg-green-50">
-              <CheckCircle2 className="w-3 h-3 mr-1" />
-              Completed
-            </Badge>
+            {(() => {
+              const rec = formatRecommendation(recommendation)
+              if (rec === "DENY") return (
+                <Badge variant="outline" className="text-red-600 border-red-600 bg-red-50">
+                  <AlertCircle className="w-3 h-3 mr-1" />
+                  Deny Recommended
+                </Badge>
+              )
+              if (rec === "INVESTIGATE") return (
+                <Badge variant="outline" className="text-amber-600 border-amber-600 bg-amber-50">
+                  <AlertTriangle className="w-3 h-3 mr-1" />
+                  Investigation Needed
+                </Badge>
+              )
+              return (
+                <Badge variant="outline" className="text-green-600 border-green-600 bg-green-50">
+                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                  Approval Recommended
+                </Badge>
+              )
+            })()}
           </div>
         </CardHeader>
         <CardContent>
@@ -151,16 +182,22 @@ export function AIResults({ assessment, isLoading }: AIResultsProps) {
             </div>
             <div className="rounded-md border p-3">
               <div className="text-xs text-muted-foreground">Confidence</div>
-              <div className="mt-2 font-semibold">{confidence || "N/A"}</div>
+              <div className="mt-2 font-semibold">{confidence || "—"}</div>
             </div>
             <div className="rounded-md border p-3">
-              <div className="text-xs text-muted-foreground">Risk Score</div>
+              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                Risk Score {getRiskIcon(riskLevel)}
+              </div>
               <div className="mt-2 flex items-center justify-between">
-                <span className="font-semibold">{riskScore !== null ? riskScore : "N/A"}</span>
+                <span className="font-semibold">{riskScore !== null ? riskScore : "—"}</span>
                 <span className="text-xs text-muted-foreground">/ 100</span>
               </div>
               <div className="mt-2">
-                <Progress value={riskScore !== null ? riskScore : 0} />
+                <Progress 
+                  value={riskScore !== null ? riskScore : 0} 
+                  indicatorClassName={getRiskProgressColor(riskScore)}
+                  aria-label={`Risk score: ${riskScore ?? 0} out of 100`}
+                />
               </div>
             </div>
           </div>
@@ -202,7 +239,7 @@ export function AIResults({ assessment, isLoading }: AIResultsProps) {
             <CardContent className="space-y-3 text-sm">
               <div>
                 <div className="text-xs text-muted-foreground">Cost Assessment</div>
-                <div className="mt-1">{costAssessment || "N/A"}</div>
+                <div className="mt-1">{costAssessment || "—"}</div>
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Red Flags</div>
@@ -210,7 +247,7 @@ export function AIResults({ assessment, isLoading }: AIResultsProps) {
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Reasoning</div>
-                <div className="mt-1">{reasoning || "N/A"}</div>
+                <div className="mt-1">{reasoning || "—"}</div>
               </div>
             </CardContent>
           </Card>
@@ -219,13 +256,13 @@ export function AIResults({ assessment, isLoading }: AIResultsProps) {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Policy Checker</CardTitle>
               <Badge variant="outline" className={getStatusTone(coverageStatus)}>
-                {coverageStatus || "N/A"}
+                {coverageStatus || "—"}
               </Badge>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div>
                 <div className="text-xs text-muted-foreground">Coverage Details</div>
-                <div className="mt-1">{coverageDetails || "N/A"}</div>
+                <div className="mt-1">{coverageDetails || "—"}</div>
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Cited Sections</div>
@@ -238,13 +275,13 @@ export function AIResults({ assessment, isLoading }: AIResultsProps) {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Risk Analyst</CardTitle>
               <Badge variant="outline" className={getStatusTone(riskLevel)}>
-                {riskLevel || "N/A"}
+                {riskLevel || "—"}
               </Badge>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div>
                 <div className="text-xs text-muted-foreground">Risk Score</div>
-                <div className="mt-1 font-semibold">{riskScore !== null ? riskScore : "N/A"}</div>
+                <div className="mt-1 font-semibold">{riskScore !== null ? riskScore : "—"}</div>
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Fraud Indicators</div>
@@ -252,7 +289,7 @@ export function AIResults({ assessment, isLoading }: AIResultsProps) {
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Analysis</div>
-                <div className="mt-1">{riskAnalysis || "N/A"}</div>
+                <div className="mt-1">{riskAnalysis || "—"}</div>
               </div>
             </CardContent>
           </Card>
@@ -264,7 +301,7 @@ export function AIResults({ assessment, isLoading }: AIResultsProps) {
             <CardContent className="space-y-3 text-sm">
               <div>
                 <div className="text-xs text-muted-foreground">Subject</div>
-                <div className="mt-1">{emailSubject || "N/A"}</div>
+                <div className="mt-1">{emailSubject || "—"}</div>
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Requested Items</div>
@@ -272,7 +309,7 @@ export function AIResults({ assessment, isLoading }: AIResultsProps) {
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Draft Body</div>
-                <div className="mt-1 whitespace-pre-wrap">{emailBody || "N/A"}</div>
+                <div className="mt-1 whitespace-pre-wrap">{emailBody || "—"}</div>
               </div>
             </CardContent>
           </Card>

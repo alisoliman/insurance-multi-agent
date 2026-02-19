@@ -16,12 +16,13 @@ import { QueueInsights } from "@/components/dashboard/queue-insights"
 import { OnboardingCue } from "@/components/onboarding/onboarding-cue"
 import { CreateClaimForm } from "@/components/claims/create-claim-form"
 import { toast } from "sonner"
+import { useHandler } from "@/components/handler-context"
 
-const CURRENT_HANDLER_ID = "handler-001"
 const POLLING_INTERVAL_MS = 15000
 
 export default function WorkbenchHome() {
   const router = useRouter()
+  const { handler } = useHandler()
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     my_caseload: 0,
     queue_depth: 0,
@@ -48,8 +49,8 @@ export default function WorkbenchHome() {
     if (showLoading) setIsLoading(true)
     try {
         const [metricsData, claimsData, processingData, reviewData, autoApprovedData] = await Promise.all([
-          getMetrics(CURRENT_HANDLER_ID),
-          getClaims({ handler_id: CURRENT_HANDLER_ID, limit: 5 }),
+          getMetrics(handler.id),
+          getClaims({ handler_id: handler.id, limit: 5 }),
           getProcessingQueue({ limit: 5 }),
           getReviewQueue({ limit: 100 }),
           getClaims({ handler_id: "system", status: "approved", limit: 5 })
@@ -61,10 +62,14 @@ export default function WorkbenchHome() {
       setAutoApprovedClaims(autoApprovedData)
     } catch (error) {
       console.error("Failed to load dashboard", error)
+      if (!showLoading) {
+        // Only show toast for background polling errors, not initial load
+        toast.error("Failed to refresh dashboard data")
+      }
     } finally {
       if (showLoading) setIsLoading(false)
     }
-  }, [])
+  }, [handler.id])
 
   useEffect(() => {
     loadDashboard(true)
@@ -183,7 +188,7 @@ export default function WorkbenchHome() {
                 View All
               </Button>
             </div>
-            <ClaimsTable claims={processingQueue} isLoading={isLoading} showAssessmentStatus={true} showAiSummary={true} />
+            <ClaimsTable claims={processingQueue} isLoading={isLoading} showAssessmentStatus={true} showAiSummary={true} fromPage="dashboard" />
           </div>
 
           <div className="space-y-4">
@@ -193,7 +198,7 @@ export default function WorkbenchHome() {
                 View All
               </Button>
             </div>
-            <ClaimsTable claims={autoApprovedClaims} isLoading={isLoading} showAssessmentStatus={true} showAiSummary={true} />
+            <ClaimsTable claims={autoApprovedClaims} isLoading={isLoading} showAssessmentStatus={true} showAiSummary={true} fromPage="dashboard" />
           </div>
 
           <div className="space-y-4">
@@ -203,7 +208,7 @@ export default function WorkbenchHome() {
                 View All
               </Button>
             </div>
-            <ClaimsTable claims={recentClaims} isLoading={isLoading} />
+            <ClaimsTable claims={recentClaims} isLoading={isLoading} fromPage="dashboard" />
           </div>
         </div>
       </SidebarInset>

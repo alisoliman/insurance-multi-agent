@@ -1,13 +1,15 @@
 """Workflow endpoint definitions (API v1)."""
 from __future__ import annotations
 
+import json as json_mod
 import logging
 import re
-from typing import Any, Dict
+import uuid as uuid_mod
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, HTTPException
 
-from app.models.claim import ClaimIn, ClaimOut, AgentOutputOut
+from app.models.claim import ClaimIn, ClaimOut, AgentOutputOut, ToolCallOut
 from app.sample_data import ALL_SAMPLE_CLAIMS
 from app.services.claim_data_helpers import ensure_vehicle_exists, ensure_policy_exists
 from app.services.claim_processing import run as run_workflow
@@ -162,7 +164,7 @@ async def workflow_run(claim: ClaimIn):  # noqa: D401
                     agent_outputs[node_name] = AgentOutputOut(
                         agent_name=node_name,
                         structured_output=structured_output,
-                        tool_calls=None,  # TODO: extract tool calls in future
+                        tool_calls=_extract_tool_calls_from_messages(msgs) or None,
                         raw_text=raw_text
                     )
 
@@ -190,6 +192,145 @@ async def workflow_run(claim: ClaimIn):  # noqa: D401
 
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+# ------------------------------------------------------------------
+# Tool-call extraction
+# ------------------------------------------------------------------
+
+
+def _extract_tool_calls_from_messages(msgs: list) -> List[ToolCallOut]:
+    """Extract tool calls from agent messages (MAF + OpenAI formats)."""
+    import numpy as np
+
+    def _json_safe_str(obj: Any) -> str | None:
+        """Convert result to a JSON-safe string."""
+        if obj is None:
+            return None
+        if isinstance(obj, dict):
+            return json_mod.dumps(obj, indent=2, ensure_ascii=False, default=_numpy_default)
+        return str(obj)[:1000] if obj else None
+
+    def _numpy_default(o: Any) -> Any:
+        if isinstance(o, np.floating):
+            return float(o)
+        if isinstance(o, np.integer):
+            return int(o)
+        if isinstance(o, np.ndarray):
+            return o.tolist()
+        return str(o)
+
+    def _sanitize_args(args: dict) -> dict:
+        """Ensure all arg values are JSON-serializable."""
+        sanitized = {}
+        for k, v in args.items():
+            if isinstance(v, np.floating):
+                sanitized[k] = float(v)
+            elif isinstance(v, np.integer):
+                sanitized[k] = int(v)
+            elif isinstance(v, np.ndarray):
+                sanitized[k] = v.tolist()
+            else:
+                sanitized[k] = v
+        return sanitized
+
+    tool_calls: List[ToolCallOut] = []
+    pending_calls: Dict[str, Dict[str, Any]] = {}
+
+    for msg in msgs:
+        if isinstance(msg, dict):
+            # MAF format: contents array with function_call / function_result
+            for item in msg.get("contents", []):
+                item_type = item.get("type", "")
+                if item_type == "function_call":
+                    name = item.get("name", "unknown")
+                    args_raw = item.get("arguments", "{}")
+                    try:
+                        args = json_mod.loads(args_raw) if isinstance(args_raw, str) else (args_raw or {})
+                    except Exception:
+                        args = {"raw": str(args_raw)}
+                    pending_calls[name] = {
+                        "id": item.get("id") or str(uuid_mod.uuid4())[:8],
+                        "name": name,
+                        "arguments": _sanitize_args(args) if isinstance(args, dict) else args,
+                    }
+                elif item_type == "function_result":
+                    name = item.get("name", "tool")
+                    result = item.get("result", "")
+                    result_str = _json_safe_str(result)
+                    if name in pending_calls:
+                        call = pending_calls.pop(name)
+                        call["result"] = result_str
+                        tool_calls.append(ToolCallOut(**call))
+                    else:
+                        tool_calls.append(ToolCallOut(
+                            id=str(uuid_mod.uuid4())[:8],
+                            name=name,
+                            arguments={},
+                            result=result_str,
+                        ))
+
+            # OpenAI format: tool_calls array
+            for tc in msg.get("tool_calls", []):
+                func = tc.get("function", {})
+                name = func.get("name", "unknown")
+                args_raw = func.get("arguments", "{}")
+                try:
+                    args = json_mod.loads(args_raw) if isinstance(args_raw, str) else (args_raw or {})
+                except Exception:
+                    args = {"raw": str(args_raw)}
+                pending_calls[name] = {
+                    "id": tc.get("id") or str(uuid_mod.uuid4())[:8],
+                    "name": name,
+                    "arguments": _sanitize_args(args) if isinstance(args, dict) else args,
+                }
+
+            # Tool response message
+            role = msg.get("role", "")
+            if isinstance(role, dict):
+                role = role.get("value", "")
+            if msg.get("tool_call_id") or role == "tool":
+                name = msg.get("name", "tool")
+                if isinstance(name, dict):
+                    name = name.get("value", "tool")
+                content = msg.get("content", "")
+                if name in pending_calls:
+                    call = pending_calls.pop(name)
+                    call["result"] = _json_safe_str(content)
+                    tool_calls.append(ToolCallOut(**call))
+
+        else:
+            # ChatMessage objects
+            if hasattr(msg, "tool_calls") and msg.tool_calls:
+                for tc in (msg.tool_calls if isinstance(msg.tool_calls, list) else [msg.tool_calls]):
+                    name = tc.get("name", "tool") if isinstance(tc, dict) else getattr(tc, "name", "tool")
+                    args = tc.get("arguments") if isinstance(tc, dict) else getattr(tc, "arguments", getattr(tc, "args", None))
+                    if isinstance(args, str):
+                        try:
+                            args = json_mod.loads(args)
+                        except Exception:
+                            args = {"raw": args}
+                    pending_calls[name] = {
+                        "id": str(uuid_mod.uuid4())[:8],
+                        "name": name,
+                        "arguments": _sanitize_args(args) if isinstance(args, dict) else (args or {}),
+                    }
+
+            role_val = getattr(msg, "role", None)
+            rv = getattr(role_val, "value", role_val) if role_val else None
+            if str(rv) == "tool":
+                name = getattr(msg, "name", None) or getattr(msg, "author_name", None) or "tool"
+                content = getattr(msg, "content", None) or getattr(msg, "text", None) or ""
+                if name in pending_calls:
+                    call = pending_calls.pop(name)
+                    call["result"] = _json_safe_str(content)
+                    tool_calls.append(ToolCallOut(**call))
+
+    # Flush any pending calls that never got results
+    for call_data in pending_calls.values():
+        tool_calls.append(ToolCallOut(**call_data))
+
+    return tool_calls
 
 
 # ------------------------------------------------------------------

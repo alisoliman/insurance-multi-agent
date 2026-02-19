@@ -52,13 +52,13 @@ export const onboardingSteps: OnboardingStep[] = [
   {
     id: "detail",
     title: "Inspect full AI analysis",
-    description: "Open a claim to show the structured agent outputs and synthesis.",
+    description: "Browse the review queue and open a claim to see structured agent outputs.",
     bullets: [
       "Supervisor summary + key findings",
       "Risk scoring + fraud indicators",
       "Policy coverage evidence and citations"
     ],
-    ctaLabel: "Open a Claim",
+    ctaLabel: "Browse Review Queue",
     action: { type: "route", path: "/claims/queue" }
   },
   {

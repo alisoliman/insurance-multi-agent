@@ -68,6 +68,39 @@ export default function AutoApprovalsPage() {
         </div>
       </div>
 
+      <div className="rounded-md border p-4 bg-muted/30">
+        <h3 className="text-sm font-semibold mb-3">Auto-Approval Criteria</h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          Claims meeting <strong>all</strong> of the following thresholds are automatically approved without human review:
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-md bg-background border p-3">
+            <div className="text-xs text-muted-foreground">Max Estimated Damage</div>
+            <div className="text-sm font-semibold">≤ $15,000</div>
+          </div>
+          <div className="rounded-md bg-background border p-3">
+            <div className="text-xs text-muted-foreground">Max Risk Score</div>
+            <div className="text-sm font-semibold">≤ 30 / 100</div>
+          </div>
+          <div className="rounded-md bg-background border p-3">
+            <div className="text-xs text-muted-foreground">Risk Level</div>
+            <div className="text-sm font-semibold">LOW_RISK only</div>
+          </div>
+          <div className="rounded-md bg-background border p-3">
+            <div className="text-xs text-muted-foreground">Validity Status</div>
+            <div className="text-sm font-semibold">VALID or QUESTIONABLE</div>
+          </div>
+          <div className="rounded-md bg-background border p-3">
+            <div className="text-xs text-muted-foreground">Coverage Status</div>
+            <div className="text-sm font-semibold">COVERED or PARTIALLY</div>
+          </div>
+          <div className="rounded-md bg-background border p-3">
+            <div className="text-xs text-muted-foreground">AI Recommendation</div>
+            <div className="text-sm font-semibold">APPROVE</div>
+          </div>
+        </div>
+      </div>
+
       <ClaimsTable
         claims={claims}
         isLoading={isLoading}
@@ -78,6 +111,7 @@ export default function AutoApprovalsPage() {
         filters={filters}
         onFiltersChange={setFilters}
         emptyMessage="No auto-approved claims yet."
+        fromPage="auto-approvals"
       />
     </div>
   )

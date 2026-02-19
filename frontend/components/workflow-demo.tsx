@@ -276,9 +276,7 @@ export function WorkflowDemo() {
   const fetchAvailableClaims = async () => {
     try {
       const apiUrl = await getApiUrl()
-      console.log('Using API URL:', apiUrl)
       const fullUrl = `${apiUrl}/api/v1/workflow/sample-claims`
-      console.log('Fetching from:', fullUrl)
       
       const response = await fetch(fullUrl)
       
@@ -287,7 +285,6 @@ export function WorkflowDemo() {
       }
       
       const data = await response.json()
-      console.log('Received data:', data)
       setAvailableClaims(data.available_claims || [])
     } catch (err) {
       console.error('Failed to fetch available claims:', err)

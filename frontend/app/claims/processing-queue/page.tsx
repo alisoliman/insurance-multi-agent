@@ -82,6 +82,7 @@ export default function ProcessingQueuePage() {
         showFilters={true}
         filters={filters}
         onFiltersChange={setFilters}
+        fromPage="processing"
       />
     </div>
   )
