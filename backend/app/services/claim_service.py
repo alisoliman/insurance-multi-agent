@@ -292,9 +292,7 @@ class ClaimService:
         if coverage_status and coverage_status not in AUTO_APPROVE_COVERAGE_ALLOWED:
             return
         if recommendation:
-            if recommendation == "DENY":
-                return
-            if recommendation not in {AUTO_APPROVE_RECOMMENDATION, "INVESTIGATE"}:
+            if recommendation != AUTO_APPROVE_RECOMMENDATION:
                 return
         if confidence is not None and confidence not in AUTO_APPROVE_CONFIDENCE_ALLOWED:
             return
