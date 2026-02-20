@@ -256,7 +256,7 @@ export default function RiskAnalystDemo() {
             {isLoadingSamples ? (
               <div className="flex items-center justify-center py-8">
                 <IconClock className="h-6 w-6 animate-spin mr-2" />
-                <span>Loading sample claims...</span>
+                <span>Loading sample claims…</span>
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -296,7 +296,7 @@ export default function RiskAnalystDemo() {
                         className="w-full mt-auto"
                         onClick={() => runRiskAnalysis(claim)}
                       >
-                        {isLoading ? 'Processing...' : 'Analyze Risk'}
+                        {isLoading ? 'Processing…' : 'Analyze Risk'}
                       </Button>
                     </div>
                   </CardContent>
@@ -337,7 +337,7 @@ export default function RiskAnalystDemo() {
             {isLoading && (
               <div className="flex items-center justify-center py-8">
                 <IconClock className="h-6 w-6 animate-spin mr-2" />
-                <span>Running risk analysis...</span>
+                <span>Running risk analysis…</span>
               </div>
             )}
 

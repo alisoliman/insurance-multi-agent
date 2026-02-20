@@ -302,7 +302,7 @@ export default function DocumentManagePage() {
                   {isUploading ? (
                     <>
                       <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      Uploading...
+                      Uploading…
                     </>
                   ) : (
                     <>
@@ -365,7 +365,7 @@ export default function DocumentManagePage() {
               {isLoading ? (
                 <div className="text-center py-8">
                   <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">Loading documents...</p>
+                  <p className="text-muted-foreground">Loading documents…</p>
                 </div>
               ) : filteredDocuments.length === 0 ? (
                 <div className="text-center py-8">

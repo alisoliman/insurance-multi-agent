@@ -238,7 +238,7 @@ export default function IndexManagementPage() {
           {isLoading ? (
             <div className="text-center py-12">
               <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground">Loading index status...</p>
+              <p className="text-muted-foreground">Loading index status…</p>
             </div>
           ) : !indexStatus ? (
             <div className="text-center py-12">

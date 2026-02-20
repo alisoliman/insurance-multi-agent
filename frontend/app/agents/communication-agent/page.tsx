@@ -280,7 +280,7 @@ export default function CommunicationAgentDemo() {
             {isLoadingSamples ? (
               <div className="flex items-center justify-center py-8">
                 <IconClock className="h-6 w-6 animate-spin mr-2" />
-                <span>Loading sample claims...</span>
+                <span>Loading sample claims…</span>
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -320,7 +320,7 @@ export default function CommunicationAgentDemo() {
                         className="w-full mt-auto"
                         onClick={() => runCommunication(claim)}
                       >
-                        {isLoading ? 'Processing...' : 'Draft Email'}
+                        {isLoading ? 'Processing…' : 'Draft Email'}
                       </Button>
                     </div>
                   </CardContent>
@@ -361,7 +361,7 @@ export default function CommunicationAgentDemo() {
             {isLoading && (
               <div className="flex items-center justify-center py-8">
                 <IconClock className="h-6 w-6 animate-spin mr-2" />
-                <span>Drafting communication...</span>
+                <span>Drafting communication…</span>
               </div>
             )}
 

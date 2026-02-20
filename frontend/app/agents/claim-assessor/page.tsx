@@ -356,7 +356,7 @@ export default function ClaimAssessorDemo() {
             {isLoadingSamples ? (
               <div className="flex items-center justify-center py-8">
                 <IconClock className="h-6 w-6 animate-spin mr-2" />
-                <span>Loading sample claims...</span>
+                <span>Loading sample claims…</span>
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -396,7 +396,7 @@ export default function ClaimAssessorDemo() {
                           className="w-full mt-auto"
                           onClick={() => runAssessment(claim)}
                         >
-                          {isLoading ? 'Processing...' : 'Analyze Claim'}
+                          {isLoading ? 'Processing…' : 'Analyze Claim'}
                         </Button>
                       </div>
                     </CardContent>
@@ -439,7 +439,7 @@ export default function ClaimAssessorDemo() {
             {isLoading && (
               <div className="flex items-center justify-center py-8">
                 <IconClock className="h-6 w-6 animate-spin mr-2" />
-                <span>Running claim assessment...</span>
+                <span>Running claim assessment…</span>
               </div>
             )}
 

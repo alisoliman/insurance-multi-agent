@@ -267,7 +267,7 @@ export default function PolicyCheckerDemo() {
             {isLoadingSamples ? (
               <div className="flex items-center justify-center py-8">
                 <IconClock className="h-6 w-6 animate-spin mr-2" />
-                <span>Loading sample claims...</span>
+                <span>Loading sample claims…</span>
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -307,7 +307,7 @@ export default function PolicyCheckerDemo() {
                         className="w-full mt-auto"
                         onClick={() => runPolicyCheck(claim)}
                       >
-                        {isLoading ? 'Processing...' : 'Check Coverage'}
+                        {isLoading ? 'Processing…' : 'Check Coverage'}
                       </Button>
                     </div>
                   </CardContent>
@@ -350,7 +350,7 @@ export default function PolicyCheckerDemo() {
             {isLoading && (
               <div className="flex items-center justify-center py-8">
                 <IconClock className="h-6 w-6 animate-spin mr-2" />
-                <span>Running policy check...</span>
+                <span>Running policy check…</span>
               </div>
             )}
 

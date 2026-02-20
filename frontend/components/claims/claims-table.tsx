@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Copy, AlertTriangle, CheckCircle, Clock, FileQuestion, XCircle, Inbox } from "lucide-react"
+import { Copy, AlertTriangle, CheckCircle, Clock, FileQuestion, XCircle, Inbox, Zap } from "lucide-react"
 import { toast } from "sonner"
 
 interface ClaimsTableProps {
@@ -391,7 +391,7 @@ export function ClaimsTable({
                         {claim.ai_recommendation_override && (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span className="text-[10px] text-muted-foreground cursor-help">⚡</span>
+                              <span className="text-muted-foreground cursor-help"><Zap className="inline h-3 w-3 text-amber-500" /></span>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="max-w-[220px]">
                               <p className="text-xs">Synthesizer said <strong>{claim.ai_recommendation_override}</strong> — overridden by specialist consensus (low risk, valid, covered)</p>
