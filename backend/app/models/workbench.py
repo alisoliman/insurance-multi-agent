@@ -96,6 +96,7 @@ class Claim(ClaimBase):
     assigned_handler_id: Optional[str] = None
     latest_assessment_status: Optional[AssessmentStatus] = None
     ai_recommendation: Optional[str] = None
+    ai_recommendation_override: Optional[str] = None
     ai_risk_level: Optional[str] = None
     ai_risk_score: Optional[int] = None
     version: int = 1

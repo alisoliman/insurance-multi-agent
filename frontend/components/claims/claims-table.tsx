@@ -384,9 +384,21 @@ export function ClaimsTable({
                 {showAiSummary && (
                   <TableCell>
                     {claim.ai_recommendation ? (
-                      <Badge variant="outline">
-                        {claim.ai_recommendation}
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="outline">
+                          {claim.ai_recommendation}
+                        </Badge>
+                        {claim.ai_recommendation_override && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-[10px] text-muted-foreground cursor-help">⚡</span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-[220px]">
+                              <p className="text-xs">Synthesizer said <strong>{claim.ai_recommendation_override}</strong> — overridden by specialist consensus (low risk, valid, covered)</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}

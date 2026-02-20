@@ -15,6 +15,7 @@ export interface Claim {
   assigned_handler_id?: string
   latest_assessment_status?: 'pending' | 'processing' | 'completed' | 'failed'
   ai_recommendation?: string
+  ai_recommendation_override?: string
   ai_risk_level?: string
   ai_risk_score?: number
   version: number

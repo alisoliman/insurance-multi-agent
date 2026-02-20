@@ -439,7 +439,14 @@ class ClaimRepository:
             data["ai_risk_level"] = risk.get("risk_level")
             data["ai_risk_score"] = risk.get("risk_score")
             data["ai_recommendation"] = synth.get("recommendation") or final_rec
-        
+
+        # For auto-approved claims, show the effective decision, not raw synthesizer advisory
+        if data.get("assigned_handler_id") == "system" and data["status"] == ClaimStatus.APPROVED:
+            raw_rec = data.get("ai_recommendation")
+            if raw_rec and raw_rec != "APPROVE":
+                data["ai_recommendation"] = f"APPROVE"
+                data["ai_recommendation_override"] = raw_rec
+
         return Claim(**data)
 
     async def get_latest_assessment(self, claim_id: str) -> Optional[AIAssessment]:
