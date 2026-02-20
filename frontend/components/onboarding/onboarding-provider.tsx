@@ -58,9 +58,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         setIsOpen(false)
       }
       if (!stored) {
-        if (disabled !== "true") {
-          setIsOpen(true)
-        }
+        // First visit — don't auto-open, just initialize
         hasHydrated.current = true
         return
       }
@@ -69,12 +67,11 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       setCompleted(new Set(parsed.completed ?? []))
       setHasSeen(Boolean(parsed.hasSeen))
       if (disabled !== "true") {
-        setIsOpen(!parsed.hasSeen)
+        // Don't auto-open — let the user open via dock or header button
+        setIsOpen(false)
       }
     } catch {
-      if (window.localStorage.getItem(DISABLED_KEY) !== "true") {
-        setIsOpen(true)
-      }
+      // Corrupted state — just reset quietly
     } finally {
       hasHydrated.current = true
     }

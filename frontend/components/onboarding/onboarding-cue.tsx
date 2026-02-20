@@ -1,10 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Sparkles } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { cn } from "@/lib/utils"
+import { ChevronRight } from "lucide-react"
 import { onboardingSteps } from "./onboarding-steps"
 import { useOnboarding } from "./onboarding-provider"
 
@@ -14,31 +11,29 @@ interface OnboardingCueProps {
 }
 
 export function OnboardingCue({ stepId, className }: OnboardingCueProps) {
-  const { currentStep, completed, open, isOpen } = useOnboarding()
-  const activeStep = onboardingSteps[currentStep]
+  const { completed, open, isOpen } = useOnboarding()
   const isComplete = completed.size >= onboardingSteps.length
+  const step = onboardingSteps.find((s) => s.id === stepId)
 
-  if (isComplete || isOpen || completed.has(stepId) || !activeStep || activeStep.id !== stepId) {
+  // Only show if this step is not yet completed
+  if (isComplete || isOpen || completed.has(stepId) || !step) {
     return null
   }
 
-  const stepIndex = onboardingSteps.findIndex((step) => step.id === stepId)
+  const stepIndex = onboardingSteps.findIndex((s) => s.id === stepId)
 
   return (
-    <Card className={cn("border-l-4 border-l-primary bg-primary/5 p-4", className)}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">
-            Onboarding • Step {stepIndex + 1} of {onboardingSteps.length}
-          </div>
-          <div className="mt-1 text-base font-semibold">{activeStep.title}</div>
-          <div className="mt-1 text-sm text-muted-foreground">{activeStep.description}</div>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => open()}>
-          <Sparkles className="mr-2 h-4 w-4" />
-          Open Guide
-        </Button>
-      </div>
-    </Card>
+    <button
+      onClick={() => open(stepIndex)}
+      className={`w-full flex items-center gap-2 rounded-md border border-dashed border-primary/30 bg-primary/[0.03] px-3 py-2 text-left group hover:border-primary/50 hover:bg-primary/[0.06] transition-colors ${className || ""}`}
+    >
+      <span className="text-[11px] text-muted-foreground">
+        Step {stepIndex + 1}:
+      </span>
+      <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+        {step.title}
+      </span>
+      <ChevronRight className="h-3 w-3 text-muted-foreground/50 ml-auto" />
+    </button>
   )
 }

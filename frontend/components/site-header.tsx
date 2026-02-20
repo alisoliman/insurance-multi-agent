@@ -155,9 +155,8 @@ export function SiteHeader() {
             <Sparkles className="mr-2 h-4 w-4" />
             Demo Guide
           </Button>
-          <Button variant="ghost" size="sm" onClick={reset}>
-            <RotateCcw className="mr-2 h-4 w-4" />
-            Restart Tour
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={reset} title="Reset demo tour">
+            <RotateCcw className="h-4 w-4" />
           </Button>
         </div>
       </div>
