@@ -292,8 +292,12 @@ class ClaimService:
         if coverage_status and coverage_status not in AUTO_APPROVE_COVERAGE_ALLOWED:
             return
         if recommendation:
-            if recommendation != AUTO_APPROVE_RECOMMENDATION:
+            # DENY is a hard block — never auto-approve
+            if recommendation == "DENY":
                 return
+            # APPROVE passes through; INVESTIGATE is overridden by specialist
+            # consensus (all checks above already passed: LOW_RISK, low score,
+            # VALID, COVERED). The synthesizer is advisory for auto-approval.
         if confidence is not None and confidence not in AUTO_APPROVE_CONFIDENCE_ALLOWED:
             return
         # Red flags are advisory; low-risk, low-value claims may still auto-approve in demo mode.
@@ -304,11 +308,20 @@ class ClaimService:
             ClaimUpdate(assigned_handler_id=AUTO_APPROVE_HANDLER_ID)
         )
 
+        # Build audit note explaining the auto-approval rationale
+        if recommendation and recommendation != AUTO_APPROVE_RECOMMENDATION:
+            auto_note = (
+                f"Auto-approved: specialist consensus (LOW_RISK, score {risk_score}, "
+                f"{validity_status}, {coverage_status}) overrides synthesizer '{recommendation}'"
+            )
+        else:
+            auto_note = "Auto-approved: low risk and low value"
+
         decision_in = ClaimDecisionCreate(
             claim_id=claim.id,
             handler_id=AUTO_APPROVE_HANDLER_ID,
             decision_type=DecisionType.APPROVED,
-            notes="Auto-approved: low risk and low value",
+            notes=auto_note,
             ai_assessment_id=assessment.id
         )
         await self.record_decision(claim.id, decision_in)

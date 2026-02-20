@@ -96,9 +96,14 @@ export default function AutoApprovalsPage() {
           </div>
           <div className="rounded-md bg-background border p-3">
             <div className="text-xs text-muted-foreground">AI Recommendation</div>
-            <div className="text-sm font-semibold">APPROVE</div>
+            <div className="text-sm font-semibold">DENY blocks; others advisory</div>
           </div>
         </div>
+        <p className="text-xs text-muted-foreground mt-3">
+          Auto-approval is driven by <strong>specialist agent consensus</strong> (risk score, validity, coverage), not the synthesizer alone. 
+          If the synthesizer says INVESTIGATE but all specialists agree the claim is low-risk and covered, the system auto-approves. 
+          A DENY recommendation always blocks auto-approval.
+        </p>
       </div>
 
       <ClaimsTable
