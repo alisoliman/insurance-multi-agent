@@ -131,7 +131,7 @@ export function DecisionForm({
             <Label htmlFor="decision-type">Your Decision</Label>
             <Select onValueChange={setDecisionType} value={decisionType}>
               <SelectTrigger id="decision-type" aria-label="Select your decision">
-                <SelectValue placeholder="Select your decision..." />
+                <SelectValue placeholder="Select your decision…" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="approved">
@@ -161,7 +161,7 @@ export function DecisionForm({
             <Textarea 
               ref={notesRef}
               id="notes" 
-              placeholder="Explain your reasoning for this decision..." 
+              placeholder="Explain your reasoning for this decision…" 
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={4}
@@ -181,7 +181,7 @@ export function DecisionForm({
             className="w-full"
             variant={decisionType === "denied" ? "destructive" : "default"}
           >
-            {isSubmitting ? "Recording..." : "Confirm Decision"}
+            {isSubmitting ? "Recording…" : "Confirm Decision"}
           </Button>
         </form>
       </CardContent>

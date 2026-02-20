@@ -95,7 +95,7 @@ export function CreateClaimForm({ onSubmit }: CreateClaimFormProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">New Claim</Button>
+        <Button variant="outline" data-create-claim-trigger>New Claim</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
@@ -124,8 +124,8 @@ export function CreateClaimForm({ onSubmit }: CreateClaimFormProps) {
             <div className="space-y-2">
               <Label>Claim Type</Label>
               <Select value={form.claim_type} onValueChange={(v) => updateField("claim_type", v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
+                <SelectTrigger aria-label="Claim type">
+                  <SelectValue placeholder="Select type…" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="auto">Auto</SelectItem>
@@ -139,8 +139,8 @@ export function CreateClaimForm({ onSubmit }: CreateClaimFormProps) {
             <div className="space-y-2">
               <Label>Priority</Label>
               <Select value={form.priority} onValueChange={(v) => updateField("priority", v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Priority" />
+                <SelectTrigger aria-label="Priority">
+                  <SelectValue placeholder="Priority…" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="low">Low</SelectItem>
@@ -192,7 +192,7 @@ export function CreateClaimForm({ onSubmit }: CreateClaimFormProps) {
             />
           </div>
           <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? "Creating..." : "Create Claim"}
+            {isSubmitting ? "Creating…" : "Create Claim"}
           </Button>
         </form>
       </DialogContent>

@@ -71,7 +71,7 @@ export function AIResults({ assessment, isLoading }: AIResultsProps) {
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center py-8 space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" role="status" aria-busy="true"></div>
-          <p className="text-muted-foreground" aria-live="polite">Agents are analyzing the claim...</p>
+          <p className="text-muted-foreground" aria-live="polite">Agents are analyzing the claim…</p>
         </CardContent>
       </Card>
     )
@@ -92,7 +92,7 @@ export function AIResults({ assessment, isLoading }: AIResultsProps) {
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center py-8 space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" role="status" aria-busy="true"></div>
-          <p className="text-muted-foreground" aria-live="polite">Agents are analyzing the claim...</p>
+          <p className="text-muted-foreground" aria-live="polite">Agents are analyzing the claim…</p>
         </CardContent>
       </Card>
     )

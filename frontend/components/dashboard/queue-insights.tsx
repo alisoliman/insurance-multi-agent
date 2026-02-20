@@ -155,7 +155,8 @@ export function QueueInsights({ reviewQueue, processingQueue, metrics }: QueueIn
             {riskData.length === 0 ? (
               <div className="text-sm text-muted-foreground">No AI risk data yet.</div>
             ) : (
-              <ChartContainer config={riskConfig} className="h-[220px]">
+              <>
+              <ChartContainer config={riskConfig} className="h-[180px]">
                 <PieChart>
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Pie data={riskData} dataKey="value" nameKey="label" innerRadius={50} outerRadius={80}>
@@ -165,6 +166,18 @@ export function QueueInsights({ reviewQueue, processingQueue, metrics }: QueueIn
                   </Pie>
                 </PieChart>
               </ChartContainer>
+              <div className="flex flex-wrap justify-center gap-4 mt-2">
+                {riskData.map((entry) => (
+                  <div key={entry.key} className="flex items-center gap-1.5 text-xs">
+                    <div 
+                      className="w-2.5 h-2.5 rounded-full" 
+                      style={{ backgroundColor: riskConfig[entry.key]?.color }}
+                    />
+                    <span className="text-muted-foreground">{entry.label}: {entry.value}</span>
+                  </div>
+                ))}
+              </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -179,7 +192,8 @@ export function QueueInsights({ reviewQueue, processingQueue, metrics }: QueueIn
             {reviewQueue.length === 0 ? (
               <div className="text-sm text-muted-foreground">No claims in review queue.</div>
             ) : (
-              <ChartContainer config={ageConfig} className="h-[220px]">
+              <>
+              <ChartContainer config={ageConfig} className="h-[180px]">
                 <BarChart data={ageData} margin={{ left: 0, right: 0, top: 10 }}>
                   <CartesianGrid vertical={false} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} />
@@ -192,6 +206,18 @@ export function QueueInsights({ reviewQueue, processingQueue, metrics }: QueueIn
                   </Bar>
                 </BarChart>
               </ChartContainer>
+              <div className="flex flex-wrap justify-center gap-4 mt-2">
+                {ageData.filter(e => e.value > 0).map((entry) => (
+                  <div key={entry.key} className="flex items-center gap-1.5 text-xs">
+                    <div 
+                      className="w-2.5 h-2.5 rounded-full" 
+                      style={{ backgroundColor: ageConfig[entry.key]?.color }}
+                    />
+                    <span className="text-muted-foreground">{entry.label}</span>
+                  </div>
+                ))}
+              </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -204,7 +230,8 @@ export function QueueInsights({ reviewQueue, processingQueue, metrics }: QueueIn
             {typeData.length === 0 ? (
               <div className="text-sm text-muted-foreground">No claims in review queue.</div>
             ) : (
-              <ChartContainer config={typeConfig} className="h-[220px]">
+              <>
+              <ChartContainer config={typeConfig} className="h-[180px]">
                 <BarChart data={typeData} margin={{ left: 0, right: 0, top: 10 }}>
                   <CartesianGrid vertical={false} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} />
@@ -217,6 +244,18 @@ export function QueueInsights({ reviewQueue, processingQueue, metrics }: QueueIn
                   </Bar>
                 </BarChart>
               </ChartContainer>
+              <div className="flex flex-wrap justify-center gap-4 mt-2">
+                {typeData.map((entry) => (
+                  <div key={entry.key} className="flex items-center gap-1.5 text-xs">
+                    <div 
+                      className="w-2.5 h-2.5 rounded-full" 
+                      style={{ backgroundColor: typeConfig[entry.key]?.color }}
+                    />
+                    <span className="text-muted-foreground">{entry.label}: {entry.value}</span>
+                  </div>
+                ))}
+              </div>
+              </>
             )}
           </CardContent>
         </Card>

@@ -104,7 +104,7 @@ export function ClaimDetail({ claim, onProcessAI, isProcessing, aiStatus }: Clai
           {onProcessAI && (
             <Button onClick={onProcessAI} disabled={isProcessing}>
               <PlayCircle className="w-4 h-4 mr-2" />
-              {isProcessing ? "Processing..." : "Re-run AI Analysis"}
+              {isProcessing ? "Processing…" : "Re-run AI Analysis"}
             </Button>
           )}
         </div>
@@ -234,6 +234,8 @@ export function ClaimDetail({ claim, onProcessAI, isProcessing, aiStatus }: Clai
                     <img
                       src={img.src}
                       alt={img.label}
+                      width={400}
+                      height={200}
                       className="w-full h-32 object-cover"
                     />
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2">

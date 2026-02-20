@@ -8,6 +8,7 @@ import { AIResults } from "@/components/claims/ai-results"
 import { DecisionForm } from "@/components/claims/decision-form"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
+import Link from "next/link"
 import { toast } from "sonner"
 import { OnboardingCue } from "@/components/onboarding/onboarding-cue"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -95,7 +96,7 @@ export default function ClaimPage() {
   const handleProcessAI = async () => {
     setIsProcessing(true)
     try {
-      toast.info("Re-running AI analysis... This may take a minute.")
+      toast.info("Re-running AI analysis… This may take a minute.")
       const result = await processClaim(claimId)
       setAssessment(result)
       toast.success("AI analysis completed successfully")
@@ -151,9 +152,11 @@ export default function ClaimPage() {
 
   return (
     <div className="flex flex-1 flex-col p-6 space-y-8">
-      <Button variant="ghost" onClick={() => router.push(getBackHref())} className="pl-0 w-fit">
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        {getBackLabel()}
+      <Button variant="ghost" asChild className="pl-0 w-fit">
+        <Link href={getBackHref()}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          {getBackLabel()}
+        </Link>
       </Button>
 
       <OnboardingCue stepId="detail" />

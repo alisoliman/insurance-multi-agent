@@ -136,7 +136,7 @@ export function SiteHeader() {
         </Breadcrumb>
         <div className="ml-auto flex items-center gap-2">
           <Select value={handler.id} onValueChange={setHandlerId}>
-            <SelectTrigger className="w-[180px] h-8 text-xs">
+            <SelectTrigger className="w-[180px] h-8 text-xs" aria-label="Switch demo persona">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

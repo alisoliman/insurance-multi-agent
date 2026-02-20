@@ -109,7 +109,7 @@ export default function ReviewQueuePage() {
             onClick={handleSeed}
             disabled={isSeeding}
           >
-            {isSeeding ? "Creating..." : "Seed Sample Claims"}
+            {isSeeding ? "Creating…" : "Seed Sample Claims"}
           </Button>
           <CreateClaimForm onSubmit={handleCreateClaim} />
           <Button variant="outline" onClick={() => router.push("/claims")}>
@@ -147,7 +147,7 @@ export default function ReviewQueuePage() {
             No claims ready for review. Seed or create a claim to start AI processing.
           </p>
           <Button onClick={handleSeed} disabled={isSeeding}>
-            {isSeeding ? "Creating..." : "Create Sample Claims"}
+            {isSeeding ? "Creating…" : "Create Sample Claims"}
           </Button>
         </div>
       ) : (

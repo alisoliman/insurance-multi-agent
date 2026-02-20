@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/sidebar"
 import { ClaimsTable } from "@/components/claims/claims-table"
 import { Button } from "@/components/ui/button"
-import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { QueueInsights } from "@/components/dashboard/queue-insights"
 import { OnboardingCue } from "@/components/onboarding/onboarding-cue"
 import { CreateClaimForm } from "@/components/claims/create-claim-form"
@@ -21,7 +21,6 @@ import { useHandler } from "@/components/handler-context"
 const POLLING_INTERVAL_MS = 15000
 
 export default function WorkbenchHome() {
-  const router = useRouter()
   const { handler } = useHandler()
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     my_caseload: 0,
@@ -124,7 +123,7 @@ export default function WorkbenchHome() {
             </div>
             <div className="flex items-center gap-2">
               <Button variant="secondary" onClick={handleSeed} disabled={isSeeding}>
-                {isSeeding ? "Seeding..." : "Seed Sample Claims"}
+                {isSeeding ? "Seeding…" : "Seed Sample Claims"}
               </Button>
               <CreateClaimForm onSubmit={handleCreateClaim} />
             </div>
@@ -142,27 +141,27 @@ export default function WorkbenchHome() {
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-md bg-muted p-3">
                   <div className="text-xs text-muted-foreground">New</div>
-                  <div className="text-xl font-bold">{metrics.status_new ?? 0}</div>
+                  <div className="text-xl font-bold" style={{ fontVariantNumeric: "tabular-nums" }}>{metrics.status_new ?? 0}</div>
                 </div>
                 <div className="rounded-md bg-muted p-3">
                   <div className="text-xs text-muted-foreground">Assigned</div>
-                  <div className="text-xl font-bold">{metrics.status_assigned ?? 0}</div>
+                  <div className="text-xl font-bold" style={{ fontVariantNumeric: "tabular-nums" }}>{metrics.status_assigned ?? 0}</div>
                 </div>
                 <div className="rounded-md bg-muted p-3">
                   <div className="text-xs text-muted-foreground">In Progress</div>
-                  <div className="text-xl font-bold">{metrics.status_in_progress ?? 0}</div>
+                  <div className="text-xl font-bold" style={{ fontVariantNumeric: "tabular-nums" }}>{metrics.status_in_progress ?? 0}</div>
                 </div>
                 <div className="rounded-md bg-muted p-3">
                   <div className="text-xs text-muted-foreground">Awaiting Info</div>
-                  <div className="text-xl font-bold">{metrics.status_awaiting_info ?? 0}</div>
+                  <div className="text-xl font-bold" style={{ fontVariantNumeric: "tabular-nums" }}>{metrics.status_awaiting_info ?? 0}</div>
                 </div>
                 <div className="rounded-md bg-muted p-3">
                   <div className="text-xs text-muted-foreground">Approved</div>
-                  <div className="text-xl font-bold">{metrics.status_approved ?? 0}</div>
+                  <div className="text-xl font-bold" style={{ fontVariantNumeric: "tabular-nums" }}>{metrics.status_approved ?? 0}</div>
                 </div>
                 <div className="rounded-md bg-muted p-3">
                   <div className="text-xs text-muted-foreground">Denied</div>
-                  <div className="text-xl font-bold">{metrics.status_denied ?? 0}</div>
+                  <div className="text-xl font-bold" style={{ fontVariantNumeric: "tabular-nums" }}>{metrics.status_denied ?? 0}</div>
                 </div>
               </div>
             </div>
@@ -184,8 +183,8 @@ export default function WorkbenchHome() {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">AI Processing Queue</h2>
-              <Button variant="outline" onClick={() => router.push("/claims/processing-queue")}>
-                View All
+              <Button variant="outline" asChild>
+                <Link href="/claims/processing-queue">View All</Link>
               </Button>
             </div>
             <ClaimsTable claims={processingQueue} isLoading={isLoading} showAssessmentStatus={true} showAiSummary={true} fromPage="dashboard" />
@@ -194,8 +193,8 @@ export default function WorkbenchHome() {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Auto-Approved (AI)</h2>
-              <Button variant="outline" onClick={() => router.push("/claims/auto-approvals")}>
-                View All
+              <Button variant="outline" asChild>
+                <Link href="/claims/auto-approvals">View All</Link>
               </Button>
             </div>
             <ClaimsTable claims={autoApprovedClaims} isLoading={isLoading} showAssessmentStatus={true} showAiSummary={true} fromPage="dashboard" />
@@ -204,8 +203,8 @@ export default function WorkbenchHome() {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">My Recent Claims</h2>
-              <Button variant="outline" onClick={() => router.push("/claims")}>
-                View All
+              <Button variant="outline" asChild>
+                <Link href="/claims">View All</Link>
               </Button>
             </div>
             <ClaimsTable claims={recentClaims} isLoading={isLoading} fromPage="dashboard" />
