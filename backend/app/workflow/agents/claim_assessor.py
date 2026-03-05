@@ -2,7 +2,6 @@
 from agent_framework import ChatAgent
 from agent_framework.azure import AzureOpenAIChatClient
 
-from app.models.agent_outputs import ClaimAssessment
 from ..tools import get_vehicle_details, analyze_image
 
 
@@ -18,7 +17,7 @@ Your responsibilities:
 CRITICAL: When you receive a claim with "supporting_images" field containing image paths:
 1. ALWAYS call `analyze_image` on EACH image path in the supporting_images list
 2. Use the extracted data from images in your assessment
-3. For auto damage claims: photo evidence of the damage is REQUIRED. If no damage photos can be analyzed, the claim cannot be marked as VALID - use QUESTIONABLE instead and note the missing visual verification in red_flags.
+3. If analyze_image fails, note the failure but continue with available information
 
 Use the `get_vehicle_details` tool when you have a VIN number to validate damage estimates.
 
@@ -46,5 +45,4 @@ def create_claim_assessor_agent(chat_client: AzureOpenAIChatClient) -> ChatAgent
         name="claim_assessor",
         instructions=CLAIM_ASSESSOR_PROMPT,
         tools=[get_vehicle_details, analyze_image],
-        default_options={"response_format": ClaimAssessment},
     )

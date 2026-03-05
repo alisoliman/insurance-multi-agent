@@ -1,14 +1,12 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
-import { useOnboarding } from "@/components/onboarding/onboarding-provider"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { getApiUrl } from "@/lib/config"
@@ -33,6 +31,10 @@ import {
   isCoverageVerification,
   isRiskAssessment,
   isCustomerCommunication,
+  ClaimAssessment,
+  CoverageVerification,
+  RiskAssessment,
+  CustomerCommunication,
   ToolCall,
 } from '@/types/agent-outputs'
 
@@ -58,40 +60,18 @@ import {
   IconRefresh,
   IconAlertCircle,
   IconClock,
+  IconRobot,
+  IconFileText,
+  IconShield,
+  IconTrendingUp,
+  IconMessage,
   IconPlayerPlay,
   IconEye,
   IconFileOff,
-  IconFileText,
   IconSparkles,
   IconDeviceFloppy,
   IconFolder,
-  IconPhoto,
-  IconDownload,
 } from '@tabler/icons-react'
-
-import { AGENT_CONFIG, getAgentConfig, getSpecialistAgents } from '@/lib/agent-config'
-
-// Evidence images mapped to sample claims for demo storytelling
-const DEMO_EVIDENCE: Record<string, { file: string; label: string }[]> = {
-  "CLM-2024-001": [
-    { file: "/demo-evidence/CLM-2024-001/rear-bumper-damage.jpg", label: "Rear bumper crumpled" },
-    { file: "/demo-evidence/CLM-2024-001/trunk-damage.jpg", label: "Tail light cracked" },
-    { file: "/demo-evidence/CLM-2024-001/intersection-scene.jpg", label: "Intersection scene" },
-    { file: "/demo-evidence/generic/police-report.jpg", label: "Police report" },
-  ],
-  "CLM-2024-002": [
-    { file: "/demo-evidence/CLM-2024-002/highway-collision.jpg", label: "Highway pileup scene" },
-    { file: "/demo-evidence/CLM-2024-002/front-end-damage.jpg", label: "Front-end crushed" },
-    { file: "/demo-evidence/CLM-2024-002/airbag-deployed.jpg", label: "Airbag deployed" },
-    { file: "/demo-evidence/CLM-2024-002/tow-truck-scene.jpg", label: "Tow truck recovery" },
-    { file: "/demo-evidence/generic/police-report.jpg", label: "Police report" },
-  ],
-  "CLM-2024-004": [
-    { file: "/demo-evidence/CLM-2024-004/side-damage.jpg", label: "Right-side impact dent" },
-    { file: "/demo-evidence/CLM-2024-004/bumper-closeup.jpg", label: "Fender scrape detail" },
-    { file: "/demo-evidence/generic/police-report.jpg", label: "Police report" },
-  ],
-}
 
 interface ClaimSummary {
   claim_id: string
@@ -115,6 +95,55 @@ interface ConversationEntry {
   role: string
   content: string
   node: string
+}
+
+// Agent configuration with icons and colors (matching backend agent names)
+const AGENT_CONFIG = {
+  'claim_assessor': {
+    icon: IconFileText,
+    color: 'text-blue-600 dark:text-blue-400',
+    bgColor: 'bg-blue-100 dark:bg-blue-900/30',
+    borderColor: 'border-blue-200 dark:border-blue-800',
+    displayName: 'Claim Assessor',
+    description: 'Damage evaluation specialist',
+    capabilities: ['Image Analysis', 'Damage Assessment', 'Cost Estimation']
+  },
+  'policy_checker': {
+    icon: IconShield,
+    color: 'text-green-600 dark:text-green-400',
+    bgColor: 'bg-green-100 dark:bg-green-900/30',
+    borderColor: 'border-green-200 dark:border-green-800',
+    displayName: 'Policy Checker',
+    description: 'Coverage verification specialist',
+    capabilities: ['Policy Verification', 'Coverage Analysis', 'Exclusion Review']
+  },
+  'risk_analyst': {
+    icon: IconTrendingUp,
+    color: 'text-orange-600 dark:text-orange-400',
+    bgColor: 'bg-orange-100 dark:bg-orange-900/30',
+    borderColor: 'border-orange-200 dark:border-orange-800',
+    displayName: 'Risk Analyst',
+    description: 'Fraud detection specialist',
+    capabilities: ['Fraud Detection', 'Risk Assessment', 'Pattern Analysis']
+  },
+  'communication_agent': {
+    icon: IconMessage,
+    color: 'text-purple-600 dark:text-purple-400',
+    bgColor: 'bg-purple-100 dark:bg-purple-900/30',
+    borderColor: 'border-purple-200 dark:border-purple-800',
+    displayName: 'Communication Agent',
+    description: 'Customer communication specialist',
+    capabilities: ['Email Drafting', 'Customer Updates', 'Documentation']
+  },
+  'supervisor': {
+    icon: IconRobot,
+    color: 'text-gray-600 dark:text-gray-400',
+    bgColor: 'bg-gray-100 dark:bg-gray-900/30',
+    borderColor: 'border-gray-200 dark:border-gray-800',
+    displayName: 'Supervisor',
+    description: 'Workflow orchestrator',
+    capabilities: ['Decision Making', 'Agent Coordination', 'Final Assessment']
+  }
 }
 
 // Helper function to check if any agent has tool calls
@@ -148,29 +177,7 @@ function RawOutputFallback({ agentName, content }: { agentName: string; content:
   )
 }
 
-// Helper to render agent output card based on type
-function renderAgentOutputCard(
-  agentOutput: AgentOutput | undefined,
-  typeCheck: (output: unknown) => boolean,
-  StructuredCard: React.ComponentType<{ output: unknown }>,
-  displayName: string
-): React.ReactNode {
-  if (!agentOutput) return null
-  
-  if (agentOutput.structured_output && typeCheck(agentOutput.structured_output)) {
-    return <StructuredCard output={agentOutput.structured_output} />
-  }
-  
-  if (agentOutput.raw_text) {
-    return <RawOutputFallback agentName={displayName} content={agentOutput.raw_text} />
-  }
-  
-  return null
-}
-
 export function WorkflowDemo() {
-  const TOOL_CALLS_STORAGE_KEY = "simai-workflow-tool-calls"
-
   const [availableClaims, setAvailableClaims] = useState<ClaimSummary[]>([])
   const [generatedScenarios, setGeneratedScenarios] = useState<GeneratedScenario[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -181,31 +188,6 @@ export function WorkflowDemo() {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [savedScenariosRefreshTrigger, setSavedScenariosRefreshTrigger] = useState(0)
   const [savingScenarioId, setSavingScenarioId] = useState<string | null>(null)
-  const [summaryLanguage, setSummaryLanguage] = useState<"english" | "original">("english")
-  const [lastRunLanguage, setLastRunLanguage] = useState<"english" | "original" | null>(null)
-  const [showToolCalls, setShowToolCalls] = useState(true)
-  const { isDisabled: onboardingDisabled, setDisabled: setOnboardingDisabled } = useOnboarding()
-  const [evidencePreview, setEvidencePreview] = useState<string | null>(null)
-
-  // Auto-load evidence images for a given claim as File objects
-  const loadEvidenceForClaim = async (claimId: string) => {
-    const evidence = DEMO_EVIDENCE[claimId]
-    if (!evidence) return
-    try {
-      const files = await Promise.all(
-        evidence.map(async (ev) => {
-          const resp = await fetch(ev.file)
-          const blob = await resp.blob()
-          const name = ev.file.split('/').pop() || 'evidence.jpg'
-          return new File([blob], name, { type: blob.type })
-        })
-      )
-      setUploadedFiles(files)
-      toast.success(`Loaded ${files.length} evidence photos for ${claimId}`)
-    } catch {
-      toast.error('Failed to load evidence images')
-    }
-  }
 
   // T040: Show loading indicator after 500ms delay to avoid flickering on fast responses
   useEffect(() => {
@@ -217,24 +199,6 @@ export function WorkflowDemo() {
     }
     return () => clearTimeout(timer)
   }, [isLoading])
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    const storedToolCalls = window.sessionStorage.getItem(TOOL_CALLS_STORAGE_KEY)
-    if (storedToolCalls !== null) {
-      setShowToolCalls(storedToolCalls === "true")
-    }
-  }, [setOnboardingDisabled])
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    window.sessionStorage.setItem(TOOL_CALLS_STORAGE_KEY, String(showToolCalls))
-  }, [showToolCalls])
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    // Onboarding persistence is handled in the OnboardingProvider (localStorage).
-  }, [onboardingDisabled])
 
   // Handle newly generated scenario
   const handleScenarioGenerated = (scenario: GeneratedScenario) => {
@@ -321,7 +285,9 @@ export function WorkflowDemo() {
   const fetchAvailableClaims = async () => {
     try {
       const apiUrl = await getApiUrl()
+      console.log('Using API URL:', apiUrl)
       const fullUrl = `${apiUrl}/api/v1/workflow/sample-claims`
+      console.log('Fetching from:', fullUrl)
       
       const response = await fetch(fullUrl)
       
@@ -330,6 +296,7 @@ export function WorkflowDemo() {
       }
       
       const data = await response.json()
+      console.log('Received data:', data)
       setAvailableClaims(data.available_claims || [])
     } catch (err) {
       console.error('Failed to fetch available claims:', err)
@@ -374,15 +341,15 @@ export function WorkflowDemo() {
       let requestBody: Record<string, unknown>
       if (claim.policy_number) {
         // Full claim data from generated scenario
-        requestBody = { ...claim, summary_language: summaryLanguage }
+        requestBody = { ...claim }
         if (paths.length > 0) {
           requestBody.supporting_images = paths
         }
       } else {
         // Sample claim - just send claim_id
         requestBody = paths.length > 0
-          ? { claim_id: claim.claim_id, supporting_images: paths, summary_language: summaryLanguage }
-          : { claim_id: claim.claim_id, summary_language: summaryLanguage }
+          ? { claim_id: claim.claim_id, supporting_images: paths }
+          : { claim_id: claim.claim_id }
       }
 
       const response = await fetch(`${apiUrl}/api/v1/workflow/run`, {
@@ -399,7 +366,6 @@ export function WorkflowDemo() {
 
       const data: WorkflowResult = await response.json()
       setWorkflowResult(data)
-      setLastRunLanguage(summaryLanguage)
       toast.success('Workflow completed successfully!')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
@@ -421,21 +387,14 @@ export function WorkflowDemo() {
     setWorkflowResult(null)
     setError(null)
     setUploadedFiles([])
-    setLastRunLanguage(null)
   }
 
   // Helper to determine if a conversation step should be skipped
   const shouldSkipStep = (step: ConversationEntry) => {
-    if (step.content.includes('transfer_back_to_supervisor')) {
-      return true
-    }
-    if (!showToolCalls) {
-      return step.content.startsWith('TOOL_CALL:') || 
-             step.content.startsWith('🔧 Calling tool:') ||
-             step.content.startsWith('🔧 Tool Response') ||
-             step.role === 'tool'
-    }
-    return false
+    return step.content.startsWith('TOOL_CALL:') || 
+           step.content.includes('transfer_back_to_supervisor') || 
+           step.content.includes('"type": "tool_call"') ||
+           step.content.match(/\[.*"tool_call".*\]/)
   }
 
   return (
@@ -455,7 +414,7 @@ export function WorkflowDemo() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {getSpecialistAgents().map(([key, config]) => (
+            {Object.entries(AGENT_CONFIG).filter(([key]) => key !== 'supervisor').map(([key, config]) => (
               <div key={key} className={`rounded-lg p-3 border ${config.bgColor} ${config.borderColor}`}>
                 <div className="flex items-center gap-2 mb-2">
                   <config.icon className={`h-4 w-4 ${config.color}`} />
@@ -513,63 +472,6 @@ export function WorkflowDemo() {
         </CardHeader>
         <CardContent className="space-y-6">
           
-          {/* Workflow Options */}
-          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-            <div className="space-y-0.5">
-              <Label htmlFor="summary-language" className="text-sm font-medium">
-                Workflow Language
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                {summaryLanguage === "original" 
-                  ? "Workflow outputs will match the claim language" 
-                  : "Workflow outputs will be in English"}
-              </p>
-              <p className="text-xs text-muted-foreground">Applies to next run</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">English</span>
-              <Switch
-                id="summary-language"
-                checked={summaryLanguage === "original"}
-                onCheckedChange={(checked) => setSummaryLanguage(checked ? "original" : "english")}
-              />
-              <span className="text-xs text-muted-foreground">Original</span>
-            </div>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-              <div className="space-y-0.5">
-                <Label htmlFor="show-tool-calls" className="text-sm font-medium">
-                  Tool Call Trace
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  {showToolCalls ? "Show tool calls and responses in the trace" : "Hide tool calls and responses"}
-                </p>
-              </div>
-              <Switch
-                id="show-tool-calls"
-                checked={showToolCalls}
-                onCheckedChange={setShowToolCalls}
-              />
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-              <div className="space-y-0.5">
-                <Label htmlFor="disable-onboarding" className="text-sm font-medium">
-                  Onboarding
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  {onboardingDisabled ? "Onboarding is disabled" : "Disable onboarding and mark complete"}
-                </p>
-              </div>
-              <Switch
-                id="disable-onboarding"
-                checked={onboardingDisabled}
-                onCheckedChange={(checked) => setOnboardingDisabled(checked)}
-              />
-            </div>
-          </div>
-          
           {/* File Upload Section */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">Supporting Documents</Label>
@@ -580,77 +482,6 @@ export function WorkflowDemo() {
               maxFiles={10}
               maxSize={10 * 1024 * 1024} // 10MB
             />
-          </div>
-
-          {/* Demo Evidence Gallery */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium flex items-center gap-2">
-                <IconPhoto className="h-4 w-4" />
-                Demo Evidence Photos
-              </Label>
-              <p className="text-xs text-muted-foreground">Click a claim to auto-attach its evidence</p>
-            </div>
-            <div className="space-y-4">
-              {Object.entries(DEMO_EVIDENCE).map(([claimId, images]) => (
-                <div key={claimId} className="rounded-lg border p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs font-mono">{claimId}</Badge>
-                      <span className="text-xs text-muted-foreground">{images.length} photos</span>
-                    </div>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="h-7 text-xs gap-1"
-                      onClick={() => loadEvidenceForClaim(claimId)}
-                    >
-                      <IconDownload className="h-3 w-3" />
-                      Attach All
-                    </Button>
-                  </div>
-                  <div className="flex gap-2 overflow-x-auto pb-1">
-                    {images.map((img) => (
-                      <button
-                        key={img.file}
-                        type="button"
-                        className="group relative flex-shrink-0 rounded-md overflow-hidden border hover:ring-2 hover:ring-primary focus:ring-2 focus:ring-primary outline-none"
-                        onClick={() => setEvidencePreview(evidencePreview === img.file ? null : img.file)}
-                      >
-                        <img
-                          src={img.file}
-                          alt={img.label}
-                          className="h-16 w-24 object-cover"
-                        />
-                        <span className="absolute inset-x-0 bottom-0 bg-black/60 text-white text-[10px] px-1 py-0.5 truncate">
-                          {img.label}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Lightbox preview */}
-            {evidencePreview && (
-              <div className="rounded-lg border overflow-hidden bg-muted/30">
-                <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/50">
-                  <span className="text-xs font-medium">
-                    {DEMO_EVIDENCE[Object.keys(DEMO_EVIDENCE).find(k => DEMO_EVIDENCE[k].some(i => i.file === evidencePreview)) || '']
-                      ?.find(i => i.file === evidencePreview)?.label || 'Preview'}
-                  </span>
-                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setEvidencePreview(null)}>
-                    Close
-                  </Button>
-                </div>
-                <img
-                  src={evidencePreview}
-                  alt="Evidence preview"
-                  className="w-full max-h-80 object-contain bg-black/5"
-                />
-              </div>
-            )}
           </div>
 
           {/* Generated Scenarios Section */}
@@ -802,23 +633,6 @@ export function WorkflowDemo() {
                       <p className="text-xs text-muted-foreground line-clamp-2">
                         {claim.description}
                       </p>
-                      {DEMO_EVIDENCE[claim.claim_id] && (
-                        <div className="flex gap-1 mt-1">
-                          {DEMO_EVIDENCE[claim.claim_id].slice(0, 3).map((img) => (
-                            <img
-                              key={img.file}
-                              src={img.file}
-                              alt={img.label}
-                              className="h-8 w-12 rounded object-cover border"
-                            />
-                          ))}
-                          {DEMO_EVIDENCE[claim.claim_id].length > 3 && (
-                            <span className="h-8 w-12 rounded border bg-muted flex items-center justify-center text-[10px] text-muted-foreground">
-                              +{DEMO_EVIDENCE[claim.claim_id].length - 3}
-                            </span>
-                          )}
-                        </div>
-                      )}
                       <Button
                         onClick={() => runWorkflow(claim)}
                         disabled={isLoading}
@@ -856,13 +670,6 @@ export function WorkflowDemo() {
       {/* Results Section */}
       {(showLoadingIndicator || workflowResult) && (
         <div className="space-y-6">
-          {lastRunLanguage && (
-            <div>
-              <Badge variant="outline" className="text-xs">
-                Last run: {lastRunLanguage === "original" ? "Original" : "English"}
-              </Badge>
-            </div>
-          )}
           {/* Workflow Summary for Viewers (T037-T039) */}
           {workflowResult && (
             <WorkflowSummary result={workflowResult} />
@@ -871,35 +678,62 @@ export function WorkflowDemo() {
           {/* Agent Output Cards Grid */}
           {workflowResult?.agent_outputs && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {renderAgentOutputCard(
-                workflowResult.agent_outputs.claim_assessor,
-                isClaimAssessment,
-                ClaimAssessmentCard as React.ComponentType<{ output: unknown }>,
-                'Claim Assessor'
+              {/* Claim Assessor Output */}
+              {workflowResult.agent_outputs.claim_assessor?.structured_output && 
+               isClaimAssessment(workflowResult.agent_outputs.claim_assessor.structured_output) ? (
+                <ClaimAssessmentCard 
+                  output={workflowResult.agent_outputs.claim_assessor.structured_output as ClaimAssessment}
+                />
+              ) : workflowResult.agent_outputs.claim_assessor?.raw_text && (
+                <RawOutputFallback 
+                  agentName="Claim Assessor"
+                  content={workflowResult.agent_outputs.claim_assessor.raw_text}
+                />
               )}
-              {renderAgentOutputCard(
-                workflowResult.agent_outputs.policy_checker,
-                isCoverageVerification,
-                CoverageVerificationCard as React.ComponentType<{ output: unknown }>,
-                'Policy Checker'
+
+              {/* Policy Checker Output */}
+              {workflowResult.agent_outputs.policy_checker?.structured_output && 
+               isCoverageVerification(workflowResult.agent_outputs.policy_checker.structured_output) ? (
+                <CoverageVerificationCard 
+                  output={workflowResult.agent_outputs.policy_checker.structured_output as CoverageVerification}
+                />
+              ) : workflowResult.agent_outputs.policy_checker?.raw_text && (
+                <RawOutputFallback 
+                  agentName="Policy Checker"
+                  content={workflowResult.agent_outputs.policy_checker.raw_text}
+                />
               )}
-              {renderAgentOutputCard(
-                workflowResult.agent_outputs.risk_analyst,
-                isRiskAssessment,
-                RiskAssessmentCard as React.ComponentType<{ output: unknown }>,
-                'Risk Analyst'
+
+              {/* Risk Analyst Output */}
+              {workflowResult.agent_outputs.risk_analyst?.structured_output && 
+               isRiskAssessment(workflowResult.agent_outputs.risk_analyst.structured_output) ? (
+                <RiskAssessmentCard 
+                  output={workflowResult.agent_outputs.risk_analyst.structured_output as RiskAssessment}
+                />
+              ) : workflowResult.agent_outputs.risk_analyst?.raw_text && (
+                <RawOutputFallback 
+                  agentName="Risk Analyst"
+                  content={workflowResult.agent_outputs.risk_analyst.raw_text}
+                />
               )}
-              {renderAgentOutputCard(
-                workflowResult.agent_outputs.communication_agent,
-                isCustomerCommunication,
-                CustomerCommunicationCard as React.ComponentType<{ output: unknown }>,
-                'Communication Agent'
+
+              {/* Communication Agent Output */}
+              {workflowResult.agent_outputs.communication_agent?.structured_output && 
+               isCustomerCommunication(workflowResult.agent_outputs.communication_agent.structured_output) ? (
+                <CustomerCommunicationCard 
+                  output={workflowResult.agent_outputs.communication_agent.structured_output as CustomerCommunication}
+                />
+              ) : workflowResult.agent_outputs.communication_agent?.raw_text && (
+                <RawOutputFallback 
+                  agentName="Communication Agent"
+                  content={workflowResult.agent_outputs.communication_agent.raw_text}
+                />
               )}
             </div>
           )}
 
           {/* Tool Calls Section - Collapsible per agent */}
-          {showToolCalls && workflowResult?.agent_outputs && hasAnyToolCalls(workflowResult.agent_outputs) && (
+          {workflowResult?.agent_outputs && hasAnyToolCalls(workflowResult.agent_outputs) && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Tool Calls</CardTitle>
@@ -908,7 +742,7 @@ export function WorkflowDemo() {
               <CardContent className="space-y-4">
                 {Object.entries(workflowResult.agent_outputs).map(([agentName, agentOutput]) => {
                   if (!agentOutput.tool_calls || agentOutput.tool_calls.length === 0) return null
-                  const config = getAgentConfig(agentName)
+                  const config = AGENT_CONFIG[agentName as keyof typeof AGENT_CONFIG]
                   return (
                     <div key={agentName} className="space-y-2">
                       <div className="flex items-center gap-2">

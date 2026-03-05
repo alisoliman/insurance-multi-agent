@@ -1,28 +1,116 @@
 """Workflow endpoint definitions (API v1)."""
 from __future__ import annotations
 
-import json as json_mod
 import logging
-import re
-import uuid as uuid_mod
-from typing import Any, Dict, List
-
 from fastapi import APIRouter, HTTPException
+import re
+from typing import Any
 
 from app.models.claim import ClaimIn, ClaimOut, AgentOutputOut, ToolCallOut
-from app.sample_data import ALL_SAMPLE_CLAIMS
-from app.services.claim_data_helpers import ensure_vehicle_exists, ensure_policy_exists
 from app.services.claim_processing import run as run_workflow
+from app.sample_data import ALL_SAMPLE_CLAIMS
+from typing import Dict, List, Optional
+
+# Feature 005: Import vehicle/policy repos for generated scenario support
+from app.db.vehicle_repo import create_vehicle, get_vehicle_by_vin, VehicleCreate
+from app.db.policy_repo import create_policy, get_policy_by_policy_number, PolicyCreate
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["workflow"])
 
-# Regex to capture decision outcomes from the synthesizer
+# Regex compiled once - captures various decision outcomes from the synthesizer
 DECISION_PATTERN = re.compile(
-    r"\b(APPROVED|DENIED|REQUIRES_INVESTIGATION|INVESTIGATE|COVERED|NOT_COVERED|PARTIALLY_COVERED)\b",
-    re.IGNORECASE,
-)
+    r"\b(APPROVED|DENIED|REQUIRES_INVESTIGATION|INVESTIGATE|COVERED|NOT_COVERED|PARTIALLY_COVERED)\b", re.IGNORECASE)
+
+
+async def _ensure_vehicle_exists(claim_data: dict) -> None:
+    """Ensure vehicle info from claim is available in vehicle_repo for tool lookup.
+    
+    Feature 005: For generated but unsaved scenarios, the vehicle info
+    is in the claim data but not in the database. This ensures agent tools
+    like get_vehicle_details can find the vehicle.
+    """
+    vehicle_info = claim_data.get("vehicle_info")
+    if not vehicle_info:
+        return
+    
+    vin = vehicle_info.get("vin")
+    if not vin:
+        return
+    
+    # Check if vehicle already exists
+    existing = await get_vehicle_by_vin(vin)
+    if existing:
+        logger.debug(f"Vehicle {vin} already exists in repo")
+        return
+    
+    # Create the vehicle record from claim data
+    # Use claim_id as scenario_id for temporary records
+    try:
+        vehicle_create = VehicleCreate(
+            vin=vin,
+            scenario_id=claim_data.get("claim_id", "temp"),
+            policy_number=claim_data.get("policy_number", "unknown"),
+            make=vehicle_info.get("make", "Unknown"),
+            model=vehicle_info.get("model", "Unknown"),
+            year=vehicle_info.get("year", 2020),
+            license_plate=vehicle_info.get("license_plate", ""),
+            color=vehicle_info.get("color"),
+            vehicle_type=vehicle_info.get("vehicle_type"),
+        )
+        await create_vehicle(vehicle_create)
+        logger.info(f"Created vehicle record for generated scenario: {vin}")
+    except Exception as e:
+        logger.warning(f"Could not create vehicle record: {e}")
+
+
+async def _ensure_policy_exists(claim_data: dict) -> None:
+    """Ensure policy from claim is available in policy_repo for tool lookup.
+    
+    Feature 005: For generated but unsaved scenarios, the policy data
+    may need to be available for the Policy Checker agent.
+    """
+    policy_number = claim_data.get("policy_number")
+    if not policy_number:
+        return
+    
+    # Check if policy already exists
+    existing = await get_policy_by_policy_number(policy_number)
+    if existing:
+        logger.debug(f"Policy {policy_number} already exists in repo")
+        return
+    
+    # For workflow demos, we create a policy record from claim data
+    # Use claim_id as scenario_id for temporary records
+    try:
+        # Extract customer info if available
+        customer_info = claim_data.get("customer_info", {})
+        vehicle_info = claim_data.get("vehicle_info", {})
+        
+        policy_create = PolicyCreate(
+            policy_number=policy_number,
+            scenario_id=claim_data.get("claim_id", "temp"),
+            policy_type="Auto",
+            coverage_types=["collision", "comprehensive", "liability"],
+            coverage_limits={
+                "collision": 50000.0,
+                "comprehensive": 50000.0,
+                "liability": 100000.0,
+            },
+            deductible=500.0,
+            premium=1200.0,
+            effective_date=claim_data.get("incident_date", "2024-01-01"),
+            expiration_date="2025-12-31",
+            customer_name=claim_data.get("claimant_name", customer_info.get("name", "Unknown")),
+            customer_email=customer_info.get("email"),
+            customer_phone=customer_info.get("phone"),
+            vin=vehicle_info.get("vin"),
+        )
+        await create_policy(policy_create)
+        logger.info(f"Created policy record for generated scenario: {policy_number}")
+    except Exception as e:
+        logger.warning(f"Could not create policy record: {e}")
 
 
 def get_sample_claim_by_id(claim_id: str) -> dict:
@@ -71,18 +159,18 @@ async def workflow_run(claim: ClaimIn):  # noqa: D401
         # ------------------------------------------------------------------
         # 1. Decide whether to load sample claim or use provided data
         # ------------------------------------------------------------------
-        claim_id = claim.claim_id
-        
-        if claim.is_sample_claim_request() and claim_id:
+        # Check if this is a sample claim request (only claim_id provided)
+        # or a full claim data request (other fields like policy_number, claimant_name provided)
+        if claim.is_sample_claim_request():
             # Only claim_id provided - look up in sample claims
-            claim_data = get_sample_claim_by_id(claim_id)
-        elif claim_id and claim.policy_number:
+            claim_data = get_sample_claim_by_id(claim.claim_id)
+        elif claim.claim_id and claim.policy_number:
             # Full claim data provided (e.g., from generated scenarios)
             claim_data = claim.to_dict()
-        elif claim_id:
+        elif claim.claim_id:
             # claim_id with some overrides - try to load sample and merge
             try:
-                claim_data = get_sample_claim_by_id(claim_id)
+                claim_data = get_sample_claim_by_id(claim.claim_id)
                 # Merge/override with any additional fields supplied in request
                 override_data = {
                     k: v for k, v in claim.model_dump(by_alias=True, exclude_none=True).items()
@@ -101,8 +189,8 @@ async def workflow_run(claim: ClaimIn):  # noqa: D401
         # ------------------------------------------------------------------
         # For generated but unsaved scenarios, create temporary records
         # so agent tools can find them during processing
-        await ensure_vehicle_exists(claim_data)
-        await ensure_policy_exists(claim_data)
+        await _ensure_vehicle_exists(claim_data)
+        await _ensure_policy_exists(claim_data)
 
         # ------------------------------------------------------------------
         # 2. Execute workflow; capture both grouped & chronological
@@ -111,11 +199,8 @@ async def workflow_run(claim: ClaimIn):  # noqa: D401
         seen_lengths: dict[str, int] = {}
         agent_outputs: Dict[str, AgentOutputOut] = {}  # NEW: collect structured outputs
 
-        # Extract summary_language preference (default to "english")
-        summary_language = claim.summary_language or "english"
-
         # Run the async workflow and get all chunks
-        chunks = await run_workflow(claim_data, summary_language=summary_language)
+        chunks = await run_workflow(claim_data)
 
         # Process each chunk (agent output)
         for chunk in chunks:
@@ -164,7 +249,7 @@ async def workflow_run(claim: ClaimIn):  # noqa: D401
                     agent_outputs[node_name] = AgentOutputOut(
                         agent_name=node_name,
                         structured_output=structured_output,
-                        tool_calls=_extract_tool_calls_from_messages(msgs) or None,
+                        tool_calls=None,  # TODO: extract tool calls in future
                         raw_text=raw_text
                     )
 
@@ -192,145 +277,6 @@ async def workflow_run(claim: ClaimIn):  # noqa: D401
 
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
-
-
-# ------------------------------------------------------------------
-# Tool-call extraction
-# ------------------------------------------------------------------
-
-
-def _extract_tool_calls_from_messages(msgs: list) -> List[ToolCallOut]:
-    """Extract tool calls from agent messages (MAF + OpenAI formats)."""
-    import numpy as np
-
-    def _json_safe_str(obj: Any) -> str | None:
-        """Convert result to a JSON-safe string."""
-        if obj is None:
-            return None
-        if isinstance(obj, dict):
-            return json_mod.dumps(obj, indent=2, ensure_ascii=False, default=_numpy_default)
-        return str(obj)[:1000] if obj else None
-
-    def _numpy_default(o: Any) -> Any:
-        if isinstance(o, np.floating):
-            return float(o)
-        if isinstance(o, np.integer):
-            return int(o)
-        if isinstance(o, np.ndarray):
-            return o.tolist()
-        return str(o)
-
-    def _sanitize_args(args: dict) -> dict:
-        """Ensure all arg values are JSON-serializable."""
-        sanitized = {}
-        for k, v in args.items():
-            if isinstance(v, np.floating):
-                sanitized[k] = float(v)
-            elif isinstance(v, np.integer):
-                sanitized[k] = int(v)
-            elif isinstance(v, np.ndarray):
-                sanitized[k] = v.tolist()
-            else:
-                sanitized[k] = v
-        return sanitized
-
-    tool_calls: List[ToolCallOut] = []
-    pending_calls: Dict[str, Dict[str, Any]] = {}
-
-    for msg in msgs:
-        if isinstance(msg, dict):
-            # MAF format: contents array with function_call / function_result
-            for item in msg.get("contents", []):
-                item_type = item.get("type", "")
-                if item_type == "function_call":
-                    name = item.get("name", "unknown")
-                    args_raw = item.get("arguments", "{}")
-                    try:
-                        args = json_mod.loads(args_raw) if isinstance(args_raw, str) else (args_raw or {})
-                    except Exception:
-                        args = {"raw": str(args_raw)}
-                    pending_calls[name] = {
-                        "id": item.get("id") or str(uuid_mod.uuid4())[:8],
-                        "name": name,
-                        "arguments": _sanitize_args(args) if isinstance(args, dict) else args,
-                    }
-                elif item_type == "function_result":
-                    name = item.get("name", "tool")
-                    result = item.get("result", "")
-                    result_str = _json_safe_str(result)
-                    if name in pending_calls:
-                        call = pending_calls.pop(name)
-                        call["result"] = result_str
-                        tool_calls.append(ToolCallOut(**call))
-                    else:
-                        tool_calls.append(ToolCallOut(
-                            id=str(uuid_mod.uuid4())[:8],
-                            name=name,
-                            arguments={},
-                            result=result_str,
-                        ))
-
-            # OpenAI format: tool_calls array
-            for tc in msg.get("tool_calls", []):
-                func = tc.get("function", {})
-                name = func.get("name", "unknown")
-                args_raw = func.get("arguments", "{}")
-                try:
-                    args = json_mod.loads(args_raw) if isinstance(args_raw, str) else (args_raw or {})
-                except Exception:
-                    args = {"raw": str(args_raw)}
-                pending_calls[name] = {
-                    "id": tc.get("id") or str(uuid_mod.uuid4())[:8],
-                    "name": name,
-                    "arguments": _sanitize_args(args) if isinstance(args, dict) else args,
-                }
-
-            # Tool response message
-            role = msg.get("role", "")
-            if isinstance(role, dict):
-                role = role.get("value", "")
-            if msg.get("tool_call_id") or role == "tool":
-                name = msg.get("name", "tool")
-                if isinstance(name, dict):
-                    name = name.get("value", "tool")
-                content = msg.get("content", "")
-                if name in pending_calls:
-                    call = pending_calls.pop(name)
-                    call["result"] = _json_safe_str(content)
-                    tool_calls.append(ToolCallOut(**call))
-
-        else:
-            # ChatMessage objects
-            if hasattr(msg, "tool_calls") and msg.tool_calls:
-                for tc in (msg.tool_calls if isinstance(msg.tool_calls, list) else [msg.tool_calls]):
-                    name = tc.get("name", "tool") if isinstance(tc, dict) else getattr(tc, "name", "tool")
-                    args = tc.get("arguments") if isinstance(tc, dict) else getattr(tc, "arguments", getattr(tc, "args", None))
-                    if isinstance(args, str):
-                        try:
-                            args = json_mod.loads(args)
-                        except Exception:
-                            args = {"raw": args}
-                    pending_calls[name] = {
-                        "id": str(uuid_mod.uuid4())[:8],
-                        "name": name,
-                        "arguments": _sanitize_args(args) if isinstance(args, dict) else (args or {}),
-                    }
-
-            role_val = getattr(msg, "role", None)
-            rv = getattr(role_val, "value", role_val) if role_val else None
-            if str(rv) == "tool":
-                name = getattr(msg, "name", None) or getattr(msg, "author_name", None) or "tool"
-                content = getattr(msg, "content", None) or getattr(msg, "text", None) or ""
-                if name in pending_calls:
-                    call = pending_calls.pop(name)
-                    call["result"] = _json_safe_str(content)
-                    tool_calls.append(ToolCallOut(**call))
-
-    # Flush any pending calls that never got results
-    for call_data in pending_calls.values():
-        tool_calls.append(ToolCallOut(**call_data))
-
-    return tool_calls
 
 
 # ------------------------------------------------------------------
@@ -437,43 +383,14 @@ def _serialize_msg(node: str, msg: Any, *, include_node: bool = True) -> dict:  
                 content_repr = f"🔧 Tool Response ({tool_name}):\n{content_repr}"
             role = "tool"
     else:
-        # Handle ChatMessage-like objects
+        # Handle LangChain message objects
         role = getattr(msg, "role", getattr(msg, "type", "assistant"))
-        role_value = getattr(role, "value", role)
-
-        def _format_tool_calls(tool_calls_obj) -> str:
-            calls = tool_calls_obj if isinstance(tool_calls_obj, list) else [tool_calls_obj]
-            formatted = []
-            for call in calls:
-                if isinstance(call, dict):
-                    name = call.get("name", "tool")
-                    args = call.get("arguments")
-                else:
-                    name = getattr(call, "name", "tool")
-                    args = getattr(call, "arguments", getattr(call, "args", None))
-                if isinstance(args, str):
-                    try:
-                        args = json_mod.loads(args)
-                    except Exception:
-                        args = {"raw": args}
-                formatted.append(
-                    f"🔧 Calling tool: {name}\nArguments: {json_mod.dumps(args, indent=2, default=json_safe)}"
-                )
-            return "\n".join(formatted)
-
+        
         # Handle tool call messages (AIMessage with tool_calls attr)
         if hasattr(msg, "tool_calls") and msg.tool_calls:
-            content_repr = _format_tool_calls(msg.tool_calls)
-        elif str(role_value) == "tool":
-            tool_name = getattr(msg, "name", None) or getattr(msg, "author_name", None) or "tool"
-            tool_content = getattr(msg, "content", None) or getattr(msg, "text", None) or str(msg)
-            if isinstance(tool_content, str) and tool_content.startswith("🔧 Tool Response"):
-                content_repr = tool_content
-            else:
-                content_repr = f"🔧 Tool Response ({tool_name}):\n{tool_content}"
-            role = "tool"
+            content_repr = f"TOOL_CALL: {msg.tool_calls}"
         else:
-            content_repr = getattr(msg, "content", None) or getattr(msg, "text", None) or str(msg) or ""
+            content_repr = getattr(msg, "content", str(msg)) or ""
 
     data = {
         "role": role,
