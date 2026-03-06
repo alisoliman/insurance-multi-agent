@@ -39,141 +39,62 @@ export type SlideId = (typeof slideMeta)[number]["id"]
 /*  Architecture diagram                                               */
 /* ------------------------------------------------------------------ */
 
-export interface ArchitectureNode {
+/* ------------------------------------------------------------------ */
+/*  Architecture — simplified conceptual modules                       */
+/* ------------------------------------------------------------------ */
+
+export interface ArchitectureModule {
   id: string
   name: string
-  kind: string
+  role: string
   description: string
-  position: { x: number; y: number }
   accent: string
-  bullets: string[]
 }
 
-export const architectureNodes: readonly ArchitectureNode[] = [
+export const architectureModules: readonly ArchitectureModule[] = [
   {
-    id: "users",
-    name: "Presenter + Stakeholders",
-    kind: "Experience Edge",
-    description:
-      "The deck frames the project for executives, operations leaders, and handlers before they move into the live product.",
-    position: { x: 8, y: 14 },
-    accent: "from-[#f7c873] to-[#ff8b68]",
-    bullets: [
-      "Public entry point through the web experience",
-      "Context for why the platform matters before the demo starts",
-      "Acts as the narrative edge of the system",
-    ],
-  },
-  {
-    id: "frontend",
-    name: "Frontend Container App",
-    kind: "Experience Surface",
-    description:
-      "Next.js hosts the workbench, demos, and the presentation route. It frames the conversation and then hands users into the working platform.",
-    position: { x: 31, y: 20 },
+    id: "experience",
+    name: "Experience Layer",
+    role: "What users see and touch",
+    description: "The web application that hosts the workbench, agent demos, and this presentation. Public-facing, persona-aware, and the entry point for every interaction.",
     accent: "from-[#92f3e8] to-[#5bc0ff]",
-    bullets: [
-      "Public ingress on Azure Container Apps",
-      "Exposes workbench views, agent demos, and platform story",
-      "Calls the backend over HTTPS using API_URL",
-    ],
   },
   {
-    id: "backend",
-    name: "Backend Container App",
-    kind: "Orchestration Core",
-    description:
-      "FastAPI is the policy-aware orchestration layer. It exposes claims APIs, workflow endpoints, indexing operations, and the logic that coordinates the specialist agents.",
-    position: { x: 54, y: 44 },
+    id: "orchestration",
+    name: "Orchestration Core",
+    role: "Where decisions get coordinated",
+    description: "The API and workflow engine that coordinates specialist agents, enforces policy logic, and exposes the claims lifecycle to the experience layer.",
     accent: "from-[#5bc0ff] to-[#8a7dff]",
-    bullets: [
-      "Holds the claims orchestration and workflow services",
-      "Stores DB and Azure OpenAI secrets in Container Apps secret storage",
-      "Uses the frontend origin to enforce CORS",
-    ],
   },
   {
-    id: "postgres",
-    name: "PostgreSQL Flexible Server",
-    kind: "Private Data Plane",
-    description:
-      "Claims persist to PostgreSQL 16 on a private network path. Public access is disabled and name resolution stays inside the virtual network.",
-    position: { x: 79, y: 24 },
-    accent: "from-[#ffb36b] to-[#ff6f61]",
-    bullets: [
-      "PostgreSQL 16 on Burstable B1ms",
-      "Deployed into a delegated postgres subnet",
-      "Application database is claims_app",
-    ],
-  },
-  {
-    id: "registry",
-    name: "Azure Container Registry",
-    kind: "Delivery Spine",
-    description:
-      "Both workloads pull from the shared registry. The managed identity keeps image delivery passwordless and deployment-ready.",
-    position: { x: 77, y: 61 },
-    accent: "from-[#ffd979] to-[#d5a2ff]",
-    bullets: [
-      "Standard ACR tier with admin user disabled",
-      "Hosts both backend and frontend images",
-      "Supports Azure-side builds for deployment resilience",
-    ],
-  },
-  {
-    id: "identity",
-    name: "Shared Managed Identity",
-    kind: "Trust Fabric",
-    description:
-      "A single user-assigned identity is attached to both container apps. It handles passwordless ACR pulls and can anchor future secret and policy access patterns.",
-    position: { x: 53, y: 76 },
-    accent: "from-[#9ae76b] to-[#5fd6a4]",
-    bullets: [
-      "Assigned to frontend and backend container apps",
-      "Has AcrPull on the registry scope",
-      "Sets up a clean path for future Key Vault integration",
-    ],
-  },
-  {
-    id: "observability",
-    name: "Container Apps + Log Analytics",
-    kind: "Operations Layer",
-    description:
-      "The Container Apps environment provides public ingress inside a VNet-integrated environment. Log Analytics is the central operational trail.",
-    position: { x: 27, y: 73 },
-    accent: "from-[#7ef0c1] to-[#54d7ff]",
-    bullets: [
-      "Container Apps environment is VNet-integrated on the container-apps subnet",
-      "Both apps run on the Consumption workload profile",
-      "Platform logs stream into Log Analytics",
-    ],
-  },
-  {
-    id: "aoai",
-    name: "External Azure OpenAI",
-    kind: "Intelligence Plane",
-    description:
-      "The backend reaches out to Azure OpenAI for chat and embeddings. Shown as external because it sits outside this resource group and remains a critical runtime dependency.",
-    position: { x: 12, y: 49 },
+    id: "intelligence",
+    name: "Intelligence Plane",
+    role: "Where agents reason",
+    description: "Large language models for chat and embeddings. An external dependency kept explicit — the system degrades visibly if it's unavailable, never silently.",
     accent: "from-[#e7a8ff] to-[#ffa578]",
-    bullets: [
-      "Supports chat and embeddings for agent behaviors",
-      "Lives outside the resource group and primary region",
-      "Important external dependency for platform availability",
-    ],
+  },
+  {
+    id: "data",
+    name: "Private Data Plane",
+    role: "Where claims live",
+    description: "Claims data persists on a private network path. No public access — name resolution and traffic stay inside the virtual network boundary.",
+    accent: "from-[#ffb36b] to-[#ff6f61]",
+  },
+  {
+    id: "trust",
+    name: "Trust + Delivery Fabric",
+    role: "Identity, deployment, observability",
+    description: "Shared identity for passwordless operations, container registry for deployment, and centralized logging. The invisible infrastructure that keeps the system governable.",
+    accent: "from-[#9ae76b] to-[#5fd6a4]",
   },
 ] as const
 
-export const architectureConnections = [
-  { from: "users", to: "frontend", label: "presentation + workbench" },
-  { from: "frontend", to: "backend", label: "API calls" },
-  { from: "backend", to: "postgres", label: "private database path" },
-  { from: "backend", to: "aoai", label: "models + embeddings" },
-  { from: "frontend", to: "registry", label: "image pull source" },
-  { from: "backend", to: "registry", label: "image pull source" },
-  { from: "identity", to: "registry", label: "AcrPull" },
-  { from: "observability", to: "frontend", label: "hosts" },
-  { from: "observability", to: "backend", label: "hosts" },
+export const architectureFlows = [
+  { from: "experience", to: "orchestration", label: "API calls" },
+  { from: "orchestration", to: "intelligence", label: "reasoning" },
+  { from: "orchestration", to: "data", label: "private path" },
+  { from: "trust", to: "experience", label: "identity" },
+  { from: "trust", to: "orchestration", label: "identity" },
 ] as const
 
 /* ------------------------------------------------------------------ */

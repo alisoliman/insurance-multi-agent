@@ -1,74 +1,49 @@
 "use client"
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
-import { repetitiveWorkstreams, organizationPressures } from "../slide-data"
+import { organizationPressures } from "../slide-data"
 import type { SlideProps } from "../slide-shared"
 import { SectionHeading, SlideFitFrame } from "../slide-shared"
+import { OperationsFlow } from "../visualizations/operations-flow"
 
 export function OperationsSlide({ isCompact }: SlideProps) {
   return (
     <SlideFitFrame>
-      <div className="flex flex-col gap-6 pb-4">
+      <div className="flex flex-col gap-5 pb-4">
         <SectionHeading
           eyebrow="Repetitive work"
           title="The work before the work."
-          description="Claims teams aren't short on judgment. They're short on time to use it. Status chasing, document loops, and context stitching consume the day before a real decision can happen."
+          description="Claims teams aren't short on judgment. They're short on time to use it."
           compact={isCompact}
         />
 
-        <div className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
-          <Card className="border-white/10 bg-white/6 text-white shadow-[0_24px_90px_rgba(0,0,0,0.28)] backdrop-blur">
-            <CardHeader className={cn(isCompact && "space-y-2 pb-3")}>
-              <CardTitle className={cn("font-[family:var(--font-fraunces)] text-[2.4rem] text-[#fff7ec]", isCompact && "text-[1.8rem]")}>
-                Where the day disappears
-              </CardTitle>
-              <CardDescription className={cn("text-base leading-7 text-[#d2d7df]", isCompact && "text-sm leading-6")}>
-                Not trivial work. It shapes cycle time, service quality, and morale.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className={cn("space-y-3", isCompact && "space-y-2 pt-0")}>
-              {repetitiveWorkstreams.map((item) => (
-                <div
-                  key={item.title}
-                  className={cn(
-                    "rounded-[1.45rem] border border-white/8 bg-black/18 px-4 py-3",
-                    isCompact && "px-3.5 py-2.5"
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <item.icon className="size-5 text-[#95f2df]" />
-                    <div className="text-sm font-medium text-[#fff7ec]">{item.title}</div>
-                  </div>
-                  <div className="mt-1.5 text-sm leading-6 text-[#d5dae2]">{item.copy}</div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_0.85fr]">
+          <div className="rounded-[2rem] border border-white/10 bg-[#08111c]/70 p-5 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur">
+            <div className="mb-3 text-xs uppercase tracking-[0.32em] text-[#92a7bf]">
+              Where time drains
+            </div>
+            <OperationsFlow compact={isCompact} />
+          </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
             {organizationPressures.map((pressure) => (
               <div
                 key={pressure.title}
-                className="rounded-[1.6rem] border border-white/10 bg-white/7 p-4 shadow-[0_20px_70px_rgba(0,0,0,0.24)] backdrop-blur"
+                className={cn(
+                  "rounded-[1.4rem] border border-white/10 bg-white/7 p-4 shadow-[0_20px_70px_rgba(0,0,0,0.24)] backdrop-blur",
+                  isCompact && "p-3"
+                )}
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-2xl border border-white/10 bg-black/20">
-                    <pressure.icon className="size-[18px] text-[#f5c483]" />
+                  <div className="flex size-9 items-center justify-center rounded-xl border border-white/10 bg-black/20">
+                    <pressure.icon className="size-4 text-[#f5c483]" />
                   </div>
-                  <div>
-                    <div className="text-sm font-medium text-[#fff7ec]">{pressure.title}</div>
-                    <div className="text-[12px] uppercase tracking-[0.18em] text-[#91a6bd]">What the org absorbs</div>
-                  </div>
+                  <div className="text-sm font-medium text-[#fff7ec]">{pressure.title}</div>
                 </div>
-                <div className="mt-3 text-sm leading-6 text-[#cfd6df]">{pressure.copy}</div>
+                <div className={cn("mt-2 text-sm leading-6 text-[#cfd6df]", isCompact && "text-[13px] leading-5")}>
+                  {pressure.copy}
+                </div>
               </div>
             ))}
           </div>
