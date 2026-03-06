@@ -15,48 +15,85 @@ const layout: Record<string, { x: number; y: number }> = {
 
 const nodeW = 180
 const nodeH = 76
+const edgePad = 6 // gap between box border and line start/end
 
 function getCenter(id: string) {
   const pos = layout[id]
   return { cx: pos.x + nodeW / 2, cy: pos.y + nodeH / 2 }
 }
 
+/**
+ * Find the point where a ray from the node center toward (tx,ty) exits
+ * the node rectangle, plus a small outward padding so the line doesn't
+ * touch the border.
+ */
+function getEdgePoint(nodeId: string, tx: number, ty: number) {
+  const pos = layout[nodeId]
+  const cx = pos.x + nodeW / 2
+  const cy = pos.y + nodeH / 2
+  const dx = tx - cx
+  const dy = ty - cy
+
+  if (dx === 0 && dy === 0) return { x: cx, y: cy }
+
+  const scaleX = dx !== 0 ? (nodeW / 2) / Math.abs(dx) : Infinity
+  const scaleY = dy !== 0 ? (nodeH / 2) / Math.abs(dy) : Infinity
+  const scale = Math.min(scaleX, scaleY)
+
+  // Point on the rectangle edge
+  const ex = cx + dx * scale
+  const ey = cy + dy * scale
+
+  // Push outward by edgePad along the same direction
+  const len = Math.sqrt(dx * dx + dy * dy) || 1
+  return { x: ex + (dx / len) * edgePad, y: ey + (dy / len) * edgePad }
+}
+
 /* Subtle curve factor per edge — keeps lines from stacking on top of each other */
 const curveBias: Record<string, number> = {
-  "experience->orchestration": 0.10,
-  "orchestration->intelligence": 0.10,
-  "orchestration->data": 0.10,
-  "trust->experience": -0.08,
-  "trust->orchestration": 0.08,
+  "experience->orchestration": 0.12,
+  "orchestration->intelligence": 0.12,
+  "orchestration->data": 0.12,
+  "trust->experience": -0.10,
+  "trust->orchestration": 0.10,
 }
 
 function connectionPath(fromId: string, toId: string) {
-  const from = getCenter(fromId)
-  const to = getCenter(toId)
-  const midX = (from.cx + to.cx) / 2
-  const midY = (from.cy + to.cy) / 2
-  const dx = to.cx - from.cx
-  const dy = to.cy - from.cy
+  const fromC = getCenter(fromId)
+  const toC = getCenter(toId)
+
+  // Edge points (where lines visually start and end)
+  const from = getEdgePoint(fromId, toC.cx, toC.cy)
+  const to = getEdgePoint(toId, fromC.cx, fromC.cy)
+
+  // Control point is computed from centers so the curve direction is natural
+  const midX = (fromC.cx + toC.cx) / 2
+  const midY = (fromC.cy + toC.cy) / 2
+  const dx = toC.cx - fromC.cx
+  const dy = toC.cy - fromC.cy
   const len = Math.sqrt(dx * dx + dy * dy) || 1
   const bias = curveBias[`${fromId}->${toId}`] ?? 0.10
   const off = len * bias
   const cpx = midX + (dy / len) * off
   const cpy = midY - (dx / len) * off
-  return { d: `M ${from.cx} ${from.cy} Q ${cpx} ${cpy} ${to.cx} ${to.cy}`, cpx, cpy }
+
+  return {
+    d: `M ${from.x} ${from.y} Q ${cpx} ${cpy} ${to.x} ${to.y}`,
+    from,
+    to,
+    cpx,
+    cpy,
+  }
 }
 
-/* Label sits near the control point of the curve, offset outward */
+/* Label sits near the midpoint of the curve, offset outward */
 function getLabelPos(fromId: string, toId: string) {
-  const from = getCenter(fromId)
-  const to = getCenter(toId)
-  const { cpx, cpy } = connectionPath(fromId, toId)
-  // Point at t=0.5 on quadratic bezier
+  const { from, to, cpx, cpy } = connectionPath(fromId, toId)
   const t = 0.5
-  const qx = (1 - t) * (1 - t) * from.cx + 2 * (1 - t) * t * cpx + t * t * to.cx
-  const qy = (1 - t) * (1 - t) * from.cy + 2 * (1 - t) * t * cpy + t * t * to.cy
-  // Perpendicular offset from midpoint outward (toward control point)
-  const dx = to.cx - from.cx
-  const dy = to.cy - from.cy
+  const qx = (1 - t) * (1 - t) * from.x + 2 * (1 - t) * t * cpx + t * t * to.x
+  const qy = (1 - t) * (1 - t) * from.y + 2 * (1 - t) * t * cpy + t * t * to.y
+  const dx = to.x - from.x
+  const dy = to.y - from.y
   const len = Math.sqrt(dx * dx + dy * dy) || 1
   const labelOff = 16
   const labelX = qx + (dy / len) * labelOff
@@ -127,14 +164,13 @@ export function ArchitectureMap({
             const toMod = architectureModules.find((m) => m.id === flow.to)
             const fromColor = fromMod?.accent.match(/#[a-f0-9]{6}/gi)?.[0] ?? "#fff"
             const toColor = toMod?.accent.match(/#[a-f0-9]{6}/gi)?.[0] ?? "#aaa"
-            const from = getCenter(flow.from)
-            const to = getCenter(flow.to)
+            const conn = connectionPath(flow.from, flow.to)
             return (
               <linearGradient
                 key={`flow-grad-${flow.from}-${flow.to}`}
                 id={`flow-grad-${flow.from}-${flow.to}`}
-                x1={from.cx} y1={from.cy}
-                x2={to.cx} y2={to.cy}
+                x1={conn.from.x} y1={conn.from.y}
+                x2={conn.to.x} y2={conn.to.y}
                 gradientUnits="userSpaceOnUse"
               >
                 <stop offset="0%" stopColor={fromColor} stopOpacity="0.5" />
@@ -150,9 +186,8 @@ export function ArchitectureMap({
 
         {/* ── Connection lines ── */}
         {architectureFlows.map((flow, i) => {
-          const { d } = connectionPath(flow.from, flow.to)
-          const from = getCenter(flow.from)
-          const to = getCenter(flow.to)
+          const conn = connectionPath(flow.from, flow.to)
+          const { d, from, to } = conn
           const isHighlighted = activeId === flow.from || activeId === flow.to
           const { labelX, labelY } = getLabelPos(flow.from, flow.to)
           const gradId = `flow-grad-${flow.from}-${flow.to}`
@@ -230,8 +265,8 @@ export function ArchitectureMap({
                 fill={isHighlighted ? "#fff7ec" : "rgba(255,255,255,0.25)"}
                 filter={isHighlighted ? "url(#active-glow)" : undefined}
                 animate={{
-                  cx: [from.cx, to.cx],
-                  cy: [from.cy, to.cy],
+                  cx: [from.x, to.x],
+                  cy: [from.y, to.y],
                   opacity: [0, 0.85, 0.85, 0],
                 }}
                 transition={{
