@@ -4,12 +4,37 @@ import { motion } from "motion/react"
 
 import { architectureModules, architectureFlows } from "../slide-data"
 
+/* Pentagon layout — orchestration center, 4 modules around it */
 const layout: Record<string, { x: number; y: number }> = {
-  experience: { x: 150, y: 60 },
-  orchestration: { x: 350, y: 175 },
-  intelligence: { x: 580, y: 60 },
-  data: { x: 580, y: 260 },
-  trust: { x: 150, y: 260 },
+  experience:    { x: 80,  y: 30  },
+  intelligence:  { x: 500, y: 30  },
+  orchestration: { x: 290, y: 150 },
+  trust:         { x: 80,  y: 270 },
+  data:          { x: 500, y: 270 },
+}
+
+const nodeW = 170
+const nodeH = 72
+
+function getCenter(id: string) {
+  const pos = layout[id]
+  return { cx: pos.x + nodeW / 2, cy: pos.y + nodeH / 2 }
+}
+
+/* Curved path between two module centers */
+function connectionPath(fromId: string, toId: string) {
+  const from = getCenter(fromId)
+  const to = getCenter(toId)
+  const midX = (from.cx + to.cx) / 2
+  const midY = (from.cy + to.cy) / 2
+  // Perpendicular offset for a subtle curve
+  const dx = to.cx - from.cx
+  const dy = to.cy - from.cy
+  const len = Math.sqrt(dx * dx + dy * dy) || 1
+  const off = len * 0.1
+  const cpx = midX + (dy / len) * off
+  const cpy = midY - (dx / len) * off
+  return `M ${from.cx} ${from.cy} Q ${cpx} ${cpy} ${to.cx} ${to.cy}`
 }
 
 export function ArchitectureMap({
@@ -21,91 +46,94 @@ export function ArchitectureMap({
   onSelect: (id: string) => void
   compact?: boolean
 }) {
-  const w = 720
-  const h = compact ? 340 : 380
-  const nodeW = 140
-  const nodeH = 60
-
-  const getCenter = (id: string) => {
-    const pos = layout[id]
-    return { cx: pos.x + nodeW / 2, cy: pos.y + nodeH / 2 }
-  }
+  const w = 750
+  const h = compact ? 370 : 400
 
   return (
     <div className="relative w-full">
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ maxHeight: compact ? "340px" : "380px" }}>
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ maxHeight: compact ? "370px" : "400px" }}>
         <defs>
           <pattern id="arch-grid" width="48" height="48" patternUnits="userSpaceOnUse">
             <path d="M 48 0 L 0 0 0 48" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
           </pattern>
-          <filter id="node-glow">
-            <feGaussianBlur stdDeviation="8" result="blur" />
+          <filter id="active-glow">
+            <feGaussianBlur stdDeviation="6" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
+          {/* Gradient for each module accent */}
+          {architectureModules.map((mod) => {
+            const colors = mod.accent.match(/#[a-f0-9]{6}/gi) ?? ["#fff", "#aaa"]
+            return (
+              <linearGradient key={`grad-${mod.id}`} id={`arch-grad-${mod.id}`} x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor={colors[0]} stopOpacity="0.25" />
+                <stop offset="100%" stopColor={colors[1] ?? colors[0]} stopOpacity="0.08" />
+              </linearGradient>
+            )
+          })}
         </defs>
         <rect width={w} height={h} fill="url(#arch-grid)" rx="24" />
 
-        {/* Connection flows */}
+        {/* ── Connection lines ── */}
         {architectureFlows.map((flow, i) => {
+          const d = connectionPath(flow.from, flow.to)
           const from = getCenter(flow.from)
           const to = getCenter(flow.to)
+          const isHighlighted = activeId === flow.from || activeId === flow.to
           const midX = (from.cx + to.cx) / 2
           const midY = (from.cy + to.cy) / 2
-          const isHighlighted = activeId === flow.from || activeId === flow.to
 
           return (
             <g key={`${flow.from}-${flow.to}`}>
               <motion.path
-                d={`M ${from.cx} ${from.cy} Q ${midX} ${from.cy} ${to.cx} ${to.cy}`}
+                d={d}
                 fill="none"
-                stroke={isHighlighted ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.08)"}
-                strokeWidth={isHighlighted ? 2 : 1.5}
-                strokeDasharray="6 10"
+                stroke={isHighlighted ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.1)"}
+                strokeWidth={isHighlighted ? 2.5 : 1.5}
+                strokeDasharray={isHighlighted ? "none" : "6 10"}
                 initial={{ pathLength: 0, opacity: 0 }}
                 animate={{ pathLength: 1, opacity: 1 }}
-                transition={{ delay: 0.3 + i * 0.1, duration: 0.6 }}
+                transition={{ delay: 0.3 + i * 0.12, duration: 0.7 }}
               />
 
               {/* Flow label */}
               <motion.text
-                x={midX + (from.cy === to.cy ? 0 : 12)}
-                y={midY - 8}
+                x={midX}
+                y={midY - 10}
                 textAnchor="middle"
-                fill={isHighlighted ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.2)"}
-                fontSize="9"
+                fill={isHighlighted ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.25)"}
+                fontSize="10"
+                fontWeight={isHighlighted ? 500 : 400}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.6 + i * 0.1 }}
+                transition={{ delay: 0.6 + i * 0.12 }}
               >
                 {flow.label}
               </motion.text>
 
-              {/* Animated particle on highlighted connections */}
-              {isHighlighted && (
-                <motion.circle
-                  r={3}
-                  fill="#fff7ec"
-                  opacity={0.7}
-                  animate={{
-                    cx: [from.cx, to.cx],
-                    cy: [from.cy, to.cy],
-                    opacity: [0, 0.8, 0.8, 0],
-                  }}
-                  transition={{
-                    duration: 2.5,
-                    repeat: Number.POSITIVE_INFINITY,
-                    ease: "easeInOut",
-                  }}
-                />
-              )}
+              {/* Traveling particle — always visible, brighter when highlighted */}
+              <motion.circle
+                r={isHighlighted ? 4 : 2.5}
+                fill={isHighlighted ? "#fff7ec" : "rgba(255,255,255,0.35)"}
+                animate={{
+                  cx: [from.cx, to.cx],
+                  cy: [from.cy, to.cy],
+                  opacity: [0, 0.9, 0.9, 0],
+                }}
+                transition={{
+                  duration: isHighlighted ? 2.2 : 3.5,
+                  repeat: Number.POSITIVE_INFINITY,
+                  ease: "easeInOut",
+                  delay: i * 0.6,
+                }}
+              />
             </g>
           )
         })}
 
-        {/* Module nodes */}
+        {/* ── Module nodes ── */}
         {architectureModules.map((mod, i) => {
           const pos = layout[mod.id]
           const isActive = activeId === mod.id
@@ -119,22 +147,23 @@ export function ArchitectureMap({
               onClick={() => onSelect(mod.id)}
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.15 + i * 0.08, type: "spring", stiffness: 200, damping: 18 }}
+              transition={{ delay: 0.12 + i * 0.08, type: "spring", stiffness: 200, damping: 18 }}
             >
-              {/* Active pulse */}
+              {/* Active pulse ring */}
               {isActive && (
                 <motion.rect
-                  x={pos.x - 4}
-                  y={pos.y - 4}
-                  width={nodeW + 8}
-                  height={nodeH + 8}
+                  x={pos.x - 5}
+                  y={pos.y - 5}
+                  width={nodeW + 10}
+                  height={nodeH + 10}
                   rx={22}
                   fill="none"
                   stroke={primaryColor}
-                  strokeWidth={1}
-                  initial={{ opacity: 0.5 }}
-                  animate={{ opacity: [0.5, 0, 0.5] }}
-                  transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
+                  strokeWidth={1.5}
+                  filter="url(#active-glow)"
+                  initial={{ opacity: 0.6 }}
+                  animate={{ opacity: [0.6, 0.15, 0.6] }}
+                  transition={{ duration: 2.5, repeat: Number.POSITIVE_INFINITY }}
                 />
               )}
 
@@ -145,29 +174,29 @@ export function ArchitectureMap({
                 width={nodeW}
                 height={nodeH}
                 rx={18}
-                fill={isActive ? `${primaryColor}18` : "rgba(255,255,255,0.04)"}
+                fill={isActive ? `url(#arch-grad-${mod.id})` : "rgba(255,255,255,0.04)"}
                 stroke={isActive ? primaryColor : "rgba(255,255,255,0.12)"}
                 strokeWidth={isActive ? 2 : 1.5}
               />
 
-              {/* Color accent bar */}
+              {/* Accent bar */}
               <rect
-                x={pos.x + 12}
-                y={pos.y + 8}
-                width={24}
-                height={3}
-                rx={1.5}
+                x={pos.x + 14}
+                y={pos.y + 10}
+                width={30}
+                height={3.5}
+                rx={1.75}
                 fill={primaryColor}
-                opacity={isActive ? 1 : 0.5}
+                opacity={isActive ? 1 : 0.45}
               />
 
               {/* Module name */}
               <text
                 x={pos.x + nodeW / 2}
-                y={pos.y + 28}
+                y={pos.y + 32}
                 textAnchor="middle"
                 fill={isActive ? "#fff7ec" : "#d0d6df"}
-                fontSize="11"
+                fontSize="13"
                 fontWeight="600"
               >
                 {mod.name}
@@ -176,10 +205,10 @@ export function ArchitectureMap({
               {/* Module role */}
               <text
                 x={pos.x + nodeW / 2}
-                y={pos.y + 44}
+                y={pos.y + 52}
                 textAnchor="middle"
                 fill={isActive ? "#9fb0c4" : "#6b7f94"}
-                fontSize="8"
+                fontSize="10"
               >
                 {mod.role}
               </text>
