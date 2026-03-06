@@ -43,11 +43,12 @@ export function AgentsSlide({ isCompact }: SlideProps) {
 
         <motion.div
           key={activeCard.id}
+          className="flex flex-col"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
         >
-          <Card className="border-white/10 bg-white/7 text-white shadow-[0_30px_110px_rgba(0,0,0,0.3)] backdrop-blur">
+          <Card className="flex flex-1 flex-col border-white/10 bg-white/7 text-white shadow-[0_30px_110px_rgba(0,0,0,0.3)] backdrop-blur">
             <CardHeader className={cn("space-y-4", isCompact && "space-y-3 pb-3")}>
               <div className={cn("h-2 w-32 rounded-full bg-gradient-to-r", activeCard.accent)} />
               <CardTitle className={cn("font-[family:var(--font-fraunces)] text-3xl text-[#fff7ec]", isCompact && "text-[2rem]")}>
@@ -57,19 +58,19 @@ export function AgentsSlide({ isCompact }: SlideProps) {
                 {activeCard.title}
               </CardDescription>
             </CardHeader>
-            <CardContent className={cn("grid gap-5 md:grid-cols-2", isCompact && "gap-4 pt-0")}>
-              <div className="space-y-2">
+            <CardContent className={cn("grid flex-1 gap-5 md:grid-cols-2", isCompact && "gap-4 pt-0")}>
+              <div className="flex flex-col gap-2">
                 <div className="text-[10px] uppercase tracking-[0.3em] text-[#f5c483]">Capabilities</div>
                 {activeCard.capabilities.map((capability) => (
-                  <div key={capability} className={cn("rounded-2xl border border-white/8 bg-black/18 px-4 py-2.5 text-sm leading-6 text-[#ecf0f4]", isCompact && "px-3 py-2 text-[13px]")}>
+                  <div key={capability} className={cn("flex flex-1 items-center rounded-2xl border border-white/8 bg-black/18 px-4 py-3 text-[15px] leading-7 text-[#ecf0f4]", isCompact && "px-3 py-2 text-[13px] leading-5")}>
                     {capability}
                   </div>
                 ))}
               </div>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <div className="text-[10px] uppercase tracking-[0.3em] text-[#95f2df]">Delivers</div>
                 {activeCard.delivers.map((deliverable) => (
-                  <div key={deliverable} className={cn("rounded-2xl border border-white/8 bg-white/6 px-4 py-2.5 text-sm leading-6 text-[#eef2f6]", isCompact && "px-3 py-2 text-[13px]")}>
+                  <div key={deliverable} className={cn("flex flex-1 items-center rounded-2xl border border-white/8 bg-white/6 px-4 py-3 text-[15px] leading-7 text-[#eef2f6]", isCompact && "px-3 py-2 text-[13px] leading-5")}>
                     {deliverable}
                   </div>
                 ))}
