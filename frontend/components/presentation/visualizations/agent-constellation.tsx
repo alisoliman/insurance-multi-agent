@@ -5,8 +5,8 @@ import { motion } from "motion/react"
 import { agentCards } from "../slide-data"
 
 const centerX = 250
-const centerY = 200
-const orbitRadius = 140
+const centerY = 180
+const orbitRadius = 120
 
 const agentPositions = agentCards
   .filter((a) => a.id !== "synthesizer")
@@ -70,7 +70,7 @@ export function AgentConstellation({
           return (
             <g key={`line-${agent.id}`}>
               <defs>
-                <linearGradient id={gradientId} x1={agent.x / w} y1={agent.y / h} x2={centerX / w} y2={centerY / h}>
+                <linearGradient id={gradientId} gradientUnits="userSpaceOnUse" x1={String(agent.x)} y1={String(agent.y)} x2={String(centerX)} y2={String(centerY)}>
                   <stop offset="0%" stopColor={isActive ? "#fff7ec" : "rgba(255,255,255,0.15)"} />
                   <stop offset="100%" stopColor="rgba(186,162,255,0.4)" />
                 </linearGradient>

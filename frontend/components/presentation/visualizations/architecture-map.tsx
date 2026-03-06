@@ -8,8 +8,8 @@ const layout: Record<string, { x: number; y: number }> = {
   experience: { x: 150, y: 60 },
   orchestration: { x: 350, y: 175 },
   intelligence: { x: 580, y: 60 },
-  data: { x: 580, y: 290 },
-  trust: { x: 150, y: 290 },
+  data: { x: 580, y: 260 },
+  trust: { x: 150, y: 260 },
 }
 
 export function ArchitectureMap({

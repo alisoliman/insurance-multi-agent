@@ -31,6 +31,13 @@ export function GovernanceTrace({ compact = false }: { compact?: boolean }) {
             <stop offset="50%" stopColor="#95f2df" />
             <stop offset="100%" stopColor="#8ecbff" />
           </linearGradient>
+          <filter id="pulse-glow">
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
         </defs>
         <rect width={w} height={h} fill="url(#gov-grid)" rx="24" />
 
