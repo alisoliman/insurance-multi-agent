@@ -24,8 +24,8 @@ export function OpeningSlide({
   shouldAnimate,
 }: SlideProps & { onNext: () => void; shouldAnimate: boolean }) {
   const narrative = isShort
-    ? "How insurance claims teams lose time to repetitive coordination — and how a governed human-agent model gives that judgment back."
-    : "This deck starts with the work inside an insurance organization, the personas carrying it, and the need for traceable human-agent collaboration before it ever gets to the platform itself."
+    ? "Status chasing, document loops, and context stitching consume the day before a real decision can happen. This is about getting that time back — with governance, not despite it."
+    : "Every claim requires judgment. But before judgment happens, teams burn hours assembling evidence, chasing status, stitching context across tools, and rebuilding what colleagues already knew. This deck is about what changes when that work compresses."
 
   return (
     <div className="grid h-full gap-8 lg:grid-cols-[minmax(0,0.98fr)_minmax(320px,0.82fr)] xl:items-start xl:gap-14">

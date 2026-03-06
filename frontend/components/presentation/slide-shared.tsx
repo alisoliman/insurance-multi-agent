@@ -1,6 +1,6 @@
 "use client"
 
-import { type ReactNode } from "react"
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { motion } from "motion/react"
 
 import { Badge } from "@/components/ui/badge"
@@ -89,16 +89,67 @@ export function DeckPill({ label, value }: { label: string; value: string }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Scrollable slide wrapper — fixes the truncation problem            */
+/*  Auto-scaling slide frame                                           */
+/*  Measures content height vs available space and applies             */
+/*  CSS scale transform to shrink-to-fit. No scrolling.               */
 /* ------------------------------------------------------------------ */
 
-export function SlideScrollArea({ children, className }: { children: ReactNode; className?: string }) {
+export function SlideFitFrame({ children, className }: { children: ReactNode; className?: string }) {
+  const outerRef = useRef<HTMLDivElement>(null)
+  const innerRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(1)
+
+  const recalc = useCallback(() => {
+    const outer = outerRef.current
+    const inner = innerRef.current
+    if (!outer || !inner) return
+
+    const available = outer.clientHeight
+
+    // Save current inline styles, measure at scale=1, then restore
+    const prevTransform = inner.style.transform
+    const prevWidth = inner.style.width
+    inner.style.transform = "none"
+    inner.style.width = "100%"
+    const natural = inner.scrollHeight
+    inner.style.transform = prevTransform
+    inner.style.width = prevWidth
+
+    if (natural <= 0 || available <= 0) {
+      setScale(1)
+      return
+    }
+
+    const next = Math.min(1, available / natural)
+    // Don't scale below 0.65 — content becomes unreadable
+    setScale(Math.max(0.65, next))
+  }, [])
+
+  useEffect(() => {
+    recalc()
+    window.addEventListener("resize", recalc)
+    return () => window.removeEventListener("resize", recalc)
+  }, [recalc])
+
+  // Recalculate when children change (slide transitions)
+  useEffect(() => {
+    // Small delay lets the DOM settle after React renders
+    const id = requestAnimationFrame(recalc)
+    return () => cancelAnimationFrame(id)
+  }, [children, recalc])
+
   return (
-    <div className={cn("relative h-full", className)}>
-      <div className="deck-scroll h-full overflow-y-auto pr-2">
+    <div ref={outerRef} className={cn("h-full overflow-hidden", className)}>
+      <div
+        ref={innerRef}
+        className="origin-top-left"
+        style={{
+          transform: scale < 1 ? `scale(${scale})` : undefined,
+          width: scale < 1 ? `${100 / scale}%` : undefined,
+        }}
+      >
         {children}
       </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#06111a]/80 to-transparent" />
     </div>
   )
 }

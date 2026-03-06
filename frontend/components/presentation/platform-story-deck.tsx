@@ -279,14 +279,6 @@ export function PlatformStoryDeck() {
         "h-[100svh] max-h-[100svh] overflow-hidden bg-[#06111a] text-[#f8ead8]"
       )}
     >
-      <style jsx global>{`
-        .deck-scroll::-webkit-scrollbar { width: 4px; }
-        .deck-scroll::-webkit-scrollbar-track { background: transparent; }
-        .deck-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
-        .deck-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
-        .deck-scroll { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.12) transparent; }
-      `}</style>
-
       <div className="relative isolate h-[100svh] overflow-hidden font-[family:var(--font-plex-sans)]">
         {/* Animated background */}
         <motion.div

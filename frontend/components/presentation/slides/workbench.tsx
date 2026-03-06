@@ -15,23 +15,19 @@ import { cn } from "@/lib/utils"
 
 import { personaViews } from "../slide-data"
 import type { SlideProps } from "../slide-shared"
-import { SectionHeading, SlideScrollArea } from "../slide-shared"
+import { SectionHeading, SlideFitFrame } from "../slide-shared"
 
 export function WorkbenchSlide({ isCompact, isShort }: SlideProps) {
   return (
-    <SlideScrollArea>
-      <div className="flex min-h-full flex-col gap-6 pb-8">
+    <SlideFitFrame>
+      <div className="flex flex-col gap-5 pb-4">
         <SectionHeading
           eyebrow="Workbench"
-          title={
-            isShort
-              ? "Role-based collaboration needs the right frame."
-              : "Human-agent collaboration becomes real when each persona gets the right frame, the right controls, and the right trace."
-          }
+          title="One platform. Four operating views."
           description={
             isShort
               ? undefined
-              : "The workbench is the operational stage. The same claims system presents different views to handlers, team leads, compliance, and sponsors — each sees the orchestration they need rather than a generic dashboard."
+              : "The workbench re-composes around each persona — handlers, leads, compliance, and sponsors each see the orchestration they need."
           }
           compact={isCompact}
         />
@@ -54,7 +50,7 @@ export function WorkbenchSlide({ isCompact, isShort }: SlideProps) {
               <div className="grid h-full gap-4 lg:grid-cols-[0.92fr_1.08fr]">
                 <Card className="border-white/10 bg-white/6 text-white shadow-[0_24px_90px_rgba(0,0,0,0.28)]">
                   <CardHeader className={cn(isCompact && "space-y-2 pb-3")}>
-                    <CardTitle className={cn("font-[family:var(--font-fraunces)] text-4xl text-[#fff7ec]", isCompact && "text-[2.25rem]")}>
+                    <CardTitle className={cn("font-[family:var(--font-fraunces)] text-4xl text-[#fff7ec]", isCompact && "text-[2rem]")}>
                       {persona.title}
                     </CardTitle>
                     <CardDescription className={cn("text-base leading-7 text-[#d2d7df]", isCompact && "text-sm leading-6")}>
@@ -101,27 +97,25 @@ export function WorkbenchSlide({ isCompact, isShort }: SlideProps) {
                   </div>
 
                   <div className="grid gap-3 md:grid-cols-[1.1fr_0.9fr]">
-                    <div className="space-y-3">
-                      <div className="rounded-[1.5rem] border border-white/8 bg-white/7 p-4">
-                        <div className="flex items-center gap-3">
-                          <BriefcaseBusiness className="size-5 text-[#95f2df]" />
-                          <div className="text-sm font-medium text-[#fff7ec]">Primary view</div>
-                        </div>
-                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                          {persona.panels.map((panel, index) => (
-                            <div
-                              key={panel}
-                              className={cn(
-                                "rounded-2xl border px-4 py-3 text-sm leading-6",
-                                index === 0
-                                  ? "border-[#95f2df]/30 bg-[#95f2df]/10 text-[#effcf8]"
-                                  : "border-white/8 bg-black/18 text-[#d4d9e0]"
-                              )}
-                            >
-                              {panel}
-                            </div>
-                          ))}
-                        </div>
+                    <div className="rounded-[1.5rem] border border-white/8 bg-white/7 p-4">
+                      <div className="flex items-center gap-3">
+                        <BriefcaseBusiness className="size-5 text-[#95f2df]" />
+                        <div className="text-sm font-medium text-[#fff7ec]">Primary view</div>
+                      </div>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        {persona.panels.map((panel, index) => (
+                          <div
+                            key={panel}
+                            className={cn(
+                              "rounded-2xl border px-4 py-3 text-sm leading-6",
+                              index === 0
+                                ? "border-[#95f2df]/30 bg-[#95f2df]/10 text-[#effcf8]"
+                                : "border-white/8 bg-black/18 text-[#d4d9e0]"
+                            )}
+                          >
+                            {panel}
+                          </div>
+                        ))}
                       </div>
                     </div>
 
@@ -145,6 +139,6 @@ export function WorkbenchSlide({ isCompact, isShort }: SlideProps) {
           ))}
         </Tabs>
       </div>
-    </SlideScrollArea>
+    </SlideFitFrame>
   )
 }

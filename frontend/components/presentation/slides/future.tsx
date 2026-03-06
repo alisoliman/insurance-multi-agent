@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { motion } from "motion/react"
-import { BrainCircuit, Rocket, ShieldCheck, Workflow } from "lucide-react"
+import { Rocket } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import {
@@ -16,38 +16,28 @@ import { cn } from "@/lib/utils"
 
 import { roadmap } from "../slide-data"
 import type { SlideProps } from "../slide-shared"
-import { SectionHeading, SlideScrollArea } from "../slide-shared"
+import { SectionHeading, SlideFitFrame } from "../slide-shared"
 
 export function FutureSlide({ isCompact, isShort }: SlideProps) {
   const [activePhase, setActivePhase] = useState(roadmap[0].phase)
   const activeCard = roadmap.find((r) => r.phase === activePhase) ?? roadmap[0]
 
-  const evolutionCards = [
-    { icon: Workflow, label: "Adaptive orchestration", copy: "Claims flows become policy-aware networks instead of fixed pipelines." },
-    { icon: BrainCircuit, label: "Agent negotiation", copy: "Specialists challenge and refine each other before a human opens the claim." },
-    { icon: ShieldCheck, label: "Governed autonomy", copy: "More automation only arrives when guardrails, auditability, and controls scale with it." },
-  ]
-
   return (
-    <SlideScrollArea>
-      <div className="flex min-h-full flex-col gap-6 pb-8">
+    <SlideFitFrame>
+      <div className="flex flex-col gap-6 pb-4">
         <SectionHeading
           eyebrow="Future horizon"
           title={
             isShort
-              ? "The long game is a smarter claims operating system."
+              ? "From assistant to operating system."
               : "The long game isn't a bigger assistant. It's a smarter claims operating system."
           }
-          description={
-            isShort
-              ? "This release proves the shape of the model. The next leap lets those roles negotiate, adapt, and rebalance as part of a broader claims mesh."
-              : "Today's implementation proves the shape: specialist intelligence, transparent outputs, human orchestration. The next leap lets those roles negotiate, adapt, and rebalance as part of a broader claims mesh."
-          }
+          description="Today proves the shape. Next: agents negotiate, adapt, and rebalance as part of a broader claims mesh."
           compact={isCompact}
         />
 
         {isShort ? (
-          <div className="grid flex-1 gap-4 lg:grid-cols-[0.38fr_0.62fr]">
+          <div className="grid gap-4 lg:grid-cols-[0.38fr_0.62fr]">
             <div className="rounded-[1.7rem] border border-white/10 bg-white/6 p-4 shadow-[0_22px_80px_rgba(0,0,0,0.24)] backdrop-blur">
               <div className="text-[10px] uppercase tracking-[0.28em] text-[#91a6bd]">
                 Evolution path
@@ -117,7 +107,7 @@ export function FutureSlide({ isCompact, isShort }: SlideProps) {
                       <Badge className="border-0 bg-[#fff1de] text-[#152133]">{step.phase}</Badge>
                       <Rocket className="size-5 text-[#95f2df]" />
                     </div>
-                    <CardTitle className={cn("font-[family:var(--font-fraunces)] text-4xl text-[#fff7ec]", isCompact && "text-[2.2rem]")}>
+                    <CardTitle className={cn("font-[family:var(--font-fraunces)] text-4xl text-[#fff7ec]", isCompact && "text-[2rem]")}>
                       {step.title}
                     </CardTitle>
                     <CardDescription className={cn("text-base leading-7 text-[#d2d7df]", isCompact && "text-sm leading-6")}>
@@ -136,17 +126,7 @@ export function FutureSlide({ isCompact, isShort }: SlideProps) {
             ))}
           </div>
         )}
-
-        <div className="grid gap-4 md:grid-cols-3">
-          {evolutionCards.map((item) => (
-            <div key={item.label} className="rounded-[1.6rem] border border-white/10 bg-white/6 p-5 text-white">
-              <item.icon className="size-5 text-[#f5c483]" />
-              <div className="mt-4 text-lg font-medium text-[#fff7ec]">{item.label}</div>
-              <div className="mt-2 text-sm leading-7 text-[#d4d8df]">{item.copy}</div>
-            </div>
-          ))}
-        </div>
       </div>
-    </SlideScrollArea>
+    </SlideFitFrame>
   )
 }

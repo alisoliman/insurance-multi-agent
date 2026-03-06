@@ -11,23 +11,23 @@ import { cn } from "@/lib/utils"
 
 import { governancePillars, traceChain } from "../slide-data"
 import type { SlideProps } from "../slide-shared"
-import { SectionHeading, SlideScrollArea } from "../slide-shared"
+import { SectionHeading, SlideFitFrame } from "../slide-shared"
 
 export function GovernanceSlide({ isCompact, isShort }: SlideProps) {
   return (
-    <SlideScrollArea>
-      <div className="flex min-h-full flex-col gap-6 pb-8">
+    <SlideFitFrame>
+      <div className="flex flex-col gap-6 pb-4">
         <SectionHeading
           eyebrow="Trust + traceability"
           title={
             isShort
-              ? "Traceability makes collaboration governable."
-              : "Human-agent collaboration only scales when the org can see who recommended what, based on which signals, and who decided the next step."
+              ? "If you can't replay it, you can't govern it."
+              : "Collaboration only scales when the org can replay who recommended what, and who decided."
           }
           description={
             isShort
               ? undefined
-              : "Auditability is part of the workflow design: evidence stays attached, specialist outputs stay attributable, and human checkpoints remain explicit."
+              : "Auditability isn't a report you generate later. It's part of the workflow: evidence stays attached, specialist outputs stay attributable, human checkpoints stay explicit."
           }
           compact={isCompact}
         />
@@ -54,18 +54,18 @@ export function GovernanceSlide({ isCompact, isShort }: SlideProps) {
 
           <Card className="border-white/10 bg-[#09131f]/78 text-white shadow-[0_32px_110px_rgba(0,0,0,0.3)] backdrop-blur">
             <CardHeader className={cn(isCompact && "space-y-2 pb-3")}>
-              <CardTitle className={cn("font-[family:var(--font-fraunces)] text-[2.4rem] text-[#fff7ec]", isCompact && "text-[2rem]")}>
+              <CardTitle className={cn("font-[family:var(--font-fraunces)] text-[2.4rem] text-[#fff7ec]", isCompact && "text-[1.8rem]")}>
                 The decision trace
               </CardTitle>
               <CardDescription className={cn("text-base leading-7 text-[#d2d7df]", isCompact && "text-sm leading-6")}>
-                Replay the path from evidence to action without guessing where the reasoning lived.
+                From evidence to action — no gaps, no guesswork.
               </CardDescription>
             </CardHeader>
             <CardContent className={cn("space-y-3", isCompact && "space-y-2 pt-0")}>
               {traceChain.map((step, index) => (
                 <div
                   key={step.title}
-                  className="rounded-[1.45rem] border border-white/8 bg-black/18 px-4 py-3.5"
+                  className="rounded-[1.45rem] border border-white/8 bg-black/18 px-4 py-3"
                 >
                   <div className="flex items-center gap-3">
                     <div className="flex size-9 items-center justify-center rounded-2xl border border-white/10 bg-white/6 text-[#f5c483]">
@@ -83,14 +83,10 @@ export function GovernanceSlide({ isCompact, isShort }: SlideProps) {
                   </div>
                 </div>
               ))}
-
-              <div className="rounded-[1.45rem] border border-dashed border-white/12 bg-white/4 px-4 py-3 text-sm leading-6 text-[#dbe0e6]">
-                Recommendations are visible, overrides are captured, and customer communication stays tied to the decision rationale.
-              </div>
             </CardContent>
           </Card>
         </div>
       </div>
-    </SlideScrollArea>
+    </SlideFitFrame>
   )
 }

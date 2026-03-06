@@ -12,54 +12,54 @@ import {
 import { cn } from "@/lib/utils"
 
 import type { SlideProps } from "../slide-shared"
-import { SectionHeading, SlideScrollArea } from "../slide-shared"
+import { SectionHeading, SlideFitFrame } from "../slide-shared"
 
 export function MissionSlide({ isCompact }: SlideProps) {
   const pillars = [
     {
       icon: Gauge,
       title: "Reduce repetitive work",
-      copy: "Move status chasing, evidence assembly, and triage summaries out of the human critical path.",
+      copy: "Move status chasing, evidence assembly, and triage out of the human critical path.",
     },
     {
       icon: Scale,
       title: "Keep judgment human",
-      copy: "Let agents accelerate analysis while the handler, lead, or reviewer stays explicit in the decision loop.",
+      copy: "Agents accelerate analysis. Handlers, leads, and reviewers stay explicit in the decision loop.",
     },
     {
       icon: Eye,
-      title: "Make the work traceable",
-      copy: "Carry the why across policy context, evidence, specialist outputs, and customer follow-up.",
+      title: "Make it traceable",
+      copy: "Carry the why — from policy context through specialist outputs to customer follow-up.",
     },
   ]
 
   const contrasts = [
     {
       stage: "Without this model",
-      title: "People become the integration layer",
+      title: "People are the integration layer",
       points: [
-        "Evidence, policy reading, risk review, and customer follow-up live in separate mental models.",
-        "The decision arrives late because the team must reconstruct the claim before judging it.",
+        "Evidence, policy, risk, and follow-up live in separate tools and separate heads.",
+        "Decisions arrive late because the team rebuilds the claim before they can judge it.",
       ],
     },
     {
       stage: "With the platform",
-      title: "The operating model becomes the integration layer",
+      title: "The operating model is the integration layer",
       points: [
-        "Specialist agents contribute structured outputs instead of opaque prose.",
-        "The workbench turns orchestration, auditability, and service into one working system.",
+        "Specialist agents produce structured outputs a human can interrogate in seconds.",
+        "One workbench turns orchestration, auditability, and service into a single system.",
       ],
     },
   ]
 
   return (
-    <SlideScrollArea>
-      <div className="grid min-h-full gap-6 pb-8 lg:grid-cols-[1.12fr_0.88fr]">
+    <SlideFitFrame>
+      <div className="grid gap-6 pb-4 lg:grid-cols-[1.12fr_0.88fr]">
         <div className="space-y-6">
           <SectionHeading
             eyebrow="Operating thesis"
-            title="Give claims teams back time for judgment — without making the work less governable."
-            description="The answer is not full autonomy. It's a human-led model where specialist agents compress repetitive analysis, the workbench presents one decision frame, and controls stay attached to the flow."
+            title="Give judgment back — without losing governance."
+            description="Not full autonomy. A human-led model where specialist agents compress repetitive analysis, the workbench presents one decision frame, and controls stay attached to the flow."
             compact={isCompact}
           />
 
@@ -107,6 +107,6 @@ export function MissionSlide({ isCompact }: SlideProps) {
           ))}
         </div>
       </div>
-    </SlideScrollArea>
+    </SlideFitFrame>
   )
 }

@@ -15,20 +15,20 @@ import { cn } from "@/lib/utils"
 
 import { closeProofPoints, closeQuestions } from "../slide-data"
 import type { SlideProps } from "../slide-shared"
-import { SectionHeading, SlideScrollArea } from "../slide-shared"
+import { SectionHeading, SlideFitFrame } from "../slide-shared"
 
 export function CloseSlide({
   isCompact,
   onRestart,
 }: Omit<SlideProps, "isShort"> & { onRestart: () => void }) {
   return (
-    <SlideScrollArea>
-      <div className="grid min-h-full gap-6 pb-8 lg:grid-cols-[1.08fr_0.92fr]">
+    <SlideFitFrame>
+      <div className="grid gap-6 pb-4 lg:grid-cols-[1.08fr_0.92fr]">
         <div className="space-y-6">
           <SectionHeading
-            eyebrow="Conversation starter"
-            title="The real question isn't whether agents can help with claims. It's what kind of claims organization you want to become."
-            description="This deck opens that conversation. The platform already shows how explainable specialist agents, private-by-design data access, and persona-aware workbenches coexist inside one operating model. The next step is choosing how far to push it."
+            eyebrow="What comes next"
+            title="The question isn't whether agents can help. It's what kind of claims organization you want to build."
+            description="The platform already proves the shape — explainable agents, private data, persona-aware views, governed flow. Now: choose how far to push it."
             compact={isCompact}
           />
 
@@ -64,11 +64,11 @@ export function CloseSlide({
 
         <Card className="border-white/10 bg-white/7 text-white shadow-[0_34px_110px_rgba(0,0,0,0.32)] backdrop-blur">
           <CardHeader className={cn(isCompact && "space-y-2 pb-3")}>
-            <CardTitle className={cn("font-[family:var(--font-fraunces)] text-4xl text-[#fff7ec]", isCompact && "text-[2.25rem]")}>
-              What the platform already proves
+            <CardTitle className={cn("font-[family:var(--font-fraunces)] text-4xl text-[#fff7ec]", isCompact && "text-[2rem]")}>
+              Already proven
             </CardTitle>
             <CardDescription className={cn("text-base leading-7 text-[#d2d7df]", isCompact && "text-sm leading-6")}>
-              More than a concept deck — a working product with a narrative layer built into it.
+              This is a working product with a narrative layer built into it — not a concept deck.
             </CardDescription>
           </CardHeader>
           <CardContent className={cn("space-y-4", isCompact && "space-y-3 pt-0")}>
@@ -86,6 +86,6 @@ export function CloseSlide({
           </CardContent>
         </Card>
       </div>
-    </SlideScrollArea>
+    </SlideFitFrame>
   )
 }

@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 
 import { insurancePersonas } from "../slide-data"
 import type { SlideProps } from "../slide-shared"
-import { SectionHeading, SlideScrollArea } from "../slide-shared"
+import { SectionHeading, SlideFitFrame } from "../slide-shared"
 
 export function PersonasSlide({ isCompact, isShort }: SlideProps) {
   const [activeId, setActiveId] = useState(insurancePersonas[0].id)
@@ -15,17 +15,17 @@ export function PersonasSlide({ isCompact, isShort }: SlideProps) {
     insurancePersonas.find((p) => p.id === activeId) ?? insurancePersonas[0]
 
   return (
-    <SlideScrollArea>
-      <div className="flex min-h-full flex-col gap-6 pb-8">
+    <SlideFitFrame>
+      <div className="flex flex-col gap-6 pb-4">
         <SectionHeading
           eyebrow="Core personas"
-          title="Different personas feel the same friction differently."
-          description="A useful claims platform fits the real operating roles inside an insurer — intake, handlers, team leads, and compliance — without flattening them into one generic user."
+          title="Same friction. Different pain."
+          description="A useful claims platform has to fit the real operating roles inside an insurer — not flatten them into one generic user."
           compact={isCompact}
         />
 
         {isShort ? (
-          <div className="grid flex-1 gap-4 lg:grid-cols-[0.42fr_0.58fr]">
+          <div className="grid gap-4 lg:grid-cols-[0.42fr_0.58fr]">
             <div className="rounded-[1.75rem] border border-white/10 bg-white/7 p-4 shadow-[0_22px_80px_rgba(0,0,0,0.26)] backdrop-blur">
               <div className="text-[10px] uppercase tracking-[0.28em] text-[#91a6bd]">
                 Who the deck is speaking to
@@ -88,7 +88,7 @@ export function PersonasSlide({ isCompact, isShort }: SlideProps) {
           </div>
         ) : (
           <>
-            <div className="grid flex-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {insurancePersonas.map((persona, index) => (
                 <motion.div
                   key={persona.name}
@@ -126,11 +126,11 @@ export function PersonasSlide({ isCompact, isShort }: SlideProps) {
             </div>
 
             <div className="rounded-[1.6rem] border border-white/10 bg-black/18 px-5 py-4 text-sm leading-6 text-[#d9dee5]">
-              The common requirement: compress analysis and coordination without erasing accountability, role clarity, or decision traceability.
+              Every role needs the same thing: less assembly, more judgment — without losing the audit trail.
             </div>
           </>
         )}
       </div>
-    </SlideScrollArea>
+    </SlideFitFrame>
   )
 }

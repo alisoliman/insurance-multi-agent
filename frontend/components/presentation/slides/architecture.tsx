@@ -3,25 +3,25 @@
 import { useState } from "react"
 
 import type { SlideProps } from "../slide-shared"
-import { ArchitectureDiagram, SectionHeading, SlideScrollArea } from "../slide-shared"
+import { ArchitectureDiagram, SectionHeading, SlideFitFrame } from "../slide-shared"
 
 export function ArchitectureSlide({ isCompact, isShort }: SlideProps) {
   const [activeNode, setActiveNode] = useState("backend")
 
   return (
-    <SlideScrollArea>
-      <div className="flex min-h-full flex-col gap-6 pb-8">
+    <SlideFitFrame>
+      <div className="flex flex-col gap-6 pb-4">
         <SectionHeading
           eyebrow="Architecture"
           title={
             isShort
-              ? "Public experience, private claims data, shared delivery."
-              : "Before meeting the agents, see where they live."
+              ? "Public experience. Private data. Shared trust."
+              : "Before meeting the agents — see where they live."
           }
           description={
             isShort
-              ? "Container Apps handles the experience, PostgreSQL stays private, identity stays shared, and Azure OpenAI remains an explicit external dependency."
-              : "This is the live Azure deployment: public conversation surfaces on Container Apps, a private PostgreSQL path inside the VNet, a shared delivery identity, and an external Azure OpenAI dependency kept explicit."
+              ? "Container Apps runs the experience, PostgreSQL stays private, identity is shared, Azure OpenAI is an explicit external dependency."
+              : "The live Azure deployment: public conversation surfaces on Container Apps, a private PostgreSQL path inside the VNet, a shared delivery identity, and an external Azure OpenAI dependency kept explicit."
           }
           compact={isCompact}
         />
@@ -31,6 +31,6 @@ export function ArchitectureSlide({ isCompact, isShort }: SlideProps) {
           compact={isCompact}
         />
       </div>
-    </SlideScrollArea>
+    </SlideFitFrame>
   )
 }

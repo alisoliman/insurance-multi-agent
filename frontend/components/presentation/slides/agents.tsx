@@ -15,20 +15,20 @@ import { cn } from "@/lib/utils"
 
 import { agentCards } from "../slide-data"
 import type { SlideProps } from "../slide-shared"
-import { SectionHeading, SlideScrollArea } from "../slide-shared"
+import { SectionHeading, SlideFitFrame } from "../slide-shared"
 
 export function AgentsSlide({ isCompact }: SlideProps) {
   const [activeId, setActiveId] = useState(agentCards[0].id)
   const activeCard = agentCards.find((a) => a.id === activeId) ?? agentCards[0]
 
   return (
-    <SlideScrollArea>
-      <div className="grid min-h-full gap-6 pb-8 lg:grid-cols-[0.86fr_1.14fr]">
+    <SlideFitFrame>
+      <div className="grid gap-6 pb-4 lg:grid-cols-[0.86fr_1.14fr]">
         <div className="space-y-4">
           <SectionHeading
             eyebrow="Agent constellation"
-            title="Each agent owns a specific kind of judgment so the platform stays legible."
-            description="Not a monolithic super-agent — a stable ecosystem of specialist roles whose outputs can be compared, synthesized, escalated, and trusted."
+            title="Five specialists. One legible system."
+            description="Not a monolithic super-agent — a stable ecosystem of specialist roles whose outputs can be compared, synthesized, and trusted."
             compact={isCompact}
           />
           <div className="space-y-2.5">
@@ -68,7 +68,7 @@ export function AgentsSlide({ isCompact }: SlideProps) {
           <Card className="border-white/10 bg-white/7 text-white shadow-[0_30px_110px_rgba(0,0,0,0.3)] backdrop-blur">
             <CardHeader className={cn("space-y-4", isCompact && "space-y-3 pb-3")}>
               <div className={cn("h-2 w-32 rounded-full bg-gradient-to-r", activeCard.accent)} />
-              <CardTitle className={cn("font-[family:var(--font-fraunces)] text-4xl text-[#fff7ec]", isCompact && "text-[2.4rem]")}>
+              <CardTitle className={cn("font-[family:var(--font-fraunces)] text-4xl text-[#fff7ec]", isCompact && "text-[2.2rem]")}>
                 {activeCard.name}
               </CardTitle>
               <CardDescription className={cn("max-w-2xl text-base leading-7 text-[#d2d7df]", isCompact && "text-sm leading-6")}>
@@ -98,8 +98,8 @@ export function AgentsSlide({ isCompact }: SlideProps) {
           <div className="grid gap-3 sm:grid-cols-3">
             {[
               { icon: BrainCircuit, label: "Structured outputs", copy: "Every specialist contributes data the synthesizer can reason over." },
-              { icon: Workflow, label: "Composable roles", copy: "The platform can re-route or expand specialist roles without collapsing the workflow." },
-              { icon: UsersRound, label: "Human checkpoints", copy: "Agent outputs accelerate judgment, not hide it." },
+              { icon: Workflow, label: "Composable roles", copy: "Re-route or expand specialist roles without collapsing the workflow." },
+              { icon: UsersRound, label: "Human checkpoints", copy: "Agent outputs accelerate judgment — never replace it." },
             ].map((item) => (
               <div key={item.label} className="rounded-[1.5rem] border border-white/8 bg-white/5 p-3.5">
                 <item.icon className="size-5 text-[#95f2df]" />
@@ -110,6 +110,6 @@ export function AgentsSlide({ isCompact }: SlideProps) {
           </div>
         </motion.div>
       </div>
-    </SlideScrollArea>
+    </SlideFitFrame>
   )
 }
