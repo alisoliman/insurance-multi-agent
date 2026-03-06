@@ -49,6 +49,7 @@ export interface ArchitectureModule {
   role: string
   description: string
   accent: string
+  aspects: readonly string[]
 }
 
 export const architectureModules: readonly ArchitectureModule[] = [
@@ -58,6 +59,7 @@ export const architectureModules: readonly ArchitectureModule[] = [
     role: "What users see and touch",
     description: "The web application that hosts the workbench, agent demos, and this presentation. Public-facing, persona-aware, and the entry point for every interaction.",
     accent: "from-[#92f3e8] to-[#5bc0ff]",
+    aspects: ["Persona-aware workbench views", "Embedded presentation mode", "Real-time agent output panels"],
   },
   {
     id: "orchestration",
@@ -65,6 +67,7 @@ export const architectureModules: readonly ArchitectureModule[] = [
     role: "Where decisions get coordinated",
     description: "The API and workflow engine that coordinates specialist agents, enforces policy logic, and exposes the claims lifecycle to the experience layer.",
     accent: "from-[#5bc0ff] to-[#8a7dff]",
+    aspects: ["Multi-agent workflow routing", "Policy enforcement engine", "Claims lifecycle API"],
   },
   {
     id: "intelligence",
@@ -72,6 +75,7 @@ export const architectureModules: readonly ArchitectureModule[] = [
     role: "Where agents reason",
     description: "Large language models for chat and embeddings. An external dependency kept explicit — the system degrades visibly if it's unavailable, never silently.",
     accent: "from-[#e7a8ff] to-[#ffa578]",
+    aspects: ["LLM chat + embedding access", "Explicit degradation signals", "Token-aware rate management"],
   },
   {
     id: "data",
@@ -79,6 +83,7 @@ export const architectureModules: readonly ArchitectureModule[] = [
     role: "Where claims live",
     description: "Claims data persists on a private network path. No public access — name resolution and traffic stay inside the virtual network boundary.",
     accent: "from-[#ffb36b] to-[#ff6f61]",
+    aspects: ["Private network isolation", "Claims + policy persistence", "No public endpoint exposure"],
   },
   {
     id: "trust",
@@ -86,6 +91,7 @@ export const architectureModules: readonly ArchitectureModule[] = [
     role: "Identity, deployment, observability",
     description: "Shared identity for passwordless operations, container registry for deployment, and centralized logging. The invisible infrastructure that keeps the system governable.",
     accent: "from-[#9ae76b] to-[#5fd6a4]",
+    aspects: ["Passwordless managed identity", "Container registry + CD", "Centralized log aggregation"],
   },
 ] as const
 
