@@ -9,7 +9,7 @@ from typing import List, Optional, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from aiosqlite import Connection
+from sqlalchemy.ext.asyncio import AsyncConnection
 
 from app.db.database import get_db
 from app.db.repositories.claim_repo import ClaimRepository
@@ -137,7 +137,7 @@ SAMPLE_CLAIMS = AUTO_APPROVE_SAMPLES + REVIEW_SAMPLES
 router = APIRouter()
 
 
-async def get_claim_service(db: Connection = Depends(get_db)) -> ClaimService:
+async def get_claim_service(db: AsyncConnection = Depends(get_db)) -> ClaimService:
     """Dependency to get ClaimService instance."""
     repo = ClaimRepository(db)
     return ClaimService(repo)

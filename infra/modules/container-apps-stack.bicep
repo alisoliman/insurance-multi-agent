@@ -10,11 +10,11 @@ param location string = resourceGroup().location
 @description('Tags for all resources')
 param tags object = {}
 
-@description('The project name for resource naming')
-param projectName string
-
 @description('The environment name')
 param environmentName string
+
+@description('The infrastructure subnet ID for Container Apps VNet integration')
+param infrastructureSubnetId string = ''
 
 // Default configuration for any environment
 var defaultConfig = {
@@ -99,6 +99,10 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-05-01'
         workloadProfileType: 'Consumption'
       }
     ]
+    vnetConfiguration: empty(infrastructureSubnetId) ? null : {
+      infrastructureSubnetId: infrastructureSubnetId
+      internal: false
+    }
   }
 }
 

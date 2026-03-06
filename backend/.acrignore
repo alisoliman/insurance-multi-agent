@@ -1,0 +1,16 @@
+.venv/
+venv/
+ENV/
+env/
+.env
+.pytest_cache/
+.ruff_cache/
+tests/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+app/data/*.db
+app/workflow/data/uploaded_docs/
+app/workflow/data/policy_index/
+app/workflow/data/document_metadata.json
+app/workflow/data/index_status.json

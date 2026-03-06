@@ -4,6 +4,8 @@ from pathlib import Path
 import pytest
 from dotenv import load_dotenv
 
+from tests.live_auth import skip_if_key_auth_disabled
+
 
 def _load_env() -> None:
     root_env = Path(__file__).resolve().parents[2] / ".env"
@@ -38,6 +40,7 @@ async def test_agent_run_endpoint_returns_structured_output(async_client):
     }
 
     response = await async_client.post("/api/v1/agent/claim_assessor/run", json=payload)
+    skip_if_key_auth_disabled(response.text)
     assert response.status_code == 200
 
     data = response.json()

@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react"
 
 export interface HandlerPersona {
   id: string
@@ -24,19 +24,28 @@ interface HandlerContextValue {
 const HandlerContext = createContext<HandlerContextValue | null>(null)
 
 export function HandlerProvider({ children }: { children: ReactNode }) {
-  const [handlerId, setHandlerIdState] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("demo-handler-id") || "handler-001"
+  const [handlerId, setHandlerIdState] = useState("handler-001")
+
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      typeof window.localStorage?.getItem !== "function"
+    ) {
+      return
     }
-    return "handler-001"
-  })
+
+    const storedHandlerId = window.localStorage.getItem("demo-handler-id")
+    if (storedHandlerId) {
+      setHandlerIdState(storedHandlerId)
+    }
+  }, [])
 
   const handler = DEMO_HANDLERS.find((h) => h.id === handlerId) || DEMO_HANDLERS[0]
 
   const setHandlerId = useCallback((id: string) => {
     setHandlerIdState(id)
-    if (typeof window !== "undefined") {
-      localStorage.setItem("demo-handler-id", id)
+    if (typeof window.localStorage?.setItem === "function") {
+      window.localStorage.setItem("demo-handler-id", id)
     }
   }, [])
 

@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 import pytest
+from sqlalchemy import text
 
 from app.db.repositories.claim_repo import ClaimRepository
 from app.models.workbench import (
@@ -62,11 +63,11 @@ async def test_auto_approves_low_risk_claim(db):
     assert updated.status == ClaimStatus.APPROVED
     assert updated.assigned_handler_id == "system"
 
-    cursor = await db.execute(
-        "SELECT COUNT(*) FROM claim_decisions WHERE claim_id = ?",
-        (claim.id,),
+    result = await db.execute(
+        text("SELECT COUNT(*) AS count FROM claim_decisions WHERE claim_id = :claim_id"),
+        {"claim_id": claim.id},
     )
-    decision_count = (await cursor.fetchone())[0]
+    decision_count = result.scalar_one()
     assert decision_count == 1
 
 
@@ -118,9 +119,9 @@ async def test_does_not_auto_approve_high_risk_claim(db):
     assert updated.status == ClaimStatus.NEW
     assert updated.assigned_handler_id is None
 
-    cursor = await db.execute(
-        "SELECT COUNT(*) FROM claim_decisions WHERE claim_id = ?",
-        (claim.id,),
+    result = await db.execute(
+        text("SELECT COUNT(*) AS count FROM claim_decisions WHERE claim_id = :claim_id"),
+        {"claim_id": claim.id},
     )
-    decision_count = (await cursor.fetchone())[0]
+    decision_count = result.scalar_one()
     assert decision_count == 0

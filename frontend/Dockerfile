@@ -7,20 +7,16 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
+# Install dependencies from the lockfile for deterministic builds
 COPY package.json package-lock.json* ./
-# Use npm install with legacy peer deps to handle React 19 compatibility issues
-RUN npm install --legacy-peer-deps
+# Keep legacy peer resolution because the app targets React 19.
+RUN npm ci --legacy-peer-deps
 
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-# Copy additional config files needed for shadcn/ui builds
-COPY postcss.config.mjs ./
-COPY components.json ./
 
 # Next.js collects completely anonymous telemetry data about general usage.
 # Learn more here: https://nextjs.org/telemetry
@@ -52,10 +48,6 @@ RUN chown nextjs:nodejs .next
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# Install sharp for production image optimization
-# This is crucial for Next.js image optimization in standalone mode
-RUN npm install sharp
 
 USER nextjs
 

@@ -5,7 +5,7 @@ API endpoints for Workbench metrics.
 from typing import Dict
 
 from fastapi import APIRouter, Depends, Query
-from aiosqlite import Connection
+from sqlalchemy.ext.asyncio import AsyncConnection
 
 from app.db.database import get_db
 from app.db.repositories.claim_repo import ClaimRepository
@@ -14,7 +14,7 @@ from app.services.claim_service import ClaimService
 router = APIRouter()
 
 
-async def get_claim_service(db: Connection = Depends(get_db)) -> ClaimService:
+async def get_claim_service(db: AsyncConnection = Depends(get_db)) -> ClaimService:
     repo = ClaimRepository(db)
     return ClaimService(repo)
 

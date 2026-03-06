@@ -1,0 +1,13 @@
+node_modules
+.next
+npm-debug.log
+README.md
+.env
+.env.local
+.env.production.local
+.env.staging.local
+.git
+.gitignore
+.vercel
+.DS_Store
+*.tsbuildinfo

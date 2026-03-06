@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { usePathname } from "next/navigation"
 import { onboardingSteps } from "./onboarding-steps"
 import { OnboardingModal } from "./onboarding-modal"
 import { OnboardingDock } from "./onboarding-dock"
@@ -40,15 +41,21 @@ export function useOnboarding() {
 }
 
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
   const [isOpen, setIsOpen] = React.useState(false)
   const [currentStep, setCurrentStep] = React.useState(0)
   const [completed, setCompleted] = React.useState<Set<string>>(new Set())
   const [hasSeen, setHasSeen] = React.useState(false)
   const [isDisabled, setIsDisabled] = React.useState(false)
   const hasHydrated = React.useRef(false)
+  const isPresentationRoute = pathname?.startsWith("/presentation")
 
   React.useEffect(() => {
     if (typeof window === "undefined") return
+    if (isPresentationRoute) {
+      hasHydrated.current = true
+      return
+    }
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY)
       const disabled = window.localStorage.getItem(DISABLED_KEY)
@@ -75,10 +82,11 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     } finally {
       hasHydrated.current = true
     }
-  }, [])
+  }, [isPresentationRoute])
 
   React.useEffect(() => {
     if (!hasHydrated.current || typeof window === "undefined") return
+    if (isPresentationRoute) return
     const state: OnboardingState = {
       hasSeen,
       completed: Array.from(completed),
@@ -86,7 +94,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     }
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
     window.localStorage.setItem(DISABLED_KEY, String(isDisabled))
-  }, [hasSeen, completed, currentStep, isDisabled])
+  }, [hasSeen, completed, currentStep, isDisabled, isPresentationRoute])
 
   const open = React.useCallback((stepIndex?: number) => {
     if (typeof stepIndex === "number") {
@@ -160,8 +168,8 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   return (
     <OnboardingContext.Provider value={value}>
       {children}
-      {!isDisabled && <OnboardingModal />}
-      {!isDisabled && <OnboardingDock />}
+      {!isDisabled && !isPresentationRoute && <OnboardingModal />}
+      {!isDisabled && !isPresentationRoute && <OnboardingDock />}
     </OnboardingContext.Provider>
   )
 }

@@ -1,6 +1,6 @@
 # Insurance Claims Multi-Agent Backend
 
-This is the backend component of the multi-agent insurance claims processing system, built with FastAPI and Microsoft Agent Framework.
+This is the backend component of the multi-agent insurance claims processing system, built with FastAPI, Microsoft Agent Framework, and PostgreSQL.
 
 ## Features
 
@@ -16,8 +16,9 @@ This is the backend component of the multi-agent insurance claims processing sys
 
 ### Prerequisites
 
-- Python 3.10 or higher
+- Python 3.12 or higher
 - [uv](https://github.com/astral-sh/uv) package manager
+- Docker Desktop or a local PostgreSQL 16 instance
 
 ### Installation
 
@@ -48,10 +49,18 @@ cp .env.example .env
 
 ### Running the Application
 
+Start PostgreSQL first:
+
+```bash
+docker compose up -d postgres
+```
+
+The compose database is published on `127.0.0.1:5433` by default so it does not collide with an existing local PostgreSQL service on `5432`.
+
 Start the development server:
 
 ```bash
-uvicorn app.main:app --reload
+uv run fastapi dev
 ```
 
 Or use the fastapi CLI:
@@ -67,6 +76,7 @@ The API will be available at http://localhost:8000 with documentation at http://
 Run the tests with pytest:
 
 ```bash
+docker compose up -d postgres
 uv run pytest
 ```
 
@@ -79,18 +89,10 @@ Build and run the Docker container:
 docker build -t shadcn-fastapi-backend .
 
 # Run the container
-docker run -p 8000:80 shadcn-fastapi-backend
+docker run --env-file .env -p 8000:80 shadcn-fastapi-backend
 ```
 
 ## API Endpoints
-
-### Tasks API
-
-- `GET /api/tasks/` - List all tasks with pagination and filtering
-- `GET /api/tasks/{task_id}` - Get a specific task
-- `POST /api/tasks/` - Create a new task
-- `PUT /api/tasks/{task_id}` - Update a task
-- `DELETE /api/tasks/{task_id}` - Delete a task
 
 ### Health Check
 
@@ -103,13 +105,12 @@ backend/
 ├── app/                # Application code
 │   ├── api/            # API routes
 │   │   └── routes/     # Route modules
-│   ├── core/           # Core functionality
-│   │   ├── config.py   # Settings
-│   │   ├── exceptions.py # Custom exceptions
-│   │   └── logger.py   # Logging configuration
-│   ├── schemas/        # Pydantic schemas
+│   ├── core/           # Settings and logging
+│   ├── db/             # PostgreSQL engine, repositories, migrations
+│   ├── models/         # Pydantic models
 │   └── main.py         # Application entry point
 ├── tests/              # Test modules
+├── migrations/         # Alembic migration scripts
 ├── .env.example        # Environment variables template
 ├── Dockerfile          # Docker configuration
 ├── pyproject.toml      # Project dependencies

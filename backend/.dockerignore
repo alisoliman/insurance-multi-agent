@@ -1,5 +1,6 @@
 # Python
 __pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
 *.so
@@ -28,11 +29,13 @@ env/
 .env
 
 # Testing
+tests/
 .pytest_cache/
 .coverage
 htmlcov/
 .tox/
 .nox/
+.ruff_cache/
 
 # IDE
 .idea/
@@ -63,9 +66,11 @@ logs/
 .DS_Store
 Thumbs.db
 
-# uv
-
-
 # Local data that shouldn't be in container
 *.faiss
 *.pkl
+app/data/*.db
+app/workflow/data/uploaded_docs/
+app/workflow/data/policy_index/
+app/workflow/data/document_metadata.json
+app/workflow/data/index_status.json

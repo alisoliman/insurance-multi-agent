@@ -6,6 +6,7 @@ import pytest
 from dotenv import load_dotenv
 
 from app.services.single_agent import run as run_single_agent
+from tests.live_auth import skip_if_key_auth_disabled
 
 
 def _load_env() -> None:
@@ -68,10 +69,14 @@ async def test_single_agent_outputs(agent_name: str, expected_fields: list[str])
         "missing_items": ["Repair estimate", "Additional photos"],
     }
 
-    messages, structured_output = await asyncio.wait_for(
-        run_single_agent(agent_name, claim_data),
-        timeout=180,
-    )
+    try:
+        messages, structured_output = await asyncio.wait_for(
+            run_single_agent(agent_name, claim_data),
+            timeout=180,
+        )
+    except Exception as exc:
+        skip_if_key_auth_disabled(str(exc))
+        raise
 
     assert messages
     assert structured_output is not None

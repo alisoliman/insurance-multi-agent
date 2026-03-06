@@ -17,6 +17,12 @@ except ImportError:
 
 
 class Settings(BaseSettings):  # noqa: D101
+    # PostgreSQL
+    database_url: str = Field(alias="DATABASE_URL")
+    database_pool_size: int = Field(default=5, alias="DATABASE_POOL_SIZE")
+    database_max_overflow: int = Field(default=10, alias="DATABASE_MAX_OVERFLOW")
+    test_database_url: str | None = Field(default=None, alias="TEST_DATABASE_URL")
+
     # Azure OpenAI
     azure_openai_api_key: str | None = Field(
         default=None, alias="AZURE_OPENAI_API_KEY")
@@ -39,7 +45,9 @@ class Settings(BaseSettings):  # noqa: D101
 
     # Convenience: serialise to dict sans secrets
     def dict_safe(self) -> Dict[str, Any]:  # noqa: D401
-        return self.model_dump(exclude={"azure_openai_api_key"})
+        return self.model_dump(
+            exclude={"azure_openai_api_key", "database_url", "test_database_url"},
+        )
 
 
 @functools.lru_cache(maxsize=1)

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   Dialog,
   DialogContent,
@@ -21,11 +21,17 @@ const shortcuts = [
 
 export function KeyboardShortcuts() {
   const router = useRouter()
+  const pathname = usePathname()
   const [showHelp, setShowHelp] = React.useState(false)
   const [keySequence, setKeySequence] = React.useState<string[]>([])
   const sequenceTimeout = React.useRef<NodeJS.Timeout | null>(null)
+  const isPresentationRoute = pathname?.startsWith("/presentation")
 
   React.useEffect(() => {
+    if (isPresentationRoute) {
+      return
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if typing in an input
       const target = e.target as HTMLElement
@@ -108,7 +114,11 @@ export function KeyboardShortcuts() {
         clearTimeout(sequenceTimeout.current)
       }
     }
-  }, [keySequence, router])
+  }, [isPresentationRoute, keySequence, router])
+
+  if (isPresentationRoute) {
+    return null
+  }
 
   return (
     <Dialog open={showHelp} onOpenChange={setShowHelp}>

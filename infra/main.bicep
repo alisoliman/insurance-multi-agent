@@ -31,6 +31,16 @@ param azureOpenAIApiVersion string = '2025-04-01-preview'
 @description('Azure OpenAI embedding model')
 param azureOpenAIEmbeddingModel string = 'text-embedding-3-large'
 
+@description('PostgreSQL administrator login')
+param postgresAdminLogin string
+
+@description('PostgreSQL administrator password')
+@secure()
+param postgresAdminPassword string
+
+@description('PostgreSQL application database name')
+param postgresDbName string = 'claims_app'
+
 // Generate a short unique suffix for resource naming
 var uniqueSuffix = take(uniqueString(resourceGroup().id), 6)
 
@@ -48,12 +58,23 @@ var containerRegistryName = 'cr${uniqueSuffix}'
 var managedIdentityName = 'id-${uniqueSuffix}'
 var backendContainerAppName = 'backend-${uniqueSuffix}'
 var frontendContainerAppName = 'frontend-${uniqueSuffix}'
+var postgresServerName = 'pg-${uniqueSuffix}'
+var postgresConnectionString = 'postgresql+asyncpg://${postgresAdminLogin}:${postgresAdminPassword}@${postgresServerName}.postgres.database.azure.com:5432/${postgresDbName}?ssl=require'
 
 // Create managed identity for container registry access
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   name: managedIdentityName
   location: location
   tags: commonTags
+}
+
+module network 'modules/network.bicep' = {
+  name: 'network'
+  params: {
+    location: location
+    tags: commonTags
+    resourceSuffix: uniqueSuffix
+  }
 }
 
 // Deploy container apps stack (environment + registry)
@@ -64,8 +85,22 @@ module containerAppsStack 'modules/container-apps-stack.bicep' = {
     containerRegistryName: containerRegistryName
     location: location
     tags: commonTags
-    projectName: projectName
     environmentName: environmentName
+    infrastructureSubnetId: network.outputs.containerAppsInfrastructureSubnetId
+  }
+}
+
+module postgresFlexibleServer 'modules/postgres-flexible-server.bicep' = {
+  name: 'postgres-flexible-server'
+  params: {
+    serverName: postgresServerName
+    databaseName: postgresDbName
+    location: location
+    tags: commonTags
+    administratorLogin: postgresAdminLogin
+    administratorPassword: postgresAdminPassword
+    delegatedSubnetId: network.outputs.postgresDelegatedSubnetId
+    privateDnsZoneId: network.outputs.privateDnsZoneId
   }
 }
 
@@ -75,12 +110,7 @@ module roleAssignment 'modules/role-assignment.bicep' = {
   params: {
     registryId: containerAppsStack.outputs.containerRegistryId
     managedIdentityPrincipalId: managedIdentity.properties.principalId
-    resourcePrefix: uniqueSuffix
   }
-  dependsOn: [
-    containerAppsStack
-    managedIdentity
-  ]
 }
 
 // Deploy backend container app
@@ -94,9 +124,7 @@ module backendContainerApp 'modules/containerapp.bicep' = {
     containerPort: 8000
     registryServer: containerAppsStack.outputs.containerRegistryLoginServer
     managedIdentityResourceId: managedIdentity.id
-    managedIdentityClientId: managedIdentity.properties.clientId
     tags: commonTags
-    resourcePrefix: uniqueSuffix
     environmentVariables: [
       {
         name: 'ENVIRONMENT'
@@ -126,18 +154,22 @@ module backendContainerApp 'modules/containerapp.bicep' = {
         name: 'AZURE_OPENAI_EMBEDDING_MODEL'
         value: azureOpenAIEmbeddingModel
       }
+      {
+        name: 'DATABASE_URL'
+        secretRef: 'database-url'
+      }
     ]
     secrets: [
       {
         name: 'azure-openai-api-key'
         value: azureOpenAIApiKey
       }
+      {
+        name: 'database-url'
+        value: postgresConnectionString
+      }
     ]
   }
-  dependsOn: [
-    containerAppsStack
-    roleAssignment
-  ]
 }
 
 // Deploy frontend container app
@@ -151,9 +183,7 @@ module frontendContainerApp 'modules/containerapp.bicep' = {
     containerPort: 3000
     registryServer: containerAppsStack.outputs.containerRegistryLoginServer
     managedIdentityResourceId: managedIdentity.id
-    managedIdentityClientId: managedIdentity.properties.clientId
     tags: commonTags
-    resourcePrefix: uniqueSuffix
     environmentVariables: [
       {
         name: 'API_URL'
@@ -161,11 +191,6 @@ module frontendContainerApp 'modules/containerapp.bicep' = {
       }
     ]
   }
-  dependsOn: [
-    containerAppsStack
-    roleAssignment
-    backendContainerApp
-  ]
 }
 
 // Outputs
@@ -174,4 +199,4 @@ output frontendContainerAppFqdn string = frontendContainerApp.outputs.fqdn
 output containerRegistryLoginServer string = containerAppsStack.outputs.containerRegistryLoginServer
 output managedIdentityClientId string = managedIdentity.properties.clientId
 output resourceGroupName string = resourceGroup().name
-
+output postgresServerFqdn string = postgresFlexibleServer.outputs.serverFqdn

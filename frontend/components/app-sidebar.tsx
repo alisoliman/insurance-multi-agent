@@ -64,6 +64,11 @@ const data = {
       icon: IconDashboard,
     },
     {
+      title: "Platform Story",
+      url: "/presentation",
+      icon: IconFileDescription,
+    },
+    {
       title: "Queues",
       url: "#",
       icon: IconFileAi,

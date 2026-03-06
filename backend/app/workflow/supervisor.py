@@ -118,6 +118,48 @@ def create_insurance_supervisor():
     return agents
 
 
+def get_insurance_supervisor():
+    """Backward-compatible accessor for the initialized supervisor."""
+    return create_insurance_supervisor()
+
+
+def _derive_missing_items(outputs: Dict[str, Any], claim_text: str) -> List[str]:
+    """Infer follow-up items from agent outputs for downstream messaging."""
+    try:
+        claim_data = json.loads(claim_text) if claim_text else {}
+    except json.JSONDecodeError:
+        claim_data = {}
+
+    claim_type = str(claim_data.get("claim_type", "")).lower()
+    missing_items: List[str] = []
+
+    risk_output = outputs.get("risk_analyst") or {}
+    risk_level = risk_output.get("risk_level")
+    fraud_indicators = risk_output.get("fraud_indicators") or []
+    if risk_level in {"MEDIUM_RISK", "HIGH_RISK"} or fraud_indicators:
+        missing_items.append("Detailed incident timeline with corroborating evidence")
+        if claim_type == "auto":
+            missing_items.append("Police report or incident report (if available)")
+
+    assessor_output = outputs.get("claim_assessor") or {}
+    if (
+        claim_type == "auto"
+        and assessor_output.get("validity_status") not in {None, "VALID"}
+    ):
+        missing_items.append("Additional damage photos from multiple angles")
+
+    coverage_output = outputs.get("policy_checker") or {}
+    if coverage_output.get("coverage_status") == "INSUFFICIENT_EVIDENCE":
+        missing_items.append("Supporting coverage or repair documentation")
+
+    deduped_items: List[str] = []
+    for item in missing_items:
+        if item not in deduped_items:
+            deduped_items.append(item)
+
+    return deduped_items
+
+
 async def _run_agent(
     agent, 
     agent_name: str, 
@@ -571,5 +613,7 @@ async def process_claim_with_supervisor_stream(
     }
 
 
-# Initialize the supervisor at module load (maintains compatibility)
-insurance_supervisor = create_insurance_supervisor()
+# Keep module import side effects minimal so local development can start without
+# Azure OpenAI being configured. The supervisor is built lazily via
+# get_insurance_supervisor()/create_insurance_supervisor() when the workflow is used.
+insurance_supervisor = None

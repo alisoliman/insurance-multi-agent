@@ -19,14 +19,8 @@ param registryServer string
 @description('The managed identity resource ID for registry access')
 param managedIdentityResourceId string
 
-@description('The managed identity client ID for registry access')
-param managedIdentityClientId string
-
 @description('Tags for all resources')
 param tags object = {}
-
-@description('The resource prefix for naming')
-param resourcePrefix string
 
 @description('Environment variables for the container')
 param environmentVariables array = []

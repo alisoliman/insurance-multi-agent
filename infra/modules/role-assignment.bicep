@@ -4,9 +4,6 @@ param registryId string
 @description('The principal ID of the managed identity')
 param managedIdentityPrincipalId string
 
-@description('The resource prefix for naming')
-param resourcePrefix string
-
 // Get reference to the existing registry with supported API version for swedencentral
 resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = {
   name: last(split(registryId, '/'))

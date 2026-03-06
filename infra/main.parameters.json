@@ -31,6 +31,15 @@
         },
         "azureOpenAIEmbeddingModel": {
             "value": "${AZURE_OPENAI_EMBEDDING_MODEL=text-embedding-3-large}"
+        },
+        "postgresAdminLogin": {
+            "value": "${POSTGRES_ADMIN_LOGIN=claimsadmin}"
+        },
+        "postgresAdminPassword": {
+            "value": "${POSTGRES_ADMIN_PASSWORD}"
+        },
+        "postgresDbName": {
+            "value": "${POSTGRES_DB_NAME=claims_app}"
         }
     }
 }

@@ -1,256 +1,205 @@
-"""
-SQLite database connection and initialization for scenario persistence.
+"""PostgreSQL connection management, migrations, and query helpers."""
 
-Based on data-model.md from specs/004-ai-demo-examples/
-"""
+from __future__ import annotations
 
+import asyncio
 import logging
-import os
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator, Mapping
 
-import aiosqlite
+from alembic import command
+from alembic.config import Config as AlembicConfig
+from sqlalchemy import text
+from sqlalchemy.engine import RowMapping
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
+
+from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-# Database file location - use data directory relative to backend
-DB_DIR = Path(__file__).parent.parent / "data"
-DB_PATH = DB_DIR / "scenarios.db"
+_engine: AsyncEngine | None = None
+_init_lock = asyncio.Lock()
+_is_initialized = False
 
-# SQL schema for saved_scenarios table
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS saved_scenarios (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    locale TEXT NOT NULL,
-    claim_type TEXT NOT NULL,
-    complexity TEXT NOT NULL,
-    scenario_data TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    updated_at TEXT
-);
+BOOTSTRAP_LOCK_ID = 941_205
+APP_TABLES = [
+    "claim_audit_log",
+    "claim_decisions",
+    "ai_assessments",
+    "claims",
+    "handlers",
+    "policies",
+    "vehicles",
+    "saved_scenarios",
+]
 
-CREATE INDEX IF NOT EXISTS idx_scenarios_locale ON saved_scenarios(locale);
-CREATE INDEX IF NOT EXISTS idx_scenarios_claim_type ON saved_scenarios(claim_type);
-CREATE INDEX IF NOT EXISTS idx_scenarios_created_at ON saved_scenarios(created_at DESC);
+DEMO_HANDLERS = [
+    {
+        "id": "handler-001",
+        "name": "Alice Johnson",
+        "email": "alice@contoso.com",
+        "is_active": True,
+    },
+    {
+        "id": "handler-002",
+        "name": "Bob Smith",
+        "email": "bob@contoso.com",
+        "is_active": True,
+    },
+    {
+        "id": "handler-003",
+        "name": "Carol Williams",
+        "email": "carol@contoso.com",
+        "is_active": True,
+    },
+    {
+        "id": "system",
+        "name": "Auto Approver",
+        "email": "system@contoso.com",
+        "is_active": False,
+    },
+]
 
--- Vehicles table for auto claims (Feature 005)
-CREATE TABLE IF NOT EXISTS vehicles (
-    vin TEXT PRIMARY KEY,
-    scenario_id TEXT NOT NULL,
-    policy_number TEXT NOT NULL,
-    make TEXT NOT NULL,
-    model TEXT NOT NULL,
-    year INTEGER NOT NULL,
-    license_plate TEXT NOT NULL,
-    color TEXT,
-    vehicle_type TEXT,
-    created_at TEXT NOT NULL,
-    FOREIGN KEY (scenario_id) REFERENCES saved_scenarios(id) ON DELETE CASCADE
-);
 
-CREATE INDEX IF NOT EXISTS idx_vehicles_policy_number ON vehicles(policy_number);
-CREATE INDEX IF NOT EXISTS idx_vehicles_scenario_id ON vehicles(scenario_id);
+def get_engine() -> AsyncEngine:
+    """Return the shared async SQLAlchemy engine."""
+    global _engine
 
--- Policies table for workflow lookups (Feature 005)
-CREATE TABLE IF NOT EXISTS policies (
-    policy_number TEXT PRIMARY KEY,
-    scenario_id TEXT NOT NULL,
-    policy_type TEXT NOT NULL,
-    coverage_types TEXT NOT NULL,
-    coverage_limits TEXT NOT NULL,
-    deductible REAL NOT NULL,
-    premium REAL NOT NULL,
-    effective_date TEXT NOT NULL,
-    expiration_date TEXT NOT NULL,
-    customer_name TEXT NOT NULL,
-    customer_email TEXT,
-    customer_phone TEXT,
-    vin TEXT,
-    created_at TEXT NOT NULL,
-    FOREIGN KEY (scenario_id) REFERENCES saved_scenarios(id) ON DELETE CASCADE,
-    FOREIGN KEY (vin) REFERENCES vehicles(vin) ON DELETE SET NULL
-);
+    if _engine is None:
+        settings = get_settings()
+        _engine = create_async_engine(
+            settings.database_url,
+            pool_pre_ping=True,
+            pool_size=settings.database_pool_size,
+            max_overflow=settings.database_max_overflow,
+        )
 
-CREATE INDEX IF NOT EXISTS idx_policies_scenario_id ON policies(scenario_id);
-CREATE INDEX IF NOT EXISTS idx_policies_customer ON policies(customer_name);
+    return _engine
 
--- Handlers table (Feature 005)
-CREATE TABLE IF NOT EXISTS handlers (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    email TEXT UNIQUE,
-    is_active INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL
-);
 
--- Claims table (Feature 005)
-CREATE TABLE IF NOT EXISTS claims (
-    id TEXT PRIMARY KEY,
-    claimant_name TEXT NOT NULL,
-    claimant_id TEXT NOT NULL,
-    policy_number TEXT NOT NULL,
-    claim_type TEXT NOT NULL,
-    description TEXT NOT NULL,
-    incident_date TEXT NOT NULL,
-    estimated_damage REAL,
-    location TEXT,
-    status TEXT NOT NULL DEFAULT 'new',
-    priority TEXT NOT NULL DEFAULT 'medium',
-    assigned_handler_id TEXT,
-    version INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL,
-    updated_at TEXT,
-    FOREIGN KEY (assigned_handler_id) REFERENCES handlers(id)
-);
+def _get_alembic_config() -> AlembicConfig:
+    backend_root = Path(__file__).resolve().parents[2]
+    config = AlembicConfig(str(backend_root / "alembic.ini"))
+    config.set_main_option("script_location", str(backend_root / "migrations"))
+    config.set_main_option("sqlalchemy.url", get_settings().database_url)
+    return config
 
-CREATE INDEX IF NOT EXISTS idx_claims_status ON claims(status);
-CREATE INDEX IF NOT EXISTS idx_claims_assigned_handler ON claims(assigned_handler_id);
-CREATE INDEX IF NOT EXISTS idx_claims_priority_status ON claims(priority DESC, status);
-CREATE INDEX IF NOT EXISTS idx_claims_created_at ON claims(created_at DESC);
 
--- AI Assessments table (Feature 005)
-CREATE TABLE IF NOT EXISTS ai_assessments (
-    id TEXT PRIMARY KEY,
-    claim_id TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending',
-    agent_outputs TEXT,
-    final_recommendation TEXT,
-    confidence_scores TEXT,
-    processing_started_at TEXT,
-    processing_completed_at TEXT,
-    error_message TEXT,
-    created_at TEXT NOT NULL,
-    FOREIGN KEY (claim_id) REFERENCES claims(id)
-);
+def _run_alembic_upgrade() -> None:
+    command.upgrade(_get_alembic_config(), "head")
 
-CREATE INDEX IF NOT EXISTS idx_assessments_claim ON ai_assessments(claim_id);
-CREATE INDEX IF NOT EXISTS idx_assessments_status ON ai_assessments(status);
 
--- Decisions table (Feature 005)
-CREATE TABLE IF NOT EXISTS claim_decisions (
-    id TEXT PRIMARY KEY,
-    claim_id TEXT NOT NULL,
-    handler_id TEXT NOT NULL,
-    decision_type TEXT NOT NULL,
-    notes TEXT,
-    ai_assessment_id TEXT,
-    created_at TEXT NOT NULL,
-    FOREIGN KEY (claim_id) REFERENCES claims(id),
-    FOREIGN KEY (handler_id) REFERENCES handlers(id),
-    FOREIGN KEY (ai_assessment_id) REFERENCES ai_assessments(id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_decisions_claim ON claim_decisions(claim_id);
-CREATE INDEX IF NOT EXISTS idx_decisions_handler ON claim_decisions(handler_id);
-CREATE INDEX IF NOT EXISTS idx_decisions_created_at ON claim_decisions(created_at DESC);
-
--- Audit Log table (Feature 005)
-CREATE TABLE IF NOT EXISTS claim_audit_log (
-    id TEXT PRIMARY KEY,
-    claim_id TEXT NOT NULL,
-    handler_id TEXT,
-    action TEXT NOT NULL,
-    old_value TEXT,
-    new_value TEXT,
-    timestamp TEXT NOT NULL,
-    FOREIGN KEY (claim_id) REFERENCES claims(id),
-    FOREIGN KEY (handler_id) REFERENCES handlers(id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_audit_claim ON claim_audit_log(claim_id);
-CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON claim_audit_log(timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_audit_handler ON claim_audit_log(handler_id);
-
--- Seed demo handlers
-INSERT OR IGNORE INTO handlers (id, name, email, is_active, created_at) VALUES
-    ('handler-001', 'Alice Johnson', 'alice@contoso.com', 1, datetime('now')),
-    ('handler-002', 'Bob Smith', 'bob@contoso.com', 1, datetime('now')),
-    ('handler-003', 'Carol Williams', 'carol@contoso.com', 1, datetime('now')),
-    ('system', 'Auto Approver', 'system@contoso.com', 0, datetime('now'));
-"""
+async def seed_demo_handlers(connection: AsyncConnection) -> None:
+    """Ensure demo handlers exist for workbench flows."""
+    payload = [
+        {
+            **handler,
+            "created_at": datetime.now(timezone.utc),
+        }
+        for handler in DEMO_HANDLERS
+    ]
+    await connection.execute(
+        text(
+            """
+            INSERT INTO handlers (id, name, email, is_active, created_at)
+            VALUES (:id, :name, :email, :is_active, :created_at)
+            ON CONFLICT (id) DO NOTHING
+            """
+        ),
+        payload,
+    )
+    await connection.commit()
 
 
 async def init_db() -> None:
-    """Initialize the database and create tables if they don't exist."""
-    # Ensure data directory exists
-    DB_DIR.mkdir(parents=True, exist_ok=True)
-    
-    logger.info(f"Initializing SQLite database at {DB_PATH}")
-    
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.executescript(SCHEMA)
-        await db.commit()
-    
-    logger.info("Database initialized successfully")
+    """Run migrations and seed baseline data exactly once per process."""
+    global _is_initialized
+
+    if _is_initialized:
+        return
+
+    async with _init_lock:
+        if _is_initialized:
+            return
+
+        engine = get_engine()
+        logger.info("Initializing PostgreSQL database")
+        async with engine.connect() as connection:
+            await connection.execute(
+                text("SELECT pg_advisory_lock(:lock_id)"),
+                {"lock_id": BOOTSTRAP_LOCK_ID},
+            )
+            try:
+                await asyncio.to_thread(_run_alembic_upgrade)
+                await seed_demo_handlers(connection)
+            finally:
+                await connection.execute(
+                    text("SELECT pg_advisory_unlock(:lock_id)"),
+                    {"lock_id": BOOTSTRAP_LOCK_ID},
+                )
+                await connection.commit()
+
+        _is_initialized = True
+        logger.info("Database initialized successfully")
 
 
-async def get_db() -> AsyncGenerator[aiosqlite.Connection, None]:
-    """
-    Get an async database connection.
-    
-    Usage:
-        async for db in get_db():
-            cursor = await db.execute("SELECT * FROM saved_scenarios")
-            rows = await cursor.fetchall()
-    """
-    if not DB_PATH.exists():
-        await init_db()
-    
-    db = await aiosqlite.connect(DB_PATH)
-    db.row_factory = aiosqlite.Row
-    # Ensure newer tables exist even if the DB file pre-dates claims workbench.
-    cursor = await db.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='claims'"
-    )
-    has_claims_table = await cursor.fetchone()
-    if not has_claims_table:
-        await db.executescript(SCHEMA)
-        await db.commit()
-    try:
-        yield db
-    finally:
-        await db.close()
+async def get_db() -> AsyncGenerator[AsyncConnection, None]:
+    """Yield a PostgreSQL connection for request-scoped work."""
+    await init_db()
+    async with get_engine().connect() as connection:
+        yield connection
 
 
 @asynccontextmanager
-async def get_db_connection() -> AsyncGenerator[aiosqlite.Connection, None]:
-    """
-    Context manager for database connections.
-    
-    Usage:
-        async with get_db_connection() as db:
-            cursor = await db.execute("SELECT * FROM saved_scenarios")
-            rows = await cursor.fetchall()
-    """
-    if not DB_PATH.exists():
-        await init_db()
-    
-    db = await aiosqlite.connect(DB_PATH)
-    db.row_factory = aiosqlite.Row
-    cursor = await db.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='claims'"
+async def get_db_connection() -> AsyncGenerator[AsyncConnection, None]:
+    """Context manager around a PostgreSQL connection."""
+    await init_db()
+    async with get_engine().connect() as connection:
+        yield connection
+
+
+async def fetch_one(
+    connection: AsyncConnection,
+    query: str,
+    params: Mapping[str, Any] | None = None,
+) -> RowMapping | None:
+    """Execute a text query and return a single row mapping."""
+    result = await connection.execute(text(query), params or {})
+    return result.mappings().one_or_none()
+
+
+async def fetch_all(
+    connection: AsyncConnection,
+    query: str,
+    params: Mapping[str, Any] | None = None,
+) -> list[RowMapping]:
+    """Execute a text query and return all rows as mappings."""
+    result = await connection.execute(text(query), params or {})
+    return list(result.mappings().all())
+
+
+async def truncate_all_tables(connection: AsyncConnection) -> None:
+    """Reset application tables between integration tests."""
+    await connection.execute(
+        text(
+            "TRUNCATE TABLE "
+            + ", ".join(APP_TABLES)
+            + " RESTART IDENTITY CASCADE"
+        )
     )
-    has_claims_table = await cursor.fetchone()
-    if not has_claims_table:
-        await db.executescript(SCHEMA)
-        await db.commit()
-    try:
-        yield db
-    finally:
-        await db.close()
+    await connection.commit()
+    await seed_demo_handlers(connection)
 
 
 async def close_db() -> None:
-    """Close the database connection pool (no-op for SQLite, but useful for testing)."""
+    """Dispose the shared SQLAlchemy engine."""
+    global _engine, _is_initialized
+
+    if _engine is not None:
+        await _engine.dispose()
+        _engine = None
+
+    _is_initialized = False
     logger.info("Database connection closed")
-
-
-# Initialize database on module import if DB_PATH doesn't exist
-def ensure_db_exists() -> None:
-    """Ensure the database file and tables exist (sync wrapper for startup)."""
-    import asyncio
-    
-    if not DB_PATH.exists():
-        asyncio.get_event_loop().run_until_complete(init_db())

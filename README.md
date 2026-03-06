@@ -88,6 +88,10 @@ Cost Validation   Coverage Check    History Review
 ### Environment Configuration
 Create a `.env` file in the backend directory:
 ```env
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@127.0.0.1:5433/claims_app
+TEST_DATABASE_URL=postgresql+asyncpg://postgres:postgres@127.0.0.1:5433/claims_app_test
+DATABASE_POOL_SIZE=5
+DATABASE_MAX_OVERFLOW=10
 AZURE_OPENAI_API_KEY=your_api_key_here
 AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
 AZURE_OPENAI_DEPLOYMENT_NAME=llm-deployment-name(ex. gpt-4.1)
@@ -97,9 +101,12 @@ AZURE_OPENAI_API_VERSION=2025-04-01-preview
 
 ### Backend Setup
 ```bash
+docker compose up -d postgres
 cd backend
 uv run fastapi dev
 ```
+The compose database is exposed on `127.0.0.1:5433` by default to avoid conflicts with an existing local PostgreSQL service on `5432`.
+
 The API will be available at http://localhost:8000
 
 ### Frontend Setup
@@ -109,6 +116,20 @@ npm install --legacy-peer-deps
 npm run dev
 ```
 The frontend will be available at http://localhost:3000
+
+### Single-Command Dev Workflow
+From the repo root, you can run the full local stack with auto reload:
+```bash
+make install
+make dev
+```
+
+This starts:
+- PostgreSQL via Docker Compose
+- The FastAPI server with `uvicorn --reload`
+- The Next.js dev server
+
+Use `Ctrl+C` to stop the app servers and `make stop` to stop PostgreSQL.
 
 
 ## 🌐 Azure Deployment
@@ -129,13 +150,17 @@ azd up
 This will:
 1. Create Azure Container Apps environment
 2. Set up container registry with managed identity
-3. Deploy both frontend and backend containers
-4. Configure networking and CORS policies
+3. Provision a private Azure Database for PostgreSQL Flexible Server
+4. Deploy both frontend and backend containers
+5. Configure networking, private DNS, and CORS policies
 5. Output the deployed application URLs
 
 ### Infrastructure
 The deployment creates:
 - **Container Apps Environment** with consumption-based scaling
+- **Virtual Network** with Container Apps and PostgreSQL subnets
+- **Azure Database for PostgreSQL Flexible Server** with private access
+- **Private DNS Zone** for database name resolution
 - **Azure Container Registry** for image storage
 - **Managed Identity** for secure registry access
 - **Log Analytics Workspace** for monitoring

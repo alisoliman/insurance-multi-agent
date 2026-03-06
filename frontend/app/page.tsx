@@ -122,6 +122,9 @@ export default function WorkbenchHome() {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="outline" asChild>
+                <Link href="/presentation">Open Story Deck</Link>
+              </Button>
               <Button variant="secondary" onClick={handleSeed} disabled={isSeeding}>
                 {isSeeding ? "Seeding…" : "Seed Sample Claims"}
               </Button>
