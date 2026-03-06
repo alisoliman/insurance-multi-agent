@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { motion } from "motion/react"
 import { FileSearch, Gauge, Workflow } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
@@ -13,6 +13,15 @@ const drains: { id: string; icon: LucideIcon; label: string; color: string }[] =
 
 export function OperationsFlow({ compact = false }: { compact?: boolean }) {
   const [activeDrain, setActiveDrain] = useState<string | null>(null)
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
+    setPrefersReducedMotion(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches)
+    mq.addEventListener("change", handler)
+    return () => mq.removeEventListener("change", handler)
+  }, [])
 
   const w = 680
   const h = compact ? 280 : 340
@@ -33,6 +42,8 @@ export function OperationsFlow({ compact = false }: { compact?: boolean }) {
         viewBox={`0 0 ${w} ${h}`}
         className="w-full"
         style={{ maxHeight: compact ? "280px" : "340px" }}
+        role="img"
+        aria-label="Operations workflow diagram showing claim processing pipeline with intake, triage, investigation, and resolution stages"
       >
         {/* Background grid */}
         <defs>
@@ -121,9 +132,9 @@ export function OperationsFlow({ compact = false }: { compact?: boolean }) {
 
               {/* Rotating arrow inside loop */}
               <motion.g
-                animate={{ rotate: 360 }}
-                transition={{ duration: 6, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
-                style={{ transformOrigin: `${pos.x}px ${pos.y}px` }}
+                animate={prefersReducedMotion ? {} : { rotate: 360 }}
+                transition={prefersReducedMotion ? {} : { duration: 6, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
+                style={{ transformOrigin: `${pos.x}px ${pos.y}px`, cursor: "pointer" }}
               >
                 <circle
                   cx={pos.x + loopRadius * 0.65}
@@ -137,25 +148,15 @@ export function OperationsFlow({ compact = false }: { compact?: boolean }) {
               <motion.text
                 x={pos.x + loopRadius + 14}
                 y={pos.y - 6}
-                fill={isActive ? "#fff7ec" : "#d0d6df"}
+                fill={isActive ? "#fff7ec" : "#d1d7df"}
                 fontSize="12"
                 fontWeight="500"
+                style={{ cursor: "pointer" }}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.8 + i * 0.12 }}
               >
                 {drain.label}
-              </motion.text>
-              <motion.text
-                x={pos.x + loopRadius + 14}
-                y={pos.y + 10}
-                fill="#91a6bd"
-                fontSize="10"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.9 + i * 0.12 }}
-              >
-                Repeat cycle
               </motion.text>
 
               {/* Exit arrow — time consumed */}

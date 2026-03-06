@@ -38,7 +38,7 @@ export function WorkbenchSlide({ isCompact, isShort }: SlideProps) {
               <TabsTrigger
                 key={persona.id}
                 value={persona.id}
-                className="rounded-[1rem] px-3 py-1.5 text-sm text-[#e9edf2] data-[state=active]:bg-[#fff1de] data-[state=active]:text-[#152133] dark:data-[state=active]:bg-[#fff1de] dark:data-[state=active]:text-[#152133]"
+                className="cursor-pointer rounded-[1rem] px-3 py-1.5 text-sm text-[#e9edf2] data-[state=active]:bg-[#fff1de] data-[state=active]:text-[#152133] dark:data-[state=active]:bg-[#fff1de] dark:data-[state=active]:text-[#152133]"
               >
                 {persona.label}
               </TabsTrigger>
@@ -53,7 +53,7 @@ export function WorkbenchSlide({ isCompact, isShort }: SlideProps) {
                     <CardTitle className={cn("font-[family:var(--font-fraunces)] text-4xl text-[#fff7ec]", isCompact && "text-[2rem]")}>
                       {persona.title}
                     </CardTitle>
-                    <CardDescription className={cn("text-base leading-7 text-[#d2d7df]", isCompact && "text-sm leading-6")}>
+                    <CardDescription className={cn("text-base leading-7 text-[#d1d7df]", isCompact && "text-sm leading-6")}>
                       {persona.summary}
                     </CardDescription>
                   </CardHeader>
@@ -87,7 +87,7 @@ export function WorkbenchSlide({ isCompact, isShort }: SlideProps) {
                       <div className="text-[10px] uppercase tracking-[0.3em] text-[#9fb0c4]">
                         Persona lens
                       </div>
-                      <div className="mt-1 text-[13px] leading-5 text-[#d4d8df]">
+                      <div className="mt-1 text-[13px] leading-5 text-[#d1d7df]">
                         How the same platform re-composes around a role.
                       </div>
                     </div>
@@ -110,7 +110,7 @@ export function WorkbenchSlide({ isCompact, isShort }: SlideProps) {
                               "rounded-2xl border px-4 py-3 text-sm leading-6",
                               index === 0
                                 ? "border-[#95f2df]/30 bg-[#95f2df]/10 text-[#effcf8]"
-                                : "border-white/8 bg-black/18 text-[#d4d9e0]"
+                                : "border-white/8 bg-black/18 text-[#d1d7df]"
                             )}
                           >
                             {panel}

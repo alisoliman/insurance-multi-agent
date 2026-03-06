@@ -39,10 +39,10 @@ export function PersonasSlide({ isCompact, isShort }: SlideProps) {
                       type="button"
                       onClick={() => setActiveId(persona.id)}
                       className={cn(
-                        "w-full rounded-[1.15rem] border px-4 py-3 text-left transition-all",
+                        "w-full cursor-pointer rounded-[1.15rem] border px-4 py-3 text-left transition-all",
                         isActive
                           ? "border-white/20 bg-white/12 text-[#fff7ec]"
-                          : "border-white/8 bg-black/18 text-[#d0d7df] hover:border-white/14 hover:bg-white/8"
+                          : "border-white/8 bg-black/18 text-[#d1d7df] hover:border-white/14 hover:bg-white/8"
                       )}
                     >
                       <div className="flex items-center gap-3">
@@ -75,7 +75,7 @@ export function PersonasSlide({ isCompact, isShort }: SlideProps) {
                 </div>
               </div>
 
-              <div className="mt-4 rounded-[1.3rem] border border-white/8 bg-black/18 px-4 py-3 text-sm leading-6 text-[#d1d8e0]">
+              <div className="mt-4 rounded-[1.3rem] border border-white/8 bg-black/18 px-4 py-3 text-sm leading-6 text-[#d1d7df]">
                 {activeCard.burden}
               </div>
               <div className="mt-3 rounded-[1.3rem] border border-white/8 bg-white/6 px-4 py-3 text-sm leading-6 text-[#eef2f5]">
@@ -110,7 +110,7 @@ export function PersonasSlide({ isCompact, isShort }: SlideProps) {
                   </div>
 
                   <div className="mt-4 text-sm leading-6 text-[#eef2f5]">{persona.role}</div>
-                  <div className="mt-3 rounded-[1.2rem] border border-white/8 bg-black/18 px-4 py-3 text-sm leading-6 text-[#d1d8e0]">
+                  <div className="mt-3 rounded-[1.2rem] border border-white/8 bg-black/18 px-4 py-3 text-sm leading-6 text-[#d1d7df]">
                     {persona.burden}
                   </div>
                   <div className="mt-3">

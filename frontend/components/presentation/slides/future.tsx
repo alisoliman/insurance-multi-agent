@@ -54,7 +54,7 @@ export function FutureSlide({ isCompact, isShort }: SlideProps) {
                         "w-full rounded-[1.15rem] border px-4 py-3 text-left transition-all",
                         isActive
                           ? "border-white/20 bg-white/12 text-[#fff7ec]"
-                          : "border-white/8 bg-black/18 text-[#d0d7df] hover:border-white/14 hover:bg-white/8"
+                          : "border-white/8 bg-black/18 text-[#d1d7df] hover:border-white/14 hover:bg-white/8"
                       )}
                     >
                       <div className="flex items-center justify-between gap-3">
@@ -79,7 +79,7 @@ export function FutureSlide({ isCompact, isShort }: SlideProps) {
                 <CardTitle className="font-[family:var(--font-fraunces)] text-[2.1rem] text-[#fff7ec]">
                   {activeCard.title}
                 </CardTitle>
-                <CardDescription className="text-sm leading-6 text-[#d2d7df]">
+                <CardDescription className="text-sm leading-6 text-[#d1d7df]">
                   {activeCard.focus}
                 </CardDescription>
               </CardHeader>
@@ -110,7 +110,7 @@ export function FutureSlide({ isCompact, isShort }: SlideProps) {
                     <CardTitle className={cn("font-[family:var(--font-fraunces)] text-4xl text-[#fff7ec]", isCompact && "text-[2rem]")}>
                       {step.title}
                     </CardTitle>
-                    <CardDescription className={cn("text-base leading-7 text-[#d2d7df]", isCompact && "text-sm leading-6")}>
+                    <CardDescription className={cn("text-base leading-7 text-[#d1d7df]", isCompact && "text-sm leading-6")}>
                       {step.focus}
                     </CardDescription>
                   </CardHeader>

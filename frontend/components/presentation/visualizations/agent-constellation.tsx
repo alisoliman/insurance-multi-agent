@@ -34,7 +34,13 @@ export function AgentConstellation({
 
   return (
     <div className="relative w-full">
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ maxHeight: compact ? "360px" : "400px" }}>
+      <svg
+        viewBox={`0 0 ${w} ${h}`}
+        className="w-full"
+        style={{ maxHeight: compact ? "360px" : "400px" }}
+        role="img"
+        aria-label="Agent constellation diagram showing specialized AI agents orbiting around a central Synthesizer agent: Claims Intake, Document Analyst, Investigator, Compliance, and Resolution agents"
+      >
         <defs>
           <pattern id="agent-grid" width="48" height="48" patternUnits="userSpaceOnUse">
             <path d="M 48 0 L 0 0 0 48" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
@@ -44,10 +50,17 @@ export function AgentConstellation({
             <stop offset="100%" stopColor="transparent" />
           </radialGradient>
         </defs>
+        <style>{`
+          @media (prefers-reduced-motion: reduce) {
+            .orbit-animation { animation: none !important; }
+            .pulse-animation { animation: none !important; }
+          }
+        `}</style>
         <rect width={w} height={h} fill="url(#agent-grid)" rx="24" />
 
         {/* Orbit ring */}
         <motion.circle
+          className="orbit-animation"
           cx={centerX}
           cy={centerY}
           r={orbitRadius}
@@ -128,23 +141,14 @@ export function AgentConstellation({
           />
           <text
             x={centerX}
-            y={centerY - 5}
+            y={centerY + 1}
             textAnchor="middle"
             dominantBaseline="middle"
             fill="#fff7ec"
-            fontSize="10"
+            fontSize="9"
             fontWeight="600"
           >
-            Synth
-          </text>
-          <text
-            x={centerX}
-            y={centerY + 8}
-            textAnchor="middle"
-            fill="#baa2ff"
-            fontSize="8"
-          >
-            esizer
+            Synthesizer
           </text>
         </motion.g>
 
@@ -166,6 +170,7 @@ export function AgentConstellation({
               {/* Active pulse ring */}
               {isActive && (
                 <motion.circle
+                  className="pulse-animation"
                   cx={agent.x}
                   cy={agent.y}
                   r={30}

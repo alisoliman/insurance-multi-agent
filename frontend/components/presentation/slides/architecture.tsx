@@ -76,7 +76,7 @@ export function ArchitectureSlide({ isCompact, isShort }: SlideProps) {
 
               <CardContent className={cn("flex flex-1 flex-col gap-5", isCompact && "gap-3 pt-0")}>
                 <p className={cn(
-                  "text-[13px] leading-[1.7] text-[#c8ced8]",
+                  "text-[13px] leading-[1.7] text-[#d1d7df]",
                   isCompact && "leading-[1.6]"
                 )}>
                   {activeModule.description}
@@ -100,7 +100,7 @@ export function ArchitectureSlide({ isCompact, isShort }: SlideProps) {
                           className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
                           style={{ backgroundColor: accentColors[0], opacity: 0.7 }}
                         />
-                        <span className="text-[12px] leading-snug text-[#b8c1cc]">
+                        <span className="text-[12px] leading-snug text-[#d1d7df]">
                           {aspect}
                         </span>
                       </motion.div>

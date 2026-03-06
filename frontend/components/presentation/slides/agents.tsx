@@ -53,7 +53,7 @@ export function AgentsSlide({ isCompact }: SlideProps) {
               <CardTitle className={cn("font-[family:var(--font-fraunces)] text-3xl text-[#fff7ec]", isCompact && "text-[2rem]")}>
                 {activeCard.name}
               </CardTitle>
-              <CardDescription className={cn("max-w-2xl text-base leading-7 text-[#d2d7df]", isCompact && "text-sm leading-6")}>
+              <CardDescription className={cn("max-w-2xl text-base leading-7 text-[#d1d7df]", isCompact && "text-sm leading-6")}>
                 {activeCard.title}
               </CardDescription>
             </CardHeader>

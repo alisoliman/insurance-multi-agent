@@ -41,7 +41,7 @@ export function OperationsSlide({ isCompact }: SlideProps) {
                   </div>
                   <div className="text-sm font-medium text-[#fff7ec]">{pressure.title}</div>
                 </div>
-                <div className={cn("mt-2 text-sm leading-6 text-[#cfd6df]", isCompact && "text-[13px] leading-5")}>
+                <div className={cn("mt-2 text-sm leading-6 text-[#d1d7df]", isCompact && "text-[13px] leading-5")}>
                   {pressure.copy}
                 </div>
               </div>

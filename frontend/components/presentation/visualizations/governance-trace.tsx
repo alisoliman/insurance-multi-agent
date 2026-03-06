@@ -21,7 +21,18 @@ export function GovernanceTrace({ compact = false }: { compact?: boolean }) {
 
   return (
     <div className="relative w-full">
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ maxHeight: compact ? "240px" : "280px" }}>
+      <style>{`
+        @media (prefers-reduced-motion: reduce) {
+          .governance-pulse { animation: none !important; opacity: 0.5; }
+        }
+      `}</style>
+      <svg
+        viewBox={`0 0 ${w} ${h}`}
+        className="w-full"
+        style={{ maxHeight: compact ? "240px" : "280px" }}
+        role="img"
+        aria-label="Governance audit trace timeline showing sequential compliance checkpoints: intake validation, document verification, investigation review, and resolution approval"
+      >
         <defs>
           <pattern id="gov-grid" width="48" height="48" patternUnits="userSpaceOnUse">
             <path d="M 48 0 L 0 0 0 48" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
@@ -38,6 +49,9 @@ export function GovernanceTrace({ compact = false }: { compact?: boolean }) {
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
+          <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L8,3 L0,6" fill="currentColor" opacity="0.5" />
+          </marker>
         </defs>
         <rect width={w} height={h} fill="url(#gov-grid)" rx="24" />
 
@@ -123,8 +137,9 @@ export function GovernanceTrace({ compact = false }: { compact?: boolean }) {
           transition={{ delay: 0.6, duration: 1.2 }}
         />
 
-        {/* Traveling pulse */}
+        {/* Traveling pulse — finite repeat per UX guidelines */}
         <motion.circle
+          className="governance-pulse"
           r={5}
           fill="#fff7ec"
           opacity={0.8}
@@ -132,10 +147,11 @@ export function GovernanceTrace({ compact = false }: { compact?: boolean }) {
           animate={{
             cx: [nodes[0].x, ...nodes.map((n) => n.x), nodes[nodes.length - 1].x],
             cy: timelineY,
+            opacity: [0.8, 0.8, 0.8, 0.8, 0.4],
           }}
           transition={{
             duration: 4,
-            repeat: Number.POSITIVE_INFINITY,
+            repeat: 3,
             ease: "easeInOut",
             times: [0, ...nodes.map((_, i) => (i + 1) / (nodes.length + 1)), 1],
           }}
@@ -157,6 +173,7 @@ export function GovernanceTrace({ compact = false }: { compact?: boolean }) {
               fill="rgba(255,255,255,0.06)"
               stroke="rgba(255,255,255,0.15)"
               strokeWidth={1.5}
+              className="cursor-pointer"
             />
 
             {/* Step number */}
@@ -186,19 +203,18 @@ export function GovernanceTrace({ compact = false }: { compact?: boolean }) {
 
             {/* Connector arrows between nodes */}
             {i < nodes.length - 1 && (
-              <motion.text
-                x={(node.x + nodes[i + 1].x) / 2}
-                y={node.y - 1}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fill="rgba(255,255,255,0.25)"
-                fontSize="14"
+              <motion.line
+                x1={node.x + 22}
+                y1={node.y}
+                x2={nodes[i + 1].x - 22}
+                y2={node.y}
+                stroke="rgba(255,255,255,0.3)"
+                strokeWidth={1.5}
+                markerEnd="url(#arrowhead)"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.8 + i * 0.15 }}
-              >
-                →
-              </motion.text>
+              />
             )}
           </motion.g>
         ))}

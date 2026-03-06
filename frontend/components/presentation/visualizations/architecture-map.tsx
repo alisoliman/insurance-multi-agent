@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { motion } from "motion/react"
 
 import { architectureModules, architectureFlows } from "../slide-data"
@@ -113,9 +114,24 @@ export function ArchitectureMap({
   const w = 730
   const h = compact ? 380 : 400
 
+  const [reducedMotion, setReducedMotion] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
+    setReducedMotion(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setReducedMotion(e.matches)
+    mq.addEventListener("change", handler)
+    return () => mq.removeEventListener("change", handler)
+  }, [])
+
   return (
     <div className="relative w-full">
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ maxHeight: compact ? "380px" : "400px" }}>
+      <svg
+        viewBox={`0 0 ${w} ${h}`}
+        className="w-full"
+        style={{ maxHeight: compact ? "380px" : "400px" }}
+        role="img"
+        aria-label="Architecture diagram showing five interconnected modules: Claims Intake, Document Intelligence, Investigation Engine, Trust and Compliance, and Claims Resolution"
+      >
         <defs>
           {/* Subtle dot grid */}
           <pattern id="arch-dots" width="32" height="32" patternUnits="userSpaceOnUse">
@@ -260,22 +276,34 @@ export function ArchitectureMap({
               </motion.g>
 
               {/* Traveling particle */}
-              <motion.circle
-                r={isHighlighted ? 3.5 : 2}
-                fill={isHighlighted ? "#fff7ec" : "rgba(255,255,255,0.25)"}
-                filter={isHighlighted ? "url(#active-glow)" : undefined}
-                animate={{
-                  cx: [from.x, to.x],
-                  cy: [from.y, to.y],
-                  opacity: [0, 0.85, 0.85, 0],
-                }}
-                transition={{
-                  duration: isHighlighted ? 2.4 : 4,
-                  repeat: Number.POSITIVE_INFINITY,
-                  ease: "easeInOut",
-                  delay: i * 0.7,
-                }}
-              />
+              {reducedMotion ? (
+                <circle
+                  r={isHighlighted ? 3.5 : 2}
+                  cx={(from.x + to.x) / 2}
+                  cy={(from.y + to.y) / 2}
+                  fill={isHighlighted ? "#fff7ec" : "rgba(255,255,255,0.25)"}
+                  opacity={0.6}
+                  data-dot-particle
+                />
+              ) : (
+                <motion.circle
+                  r={isHighlighted ? 3.5 : 2}
+                  fill={isHighlighted ? "#fff7ec" : "rgba(255,255,255,0.25)"}
+                  filter={isHighlighted ? "url(#active-glow)" : undefined}
+                  data-dot-particle
+                  animate={{
+                    cx: [from.x, to.x],
+                    cy: [from.y, to.y],
+                    opacity: [0, 0.85, 0.85, 0],
+                  }}
+                  transition={{
+                    duration: isHighlighted ? 2.4 : 4,
+                    repeat: Number.POSITIVE_INFINITY,
+                    ease: "easeInOut",
+                    delay: i * 0.7,
+                  }}
+                />
+              )}
             </g>
           )
         })}

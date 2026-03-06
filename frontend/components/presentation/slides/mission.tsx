@@ -75,7 +75,7 @@ export function MissionSlide({ isCompact }: SlideProps) {
                     {pillar.title}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className={cn("text-sm leading-7 text-[#d1d6de]", isCompact && "pt-0 leading-6")}>
+                <CardContent className={cn("text-sm leading-7 text-[#d1d7df]", isCompact && "pt-0 leading-6")}>
                   {pillar.copy}
                 </CardContent>
               </Card>
@@ -98,7 +98,7 @@ export function MissionSlide({ isCompact }: SlideProps) {
               </h3>
               <div className="mt-4 space-y-2">
                 {panel.points.map((point) => (
-                  <div key={point} className={cn("rounded-2xl border border-white/8 bg-white/6 px-4 py-3 text-sm leading-7 text-[#d4d8df]", isCompact && "px-3.5 py-2.5 leading-6")}>
+                  <div key={point} className={cn("rounded-2xl border border-white/8 bg-white/6 px-4 py-3 text-sm leading-7 text-[#d1d7df]", isCompact && "px-3.5 py-2.5 leading-6")}>
                     {point}
                   </div>
                 ))}

@@ -67,7 +67,7 @@ export function CloseSlide({
             <CardTitle className={cn("font-[family:var(--font-fraunces)] text-4xl text-[#fff7ec]", isCompact && "text-[2rem]")}>
               Already proven
             </CardTitle>
-            <CardDescription className={cn("text-base leading-7 text-[#d2d7df]", isCompact && "text-sm leading-6")}>
+            <CardDescription className={cn("text-base leading-7 text-[#d1d7df]", isCompact && "text-sm leading-6")}>
               This is a working product with a narrative layer built into it — not a concept deck.
             </CardDescription>
           </CardHeader>
@@ -78,7 +78,7 @@ export function CloseSlide({
                   <item.icon className="mt-0.5 size-5 text-[#95f2df]" />
                   <div>
                     <div className="text-sm font-medium text-[#fff7ec]">{item.title}</div>
-                    <div className="mt-1 text-sm leading-6 text-[#d3d8df]">{item.copy}</div>
+                    <div className="mt-1 text-sm leading-6 text-[#d1d7df]">{item.copy}</div>
                   </div>
                 </div>
               </div>

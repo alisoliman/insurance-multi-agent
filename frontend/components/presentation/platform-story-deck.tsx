@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react"
 import { Fraunces, IBM_Plex_Sans } from "next/font/google"
-import { AnimatePresence, motion } from "motion/react"
+import { AnimatePresence, motion, MotionConfig } from "motion/react"
 import {
   ChevronLeft,
   ChevronRight,
@@ -279,6 +279,7 @@ export function PlatformStoryDeck() {
         "h-[100svh] max-h-[100svh] overflow-hidden bg-[#06111a] text-[#f8ead8]"
       )}
     >
+      <MotionConfig reducedMotion="user">
       <div className="relative isolate h-[100svh] overflow-hidden font-[family:var(--font-plex-sans)]">
         {/* Animated background */}
         <motion.div
@@ -328,7 +329,7 @@ export function PlatformStoryDeck() {
               >
                 <ChevronLeft className="size-4" />
               </Button>
-              <div className="px-3 text-sm text-[#d2d7df]">
+              <div className="px-3 text-sm text-[#d1d7df]">
                 {String(currentIndex + 1).padStart(2, "0")} / {String(slideMeta.length).padStart(2, "0")}
               </div>
               <Button
@@ -483,6 +484,7 @@ export function PlatformStoryDeck() {
           </AnimatePresence>
         </footer>
       </div>
+      </MotionConfig>
     </div>
   )
 }

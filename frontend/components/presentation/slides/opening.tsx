@@ -46,7 +46,7 @@ export function OpeningSlide({
           </h1>
           <p
             className={cn(
-              "max-w-[43rem] text-[15px] leading-7 text-[#d3d7de] sm:text-[1.02rem]",
+              "max-w-[43rem] text-[15px] leading-7 text-[#d1d7df] sm:text-[1.02rem]",
               isCompact && "max-w-[40rem] text-sm leading-6 sm:text-sm"
             )}
           >
@@ -104,7 +104,7 @@ export function OpeningSlide({
               <PanelTop className="size-5 text-[#9ef2de]" />
               What this deck does
             </CardTitle>
-            <CardDescription className={cn("text-[#d0d6df]", isCompact && "text-sm leading-5")}>
+            <CardDescription className={cn("text-[#d1d7df]", isCompact && "text-sm leading-5")}>
               A presenter-led web narrative, not a screenshot gallery.
             </CardDescription>
           </CardHeader>
@@ -144,7 +144,7 @@ export function OpeningSlide({
               <div className="mt-3 font-[family:var(--font-fraunces)] text-[2.6rem] text-[#fff7ec]">
                 {item.label}
               </div>
-              <div className="mt-1 text-sm text-[#d0d6df]">{item.title}</div>
+              <div className="mt-1 text-sm text-[#d1d7df]">{item.title}</div>
             </motion.div>
           ))}
         </div>
