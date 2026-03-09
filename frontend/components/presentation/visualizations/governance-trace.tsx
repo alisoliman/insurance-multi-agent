@@ -4,9 +4,9 @@ import { motion } from "motion/react"
 
 import { traceChain, governancePillars } from "../slide-data"
 
-export function GovernanceTrace({ compact = false }: { compact?: boolean }) {
+export function GovernanceTrace() {
   const w = 700
-  const h = compact ? 240 : 280
+  const h = 260
   const timelineY = h * 0.6
   const nodeSpacing = (w - 120) / (traceChain.length - 1)
   const startX = 60
@@ -17,7 +17,7 @@ export function GovernanceTrace({ compact = false }: { compact?: boolean }) {
     y: timelineY,
   }))
 
-  const guardrailY = compact ? 40 : 50
+  const guardrailY = 45
 
   return (
     <div className="relative w-full">
@@ -29,7 +29,7 @@ export function GovernanceTrace({ compact = false }: { compact?: boolean }) {
       <svg
         viewBox={`0 0 ${w} ${h}`}
         className="w-full"
-        style={{ maxHeight: compact ? "240px" : "280px" }}
+        style={{ maxHeight: "260px" }}
         role="img"
         aria-label="Governance audit trace timeline showing sequential compliance checkpoints: intake validation, document verification, investigation review, and resolution approval"
       >
@@ -61,29 +61,11 @@ export function GovernanceTrace({ compact = false }: { compact?: boolean }) {
           return (
             <motion.g
               key={pillar.title}
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 + i * 0.1 }}
             >
-              <rect
-                x={x - 60}
-                y={guardrailY - 12}
-                width={120}
-                height={24}
-                rx={12}
-                fill="rgba(255,255,255,0.04)"
-                stroke="rgba(255,255,255,0.08)"
-                strokeWidth={1}
-              />
-              <text
-                x={x}
-                y={guardrailY + 1}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fill="#91a6bd"
-                fontSize="8"
-                letterSpacing="0.08em"
-              >
+              <rect x={x - 60} y={guardrailY - 12} width={120} height={24} rx={12} fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" strokeWidth={1} />
+              <text x={x} y={guardrailY + 1} textAnchor="middle" dominantBaseline="middle" fill="#91a6bd" fontSize="8" letterSpacing="0.08em">
                 {pillar.title.toUpperCase()}
               </text>
             </motion.g>
@@ -96,63 +78,39 @@ export function GovernanceTrace({ compact = false }: { compact?: boolean }) {
           return (
             <motion.line
               key={`line-${pillar.title}`}
-              x1={x}
-              y1={guardrailY + 14}
-              x2={x}
-              y2={timelineY - 30}
-              stroke="rgba(255,255,255,0.06)"
-              strokeWidth={1}
-              strokeDasharray="3 6"
-              initial={{ pathLength: 0 }}
-              animate={{ pathLength: 1 }}
+              x1={x} y1={guardrailY + 14} x2={x} y2={timelineY - 30}
+              stroke="rgba(255,255,255,0.06)" strokeWidth={1} strokeDasharray="3 6"
+              initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
               transition={{ delay: 0.5 + i * 0.1, duration: 0.4 }}
             />
           )
         })}
 
-        {/* Main timeline line */}
+        {/* Main timeline */}
         <motion.line
-          x1={nodes[0].x}
-          y1={timelineY}
-          x2={nodes[nodes.length - 1].x}
-          y2={timelineY}
-          stroke="rgba(255,255,255,0.1)"
-          strokeWidth={2}
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1 }}
+          x1={nodes[0].x} y1={timelineY} x2={nodes[nodes.length - 1].x} y2={timelineY}
+          stroke="rgba(255,255,255,0.1)" strokeWidth={2}
+          initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
           transition={{ delay: 0.3, duration: 0.8 }}
         />
-
-        {/* Animated gradient overlay on timeline */}
         <motion.line
-          x1={nodes[0].x}
-          y1={timelineY}
-          x2={nodes[nodes.length - 1].x}
-          y2={timelineY}
-          stroke="url(#timeline-grad)"
-          strokeWidth={2}
-          strokeLinecap="round"
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1 }}
+          x1={nodes[0].x} y1={timelineY} x2={nodes[nodes.length - 1].x} y2={timelineY}
+          stroke="url(#timeline-grad)" strokeWidth={2} strokeLinecap="round"
+          initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
           transition={{ delay: 0.6, duration: 1.2 }}
         />
 
-        {/* Traveling pulse — finite repeat per UX guidelines */}
+        {/* Traveling pulse */}
         <motion.circle
           className="governance-pulse"
-          r={5}
-          fill="#fff7ec"
-          opacity={0.8}
-          filter="url(#pulse-glow)"
+          r={5} fill="#fff7ec" opacity={0.8} filter="url(#pulse-glow)"
           animate={{
             cx: [nodes[0].x, ...nodes.map((n) => n.x), nodes[nodes.length - 1].x],
             cy: timelineY,
             opacity: [0.8, 0.8, 0.8, 0.8, 0.4],
           }}
           transition={{
-            duration: 4,
-            repeat: 3,
-            ease: "easeInOut",
+            duration: 4, repeat: 3, ease: "easeInOut",
             times: [0, ...nodes.map((_, i) => (i + 1) / (nodes.length + 1)), 1],
           }}
         />
@@ -161,58 +119,21 @@ export function GovernanceTrace({ compact = false }: { compact?: boolean }) {
         {nodes.map((node, i) => (
           <motion.g
             key={node.title}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
+            initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.5 + i * 0.15, type: "spring", stiffness: 200, damping: 18 }}
           >
-            {/* Node circle */}
-            <circle
-              cx={node.x}
-              cy={node.y}
-              r={20}
-              fill="rgba(255,255,255,0.06)"
-              stroke="rgba(255,255,255,0.15)"
-              strokeWidth={1.5}
-              className="cursor-pointer"
-            />
-
-            {/* Step number */}
-            <text
-              x={node.x}
-              y={node.y + 1}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fill="#f5c483"
-              fontSize="12"
-              fontWeight="600"
-            >
+            <circle cx={node.x} cy={node.y} r={20} fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.15)" strokeWidth={1.5} className="cursor-pointer" />
+            <text x={node.x} y={node.y + 1} textAnchor="middle" dominantBaseline="middle" fill="#f5c483" fontSize="12" fontWeight="600">
               {String(i + 1).padStart(2, "0")}
             </text>
-
-            {/* Label below */}
-            <text
-              x={node.x}
-              y={node.y + 36}
-              textAnchor="middle"
-              fill="#fff7ec"
-              fontSize="10"
-              fontWeight="500"
-            >
+            <text x={node.x} y={node.y + 36} textAnchor="middle" fill="#fff7ec" fontSize="10" fontWeight="500">
               {node.title}
             </text>
-
-            {/* Connector arrows between nodes */}
             {i < nodes.length - 1 && (
               <motion.line
-                x1={node.x + 22}
-                y1={node.y}
-                x2={nodes[i + 1].x - 22}
-                y2={node.y}
-                stroke="rgba(255,255,255,0.3)"
-                strokeWidth={1.5}
-                markerEnd="url(#arrowhead)"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                x1={node.x + 22} y1={node.y} x2={nodes[i + 1].x - 22} y2={node.y}
+                stroke="rgba(255,255,255,0.3)" strokeWidth={1.5} markerEnd="url(#arrowhead)"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                 transition={{ delay: 0.8 + i * 0.15 }}
               />
             )}

@@ -74,24 +74,21 @@ function resolveSlideIndex(slide: string | null) {
 const slideVariants = {
   enter: (direction: number) => ({
     opacity: 0,
-    x: direction >= 0 ? 72 : -72,
-    y: direction >= 0 ? 18 : -18,
+    x: direction >= 0 ? 60 : -60,
     scale: 0.98,
-    filter: "blur(14px)",
+    filter: "blur(12px)",
   }),
   center: {
     opacity: 1,
     x: 0,
-    y: 0,
     scale: 1,
     filter: "blur(0px)",
   },
   exit: (direction: number) => ({
     opacity: 0,
-    x: direction >= 0 ? -72 : 72,
-    y: direction >= 0 ? -12 : 12,
+    x: direction >= 0 ? -60 : 60,
     scale: 1.01,
-    filter: "blur(14px)",
+    filter: "blur(12px)",
   }),
 }
 
@@ -112,27 +109,10 @@ export function PlatformStoryDeck() {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [hasInteracted, setHasInteracted] = useState(false)
   const [hasMounted, setHasMounted] = useState(false)
-  const [viewportHeight, setViewportHeight] = useState(0)
 
   const currentSlide = slideMeta[currentIndex]
   const isOpeningSlide = currentSlide.id === "opening"
-  const isCompact = viewportHeight > 0 && viewportHeight < 900
-  const isShort = viewportHeight > 0 && viewportHeight < 760
-  const showExpandedRail = !isOpeningSlide && !isShort
-  const showPresenterHints = !hasInteracted && !isOpeningSlide
   const shouldAnimate = hasMounted && hasInteracted
-
-  const contentInsetClass = showExpandedRail
-    ? "xl:pl-[19rem] 2xl:pl-[21rem]"
-    : "xl:pl-32 2xl:pl-36"
-
-  const mainFrameClass = isShort
-    ? "relative z-10 h-[100svh] overflow-hidden px-4 pb-16 pt-[6.65rem] sm:px-8 sm:pt-[7rem] lg:px-12 lg:pt-[7.2rem] xl:pr-20 2xl:pr-24"
-    : "relative z-10 h-[100svh] overflow-hidden px-4 pb-12 pt-[8.25rem] sm:px-8 sm:pt-[9rem] lg:px-12 lg:pt-[9.5rem] xl:pr-20 2xl:pr-24"
-
-  const headerInnerClass = isShort
-    ? "mx-auto flex max-w-[98rem] items-center justify-between gap-4 px-4 py-3 sm:px-8 lg:px-12"
-    : "mx-auto flex max-w-[98rem] items-center justify-between gap-4 px-4 py-4 sm:px-8 lg:px-12"
 
   /* ---- URL sync ---- */
 
@@ -187,32 +167,18 @@ export function PlatformStoryDeck() {
   }, [currentIndex, requestedSlide])
 
   useEffect(() => {
-    if (typeof window === "undefined") return
-    const update = () => setViewportHeight(window.innerHeight)
-    update()
-    window.addEventListener("resize", update)
-    return () => window.removeEventListener("resize", update)
-  }, [])
-
-  useEffect(() => {
     if (typeof document === "undefined") return
     const { body, documentElement } = document
     const prev = {
       bodyOverflow: body.style.overflow,
       htmlOverflow: documentElement.style.overflow,
-      bodyOverscroll: body.style.overscrollBehavior,
-      htmlOverscroll: documentElement.style.overscrollBehavior,
     }
     body.style.overflow = "hidden"
     documentElement.style.overflow = "hidden"
-    body.style.overscrollBehavior = "none"
-    documentElement.style.overscrollBehavior = "none"
     window.scrollTo(0, 0)
     return () => {
       body.style.overflow = prev.bodyOverflow
       documentElement.style.overflow = prev.htmlOverflow
-      body.style.overscrollBehavior = prev.bodyOverscroll
-      documentElement.style.overscrollBehavior = prev.htmlOverscroll
     }
   }, [])
 
@@ -246,25 +212,22 @@ export function PlatformStoryDeck() {
 
   /* ---- Slide content map ---- */
 
-  const slideProps = { isCompact, isShort }
-
   const slides: Record<SlideId, ReactNode> = {
     opening: (
       <OpeningSlide
-        {...slideProps}
         onNext={() => shiftSlide(1)}
         shouldAnimate={shouldAnimate}
       />
     ),
-    operations: <OperationsSlide {...slideProps} />,
-    personas: <PersonasSlide {...slideProps} />,
-    mission: <MissionSlide {...slideProps} />,
-    architecture: <ArchitectureSlide {...slideProps} />,
-    agents: <AgentsSlide {...slideProps} />,
-    workbench: <WorkbenchSlide {...slideProps} />,
-    governance: <GovernanceSlide {...slideProps} />,
-    future: <FutureSlide {...slideProps} />,
-    close: <CloseSlide {...slideProps} onRestart={() => goToSlide(0)} />,
+    operations: <OperationsSlide />,
+    personas: <PersonasSlide />,
+    mission: <MissionSlide />,
+    architecture: <ArchitectureSlide />,
+    agents: <AgentsSlide />,
+    workbench: <WorkbenchSlide />,
+    governance: <GovernanceSlide />,
+    future: <FutureSlide />,
+    close: <CloseSlide onRestart={() => goToSlide(0)} />,
   }
 
   const progress = ((currentIndex + 1) / slideMeta.length) * 100
@@ -276,11 +239,11 @@ export function PlatformStoryDeck() {
       className={cn(
         fraunces.variable,
         plexSans.variable,
-        "h-[100svh] max-h-[100svh] overflow-hidden bg-[#06111a] text-[#f8ead8]"
+        "h-dvh overflow-hidden bg-[#06111a] text-[#f8ead8]"
       )}
     >
       <MotionConfig reducedMotion="user">
-      <div className="relative isolate h-[100svh] overflow-hidden font-[family:var(--font-plex-sans)]">
+      <div className="relative isolate flex h-full flex-col font-[family:var(--font-plex-sans)]">
         {/* Animated background */}
         <motion.div
           className="pointer-events-none absolute inset-0"
@@ -297,29 +260,20 @@ export function PlatformStoryDeck() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0,rgba(4,8,14,0.24)_55%,rgba(4,8,14,0.82)_100%)]" />
 
         {/* Header */}
-        <header className="fixed inset-x-0 top-0 z-30">
-          <div className={headerInnerClass}>
-            <div className={cn(
-              "rounded-[1.15rem] border border-white/10 bg-black/20 px-4 py-2.5 shadow-[0_18px_60px_rgba(0,0,0,0.16)] backdrop-blur",
-              isShort && "px-3.5 py-2"
-            )}>
-              <div className={cn(
-                "flex items-center gap-3 text-[9px] uppercase tracking-[0.32em] text-[#9fb0c4]",
-                isShort && "gap-2 text-[8px]"
-              )}>
+        <header className="relative z-30 shrink-0">
+          <div className="mx-auto flex max-w-[98rem] items-center justify-between gap-4 px-4 py-4 sm:px-8 lg:px-12 xl:px-6">
+            <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-2.5 shadow-lg backdrop-blur">
+              <div className="flex items-center gap-3 text-[9px] uppercase tracking-[0.32em] text-[#9fb0c4]">
                 <span>Contoso AI Claims</span>
                 <span className="h-1 w-1 rounded-full bg-white/20" />
                 <span>{isOpeningSlide ? "Story deck" : "Presentation route"}</span>
               </div>
-              <div className={cn("mt-1.5 text-sm font-medium text-[#fff7ec]", isShort && "mt-1 text-[13px]")}>
+              <div className="mt-1.5 text-sm font-medium text-[#fff7ec]">
                 {currentSlide.section}
               </div>
             </div>
 
-            <div className={cn(
-              "flex items-center gap-1.5 rounded-full border border-white/10 bg-black/24 px-1.5 py-1.5 backdrop-blur",
-              isShort && "gap-1 px-1 py-1"
-            )}>
+            <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/24 px-1.5 py-1.5 backdrop-blur">
               <Button
                 variant="ghost"
                 size="icon"
@@ -362,22 +316,16 @@ export function PlatformStoryDeck() {
           </div>
         </header>
 
-        {/* Sidebar navigation rail */}
-        <aside className={cn("fixed left-6 z-20 hidden xl:block", isShort ? "top-24" : "top-32")}>
-          <AnimatePresence initial={false} mode="wait">
-            {showExpandedRail ? (
-              <motion.div
-                key="expanded-rail"
-                initial={shouldAnimate ? { opacity: 0, x: -18, filter: "blur(10px)" } : false}
-                animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-                exit={{ opacity: 0, x: -18, filter: "blur(10px)" }}
-                transition={{ duration: 0.28, ease: "easeInOut" }}
-                className="max-h-[calc(100vh-10rem)] w-[14.75rem] overflow-y-auto rounded-[1.8rem] border border-white/10 bg-black/18 p-3 shadow-[0_30px_90px_rgba(0,0,0,0.24)] backdrop-blur"
-              >
+        {/* Body: sidebar + main */}
+        <div className="relative z-10 flex min-h-0 flex-1">
+          {/* Sidebar navigation rail */}
+          {!isOpeningSlide && (
+            <aside className="hidden w-64 shrink-0 p-4 xl:block">
+              <div className="h-full overflow-y-auto rounded-2xl border border-white/10 bg-black/18 p-3 backdrop-blur">
                 <div className="mb-3 px-3 text-[10px] uppercase tracking-[0.3em] text-[#9fb0c4]">
                   Slide map
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {slideMeta.map((slide, index) => {
                     const isActive = index === currentIndex
                     return (
@@ -386,7 +334,7 @@ export function PlatformStoryDeck() {
                         type="button"
                         onClick={() => goToSlide(index)}
                         className={cn(
-                          "flex w-full items-center gap-3 rounded-[1.15rem] px-3 py-2 text-left transition-all",
+                          "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors",
                           isActive
                             ? "bg-white/12 text-[#fff7ec]"
                             : "text-[#c5ccd6] hover:bg-white/8 hover:text-[#fff7ec]"
@@ -394,7 +342,7 @@ export function PlatformStoryDeck() {
                       >
                         <div
                           className={cn(
-                            "h-2.5 w-2.5 rounded-full",
+                            "h-2.5 w-2.5 shrink-0 rounded-full",
                             isActive ? "bg-[#fff1de]" : "bg-white/25"
                           )}
                         />
@@ -406,75 +354,40 @@ export function PlatformStoryDeck() {
                     )
                   })}
                 </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="compact-rail"
-                initial={shouldAnimate ? { opacity: 0, x: -18, filter: "blur(10px)" } : false}
-                animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-                exit={{ opacity: 0, x: -18, filter: "blur(10px)" }}
-                transition={{ duration: 0.28, ease: "easeInOut" }}
-                className="w-[4.95rem] rounded-[1.8rem] border border-white/10 bg-black/18 px-3 py-4 shadow-[0_30px_90px_rgba(0,0,0,0.24)] backdrop-blur"
-              >
-                <div className="text-center text-[10px] uppercase tracking-[0.3em] text-[#9fb0c4]">
-                  Flow
-                </div>
-                <div className="mt-4 flex flex-col items-center gap-3">
-                  {slideMeta.map((slide, index) => {
-                    const isActive = index === currentIndex
-                    return (
-                      <button
-                        key={slide.id}
-                        type="button"
-                        onClick={() => goToSlide(index)}
-                        className={cn(
-                          "flex size-9 items-center justify-center rounded-full border text-xs transition-all",
-                          isActive
-                            ? "border-white/20 bg-[#fff1de] text-[#152133]"
-                            : "border-white/10 bg-white/6 text-[#d5dbe3] hover:bg-white/10"
-                        )}
-                        title={slide.section}
-                      >
-                        {String(index + 1).padStart(2, "0")}
-                      </button>
-                    )
-                  })}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </aside>
+              </div>
+            </aside>
+          )}
 
-        {/* Main content */}
-        <main className={cn(mainFrameClass, contentInsetClass)}>
-          <div className={cn("mx-auto h-full", isOpeningSlide ? "max-w-[96rem]" : "max-w-[90rem]")}>
-            <AnimatePresence initial={false} mode="wait" custom={slideDirection}>
-              <motion.section
-                key={currentSlide.id}
-                custom={slideDirection}
-                variants={slideVariants}
-                initial={shouldAnimate ? "enter" : false}
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.42, ease: "easeInOut" }}
-                className="h-full"
-              >
-                {slides[currentSlide.id]}
-              </motion.section>
-            </AnimatePresence>
-          </div>
-        </main>
+          {/* Main content */}
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 xl:pr-12">
+            <div className="mx-auto flex min-h-full max-w-[90rem] flex-col justify-center">
+              <AnimatePresence initial={false} mode="wait" custom={slideDirection}>
+                <motion.section
+                  key={currentSlide.id}
+                  custom={slideDirection}
+                  variants={slideVariants}
+                  initial={shouldAnimate ? "enter" : false}
+                  animate="center"
+                  exit="exit"
+                  transition={{ duration: 0.42, ease: "easeInOut" }}
+                >
+                  {slides[currentSlide.id]}
+                </motion.section>
+              </AnimatePresence>
+            </div>
+          </main>
+        </div>
 
         {/* Footer hints */}
-        <footer className="pointer-events-none fixed inset-x-0 bottom-0 z-20">
+        <footer className="pointer-events-none relative z-20 shrink-0">
           <AnimatePresence initial={false}>
-            {showPresenterHints && (
+            {!hasInteracted && !isOpeningSlide && (
               <motion.div
                 initial={shouldAnimate ? { opacity: 0, y: 18 } : false}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 18 }}
                 transition={{ duration: 0.28, ease: "easeInOut" }}
-                className="mx-auto mb-6 hidden w-fit items-center gap-3 rounded-full border border-white/10 bg-black/22 px-4 py-2 text-[11px] uppercase tracking-[0.24em] text-[#9fb0c4] backdrop-blur md:flex"
+                className="mx-auto mb-4 hidden w-fit items-center gap-3 rounded-full border border-white/10 bg-black/22 px-4 py-2 text-[11px] uppercase tracking-[0.24em] text-[#9fb0c4] backdrop-blur md:flex"
               >
                 <span>Use ← → or space to navigate</span>
                 <span className="h-1 w-1 rounded-full bg-white/20" />

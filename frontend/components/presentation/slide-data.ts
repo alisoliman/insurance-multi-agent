@@ -312,7 +312,7 @@ export const repetitiveWorkstreams: readonly WorkstreamItem[] = [
   },
   {
     icon: Workflow,
-    title: "Context stitching",
+    title: "Context switching",
     copy: "Damage, coverage, risk, and customer communication live in separate tools and separate mental models.",
   },
 ] as const
