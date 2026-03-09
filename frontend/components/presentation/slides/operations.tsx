@@ -31,8 +31,8 @@ export function OperationsSlide({ isCompact }: SlideProps) {
               <div
                 key={pressure.title}
                 className={cn(
-                  "rounded-[1.4rem] border border-white/10 bg-white/7 p-4 shadow-[0_20px_70px_rgba(0,0,0,0.24)] backdrop-blur",
-                  isCompact && "p-3"
+                  "rounded-[1.4rem] border border-white/10 bg-white/7 px-5 py-4 shadow-[0_20px_70px_rgba(0,0,0,0.24)] backdrop-blur",
+                  isCompact && "px-3.5 py-3"
                 )}
               >
                 <div className="flex items-center gap-3">
@@ -41,7 +41,7 @@ export function OperationsSlide({ isCompact }: SlideProps) {
                   </div>
                   <div className="text-sm font-medium text-[#fff7ec]">{pressure.title}</div>
                 </div>
-                <div className={cn("mt-2 text-sm leading-6 text-[#d1d7df]", isCompact && "text-[13px] leading-5")}>
+                <div className={cn("mt-2.5 text-[15px] leading-6 text-[#d1d7df]", isCompact && "text-[13px] leading-5")}>
                   {pressure.copy}
                 </div>
               </div>

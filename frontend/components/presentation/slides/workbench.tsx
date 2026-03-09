@@ -59,20 +59,20 @@ export function WorkbenchSlide({ isCompact, isShort }: SlideProps) {
                   </CardHeader>
                   <CardContent className="grid gap-4 md:grid-cols-2">
                     <div>
-                      <div className="text-[10px] uppercase tracking-[0.3em] text-[#f5c483]">What this persona sees</div>
+                      <div className="text-[11px] uppercase tracking-[0.3em] text-[#f5c483]">What this persona sees</div>
                       <div className="mt-3 grid gap-2">
                         {persona.lenses.map((lens) => (
-                          <div key={lens} className="rounded-2xl border border-white/8 bg-black/18 px-4 py-3 text-sm leading-6 text-[#edf1f5]">
+                          <div key={lens} className={cn("flex min-h-[3.2rem] items-center rounded-2xl border border-white/8 bg-black/18 px-4 py-3 text-[15px] leading-6 text-[#edf1f5]", isCompact && "min-h-0 py-2 text-sm")}>
                             {lens}
                           </div>
                         ))}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] uppercase tracking-[0.3em] text-[#95f2df]">Workbench composition</div>
+                      <div className="text-[11px] uppercase tracking-[0.3em] text-[#95f2df]">Workbench composition</div>
                       <div className="mt-3 grid gap-2">
                         {persona.panels.map((panel) => (
-                          <div key={panel} className="rounded-2xl border border-white/8 bg-white/6 px-4 py-3 text-sm leading-6 text-[#edf1f5]">
+                          <div key={panel} className={cn("flex min-h-[3.2rem] items-center rounded-2xl border border-white/8 bg-white/6 px-4 py-3 text-[15px] leading-6 text-[#edf1f5]", isCompact && "min-h-0 py-2 text-sm")}>
                             {panel}
                           </div>
                         ))}
@@ -81,13 +81,13 @@ export function WorkbenchSlide({ isCompact, isShort }: SlideProps) {
                   </CardContent>
                 </Card>
 
-                <div className="rounded-[2rem] border border-white/10 bg-[#09131f]/78 p-4 shadow-[0_34px_120px_rgba(0,0,0,0.32)] backdrop-blur">
+                <div className="flex flex-col rounded-[2rem] border border-white/10 bg-[#09131f]/78 p-4 shadow-[0_34px_120px_rgba(0,0,0,0.32)] backdrop-blur">
                   <div className="mb-4 flex items-center justify-between">
                     <div>
-                      <div className="text-[10px] uppercase tracking-[0.3em] text-[#9fb0c4]">
+                      <div className="text-[11px] uppercase tracking-[0.3em] text-[#9fb0c4]">
                         Persona lens
                       </div>
-                      <div className="mt-1 text-[13px] leading-5 text-[#d1d7df]">
+                      <div className="mt-1 text-[14px] leading-5 text-[#d1d7df]">
                         How the same platform re-composes around a role.
                       </div>
                     </div>
@@ -96,18 +96,19 @@ export function WorkbenchSlide({ isCompact, isShort }: SlideProps) {
                     </Badge>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-[1.1fr_0.9fr]">
+                  <div className="grid flex-1 gap-3 md:grid-cols-[1.1fr_0.9fr]">
                     <div className="rounded-[1.5rem] border border-white/8 bg-white/7 p-4">
                       <div className="flex items-center gap-3">
                         <BriefcaseBusiness className="size-5 text-[#95f2df]" />
                         <div className="text-sm font-medium text-[#fff7ec]">Primary view</div>
                       </div>
-                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <div className="mt-3 grid gap-2">
                         {persona.panels.map((panel, index) => (
                           <div
                             key={panel}
                             className={cn(
-                              "rounded-2xl border px-4 py-3 text-sm leading-6",
+                              "flex min-h-[3.2rem] items-center rounded-2xl border px-4 py-3 text-[15px] leading-6",
+                              isCompact && "min-h-0 py-2 text-sm",
                               index === 0
                                 ? "border-[#95f2df]/30 bg-[#95f2df]/10 text-[#effcf8]"
                                 : "border-white/8 bg-black/18 text-[#d1d7df]"
@@ -124,9 +125,9 @@ export function WorkbenchSlide({ isCompact, isShort }: SlideProps) {
                         <Radar className="size-5 text-[#8ecbff]" />
                         <div className="text-sm font-medium text-[#fff7ec]">Signals surfaced</div>
                       </div>
-                      <div className="mt-3 space-y-2">
+                      <div className="mt-3 grid gap-2">
                         {persona.lenses.map((lens) => (
-                          <div key={lens} className="rounded-2xl border border-white/8 bg-black/16 px-4 py-3 text-sm leading-6 text-[#eaf0f5]">
+                          <div key={lens} className={cn("flex min-h-[3.2rem] items-center rounded-2xl border border-white/8 bg-black/16 px-4 py-3 text-[15px] leading-6 text-[#eaf0f5]", isCompact && "min-h-0 py-2 text-sm")}>
                             {lens}
                           </div>
                         ))}

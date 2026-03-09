@@ -101,7 +101,7 @@ export function FutureSlide({ isCompact, isShort }: SlideProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.08 + index * 0.08 }}
               >
-                <Card className="h-full border-white/10 bg-white/6 text-white shadow-[0_24px_90px_rgba(0,0,0,0.27)] backdrop-blur">
+                <Card className="flex h-full flex-col border-white/10 bg-white/6 text-white shadow-[0_24px_90px_rgba(0,0,0,0.27)] backdrop-blur">
                   <CardHeader className={cn(isCompact && "space-y-2 pb-3")}>
                     <div className="flex items-center justify-between gap-3">
                       <Badge className="border-0 bg-[#fff1de] text-[#152133]">{step.phase}</Badge>
@@ -114,9 +114,9 @@ export function FutureSlide({ isCompact, isShort }: SlideProps) {
                       {step.focus}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className={cn("space-y-3", isCompact && "space-y-2 pt-0")}>
+                  <CardContent className={cn("flex flex-1 flex-col gap-3", isCompact && "gap-2 pt-0")}>
                     {step.bullets.map((bullet) => (
-                      <div key={bullet} className={cn("rounded-2xl border border-white/8 bg-black/18 px-4 py-3 text-sm leading-7 text-[#edf1f5]", isCompact && "px-3.5 py-2.5 leading-6")}>
+                      <div key={bullet} className={cn("flex flex-1 items-center rounded-2xl border border-white/8 bg-black/18 px-4 py-3 text-[15px] leading-7 text-[#edf1f5]", isCompact && "px-3.5 py-2.5 text-sm leading-6")}>
                         {bullet}
                       </div>
                     ))}

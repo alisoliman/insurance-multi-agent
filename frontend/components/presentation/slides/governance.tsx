@@ -33,7 +33,7 @@ export function GovernanceSlide({ isCompact, isShort }: SlideProps) {
         />
 
         <div className="rounded-[2rem] border border-white/10 bg-[#08111c]/70 p-5 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur">
-          <div className="mb-3 text-xs uppercase tracking-[0.32em] text-[#92a7bf]">
+          <div className="mb-3 text-[11px] uppercase tracking-[0.32em] text-[#92a7bf]">
             Decision trace
           </div>
           <GovernanceTrace compact={isCompact} />
@@ -51,7 +51,7 @@ export function GovernanceSlide({ isCompact, isShort }: SlideProps) {
                   {pillar.title}
                 </CardTitle>
               </CardHeader>
-              <CardContent className={cn("text-sm leading-6 text-[#d1d7df]", isCompact && "pt-0")}>
+              <CardContent className={cn("text-[15px] leading-6 text-[#d1d7df]", isCompact && "pt-0")}>
                 {pillar.copy}
               </CardContent>
             </Card>

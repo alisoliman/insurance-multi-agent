@@ -69,14 +69,14 @@ export function ArchitectureSlide({ isCompact, isShort }: SlideProps) {
                 )}>
                   {activeModule.name}
                 </CardTitle>
-                <CardDescription className="text-[13px] leading-relaxed text-[#9fb0c4]">
+                <CardDescription className="text-[14px] leading-relaxed text-[#9fb0c4]">
                   {activeModule.role}
                 </CardDescription>
               </CardHeader>
 
               <CardContent className={cn("flex flex-1 flex-col gap-5", isCompact && "gap-3 pt-0")}>
                 <p className={cn(
-                  "text-[13px] leading-[1.7] text-[#d1d7df]",
+                  "text-[15px] leading-[1.7] text-[#d1d7df]",
                   isCompact && "leading-[1.6]"
                 )}>
                   {activeModule.description}
@@ -84,23 +84,23 @@ export function ArchitectureSlide({ isCompact, isShort }: SlideProps) {
 
                 {/* Aspects list — gives the card substance */}
                 <div className="mt-auto space-y-2">
-                  <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-[#6b7f94]">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[#6b7f94]">
                     Key aspects
                   </p>
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     {activeModule.aspects.map((aspect, i) => (
                       <motion.div
                         key={aspect}
                         initial={{ opacity: 0, x: 8 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.15 + i * 0.06, duration: 0.3 }}
-                        className="flex items-start gap-2.5 rounded-lg border border-white/6 bg-white/[0.025] px-3 py-2"
+                        className="flex items-start gap-2.5 rounded-lg border border-white/6 bg-white/[0.025] px-3.5 py-2.5"
                       >
                         <div
                           className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
                           style={{ backgroundColor: accentColors[0], opacity: 0.7 }}
                         />
-                        <span className="text-[12px] leading-snug text-[#d1d7df]">
+                        <span className="text-[13px] leading-snug text-[#d1d7df]">
                           {aspect}
                         </span>
                       </motion.div>

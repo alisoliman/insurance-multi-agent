@@ -97,7 +97,7 @@ export function OpeningSlide({
         )}
       </div>
 
-      <div className="grid gap-3 xl:pt-8 2xl:pl-4 2xl:pt-12">
+      <div className="grid gap-3 xl:pt-2 2xl:pl-4 2xl:pt-4">
         <Card className="border-white/10 bg-white/8 text-white shadow-[0_35px_120px_rgba(0,0,0,0.34)] backdrop-blur">
           <CardHeader className={cn(isCompact && "space-y-2 pb-3")}>
             <CardTitle className="flex items-center gap-3 text-[#fff7ec]">
@@ -117,7 +117,7 @@ export function OpeningSlide({
               <div
                 key={text}
                 className={cn(
-                  "rounded-2xl border border-white/8 bg-black/15 px-4 py-3",
+                  "rounded-2xl border border-white/8 bg-black/15 px-4 py-3.5",
                   isCompact && "px-3.5 py-2.5 text-[13px] leading-5"
                 )}
               >
@@ -135,7 +135,7 @@ export function OpeningSlide({
           ].map((item) => (
             <motion.div
               key={item.title}
-              className="rounded-[1.7rem] border border-white/10 bg-white/8 p-3.5 shadow-[0_20px_55px_rgba(0,0,0,0.22)] backdrop-blur"
+              className="rounded-[1.7rem] border border-white/10 bg-white/8 px-5 py-4 shadow-[0_20px_55px_rgba(0,0,0,0.22)] backdrop-blur"
               initial={shouldAnimate ? { opacity: 0, y: 12 } : false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.12 }}

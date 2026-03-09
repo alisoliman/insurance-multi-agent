@@ -60,7 +60,7 @@ export function AgentsSlide({ isCompact }: SlideProps) {
             </CardHeader>
             <CardContent className={cn("grid flex-1 gap-5 md:grid-cols-2", isCompact && "gap-4 pt-0")}>
               <div className="flex flex-col gap-2">
-                <div className="text-[10px] uppercase tracking-[0.3em] text-[#f5c483]">Capabilities</div>
+                <div className="text-[11px] uppercase tracking-[0.3em] text-[#f5c483]">Capabilities</div>
                 {activeCard.capabilities.map((capability) => (
                   <div key={capability} className={cn("flex flex-1 items-center rounded-2xl border border-white/8 bg-black/18 px-4 py-3 text-[15px] leading-7 text-[#ecf0f4]", isCompact && "px-3 py-2 text-[13px] leading-5")}>
                     {capability}
@@ -68,7 +68,7 @@ export function AgentsSlide({ isCompact }: SlideProps) {
                 ))}
               </div>
               <div className="flex flex-col gap-2">
-                <div className="text-[10px] uppercase tracking-[0.3em] text-[#95f2df]">Delivers</div>
+                <div className="text-[11px] uppercase tracking-[0.3em] text-[#95f2df]">Delivers</div>
                 {activeCard.delivers.map((deliverable) => (
                   <div key={deliverable} className={cn("flex flex-1 items-center rounded-2xl border border-white/8 bg-white/6 px-4 py-3 text-[15px] leading-7 text-[#eef2f6]", isCompact && "px-3 py-2 text-[13px] leading-5")}>
                     {deliverable}

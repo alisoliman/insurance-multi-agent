@@ -75,10 +75,10 @@ export function PersonasSlide({ isCompact, isShort }: SlideProps) {
                 </div>
               </div>
 
-              <div className="mt-4 rounded-[1.3rem] border border-white/8 bg-black/18 px-4 py-3 text-sm leading-6 text-[#d1d7df]">
+              <div className="mt-4 rounded-[1.3rem] border border-white/8 bg-black/18 px-4 py-3.5 text-[15px] leading-6 text-[#d1d7df]">
                 {activeCard.burden}
               </div>
-              <div className="mt-3 rounded-[1.3rem] border border-white/8 bg-white/6 px-4 py-3 text-sm leading-6 text-[#eef2f5]">
+              <div className="mt-3 rounded-[1.3rem] border border-white/8 bg-white/6 px-4 py-3.5 text-[15px] leading-6 text-[#eef2f5]">
                 <div className="text-[10px] uppercase tracking-[0.28em] text-[#f5c483]">
                   What they need
                 </div>
@@ -95,29 +95,29 @@ export function PersonasSlide({ isCompact, isShort }: SlideProps) {
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.06 + index * 0.05 }}
-                  className="rounded-[1.75rem] border border-white/10 bg-white/7 p-5 shadow-[0_22px_80px_rgba(0,0,0,0.26)] backdrop-blur"
+                  className="flex flex-col rounded-[1.75rem] border border-white/10 bg-white/7 p-5 shadow-[0_22px_80px_rgba(0,0,0,0.26)] backdrop-blur"
                 >
                   <div className="flex items-center gap-3">
                     <div className="flex size-11 items-center justify-center rounded-2xl border border-white/10 bg-black/18">
                       <persona.icon className="size-5 text-[#95f2df]" />
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-[#fff7ec]">{persona.name}</div>
+                      <div className="text-[15px] font-medium text-[#fff7ec]">{persona.name}</div>
                       <div className="text-[10px] uppercase tracking-[0.24em] text-[#91a6bd]">
                         Insurance role
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-4 text-sm leading-6 text-[#eef2f5]">{persona.role}</div>
-                  <div className="mt-3 rounded-[1.2rem] border border-white/8 bg-black/18 px-4 py-3 text-sm leading-6 text-[#d1d7df]">
+                  <div className="mt-4 text-[15px] leading-6 text-[#eef2f5]">{persona.role}</div>
+                  <div className="mt-3 flex-1 rounded-[1.2rem] border border-white/8 bg-black/18 px-4 py-3.5 text-[15px] leading-6 text-[#d1d7df]">
                     {persona.burden}
                   </div>
                   <div className="mt-3">
                     <div className="text-[10px] uppercase tracking-[0.28em] text-[#f5c483]">
                       What they need
                     </div>
-                    <div className="mt-2 rounded-[1.2rem] border border-white/8 bg-white/6 px-4 py-3 text-sm leading-6 text-[#eef2f5]">
+                    <div className="mt-2 rounded-[1.2rem] border border-white/8 bg-white/6 px-4 py-3.5 text-[15px] leading-6 text-[#eef2f5]">
                       {persona.needs}
                     </div>
                   </div>
@@ -125,7 +125,7 @@ export function PersonasSlide({ isCompact, isShort }: SlideProps) {
               ))}
             </div>
 
-            <div className="rounded-[1.6rem] border border-white/10 bg-black/18 px-5 py-4 text-sm leading-6 text-[#d9dee5]">
+            <div className="rounded-[1.6rem] border border-white/10 bg-black/18 px-5 py-4 text-[15px] leading-6 text-[#d9dee5]">
               Every role needs the same thing: less assembly, more judgment — without losing the audit trail.
             </div>
           </>

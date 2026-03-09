@@ -34,7 +34,7 @@ export function CloseSlide({
 
           <div className="grid gap-3 sm:grid-cols-2">
             {closeQuestions.map((question) => (
-              <div key={question} className="rounded-[1.5rem] border border-white/10 bg-white/6 px-4 py-3 text-sm leading-6 text-[#edf1f5]">
+              <div key={question} className="rounded-[1.5rem] border border-white/10 bg-white/6 px-4 py-3.5 text-[15px] leading-6 text-[#edf1f5]">
                 {question}
               </div>
             ))}
@@ -77,8 +77,8 @@ export function CloseSlide({
                 <div className="flex items-start gap-3">
                   <item.icon className="mt-0.5 size-5 text-[#95f2df]" />
                   <div>
-                    <div className="text-sm font-medium text-[#fff7ec]">{item.title}</div>
-                    <div className="mt-1 text-sm leading-6 text-[#d1d7df]">{item.copy}</div>
+                    <div className="text-[15px] font-medium text-[#fff7ec]">{item.title}</div>
+                    <div className="mt-1 text-[15px] leading-6 text-[#d1d7df]">{item.copy}</div>
                   </div>
                 </div>
               </div>
