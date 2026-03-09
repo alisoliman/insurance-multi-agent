@@ -25,3 +25,9 @@ hooks:
       echo "Setting frontend origin for CORS..."
       azd env set FRONTEND_ORIGIN "https://$(azd env get-value frontendContainerAppFqdn)"
     continueOnError: false
+  predeploy:
+    shell: sh
+    run: |
+      echo "Running database migrations against live database..."
+      cd backend && alembic upgrade head
+    continueOnError: false

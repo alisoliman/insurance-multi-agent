@@ -16,9 +16,11 @@ WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 COPY alembic.ini ./
 COPY migrations ./migrations
+COPY entrypoint.sh ./
 COPY app ./app
 
 ENV PATH="/app/.venv/bin:${PATH}"
 
-# Run the application with an exec-form entrypoint so the server receives signals directly.
+# Entrypoint runs migrations gracefully, then hands off to CMD.
+ENTRYPOINT ["./entrypoint.sh"]
 CMD ["fastapi", "run", "app/main.py", "--port", "8000"]
