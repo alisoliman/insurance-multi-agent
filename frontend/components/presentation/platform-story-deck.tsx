@@ -261,7 +261,7 @@ export function PlatformStoryDeck() {
 
         {/* Header */}
         <header className="relative z-30 shrink-0">
-          <div className="mx-auto flex max-w-[98rem] items-center justify-between gap-4 px-4 py-4 sm:px-8 lg:px-12 xl:px-6">
+          <div className="mx-auto flex max-w-[98rem] items-center justify-between gap-4 px-4 py-4 sm:px-8 lg:px-12 xl:px-4">
             <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-2.5 shadow-lg backdrop-blur">
               <div className="flex items-center gap-3 text-[9px] uppercase tracking-[0.32em] text-[#9fb0c4]">
                 <span>Contoso AI Claims</span>
