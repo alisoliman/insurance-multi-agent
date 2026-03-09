@@ -41,4 +41,4 @@ backend/app/workflow/data/uploaded_docs/policies/*
 .github
 .specify
 .opencode
-output/
+output/infra/main.json

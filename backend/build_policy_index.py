@@ -20,7 +20,7 @@ def main():
     load_dotenv()
 
     # Check required environment variables
-    required_vars = ["AZURE_OPENAI_API_KEY", "AZURE_OPENAI_ENDPOINT"]
+    required_vars = ["AZURE_OPENAI_ENDPOINT"]
     missing_vars = [var for var in required_vars if not os.getenv(var)]
 
     if missing_vars:

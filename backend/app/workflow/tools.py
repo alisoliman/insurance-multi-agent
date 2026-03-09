@@ -15,8 +15,18 @@ import os
 import base64
 import logging
 import json
+from functools import lru_cache
 
 logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=1)
+def _get_openai_token_provider():
+    from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+    return get_bearer_token_provider(
+        DefaultAzureCredential(),
+        "https://cognitiveservices.azure.com/.default",
+    )
 
 
 def get_policy_details(
@@ -434,7 +444,7 @@ def analyze_image(
 
         client = openai.AzureOpenAI(
             azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-            api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+            azure_ad_token_provider=_get_openai_token_provider(),
             api_version="2024-02-15-preview",
         )
 

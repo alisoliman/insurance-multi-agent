@@ -13,6 +13,7 @@ from typing import Optional
 from uuid import uuid4
 
 from openai import AzureOpenAI
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from pydantic import ValidationError
 
 from app.core.config import get_settings
@@ -377,13 +378,17 @@ class ScenarioGenerator:
     def __init__(self):
         settings = get_settings()
         
-        if not settings.azure_openai_api_key or not settings.azure_openai_endpoint:
-            logger.warning("Azure OpenAI credentials not configured - generation will fail")
+        if not settings.azure_openai_endpoint:
+            logger.warning("Azure OpenAI endpoint not configured - generation will fail")
             self.client = None
             self.deployment = None
         else:
+            token_provider = get_bearer_token_provider(
+                DefaultAzureCredential(),
+                "https://cognitiveservices.azure.com/.default",
+            )
             self.client = AzureOpenAI(
-                api_key=settings.azure_openai_api_key,
+                azure_ad_token_provider=token_provider,
                 api_version="2024-08-01-preview",
                 azure_endpoint=settings.azure_openai_endpoint,
             )

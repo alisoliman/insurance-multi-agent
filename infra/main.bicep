@@ -15,13 +15,6 @@ param frontendContainerImage string = 'mcr.microsoft.com/azuredocs/containerapps
 @description('The project name for resource naming')
 param projectName string = 'shadcn-fastapi'
 
-@description('Azure OpenAI endpoint URL')
-param azureOpenAIEndpoint string = ''
-
-@description('Azure OpenAI API key')
-@secure()
-param azureOpenAIApiKey string = ''
-
 @description('Azure OpenAI deployment name')
 param azureOpenAIDeploymentName string = 'gpt-4o'
 
@@ -55,6 +48,7 @@ var commonTags = {
 // Simple, short resource names that stay within limits
 var containerAppsEnvironmentName = 'env-${uniqueSuffix}'
 var containerRegistryName = 'cr${uniqueSuffix}'
+var cognitiveServicesAccountName = 'oai-${uniqueSuffix}'
 var managedIdentityName = 'id-${uniqueSuffix}'
 var backendContainerAppName = 'backend-${uniqueSuffix}'
 var frontendContainerAppName = 'frontend-${uniqueSuffix}'
@@ -113,6 +107,19 @@ module roleAssignment 'modules/role-assignment.bicep' = {
   }
 }
 
+// Deploy Azure OpenAI (Cognitive Services)
+module cognitiveServices 'modules/cognitive-services.bicep' = {
+  name: 'cognitive-services'
+  params: {
+    accountName: cognitiveServicesAccountName
+    location: location
+    tags: commonTags
+    chatModelName: azureOpenAIDeploymentName
+    embeddingModelName: azureOpenAIEmbeddingModel
+    principalId: managedIdentity.properties.principalId
+  }
+}
+
 // Deploy backend container app
 module backendContainerApp 'modules/containerapp.bicep' = {
   name: 'backend-container-app'
@@ -136,11 +143,7 @@ module backendContainerApp 'modules/containerapp.bicep' = {
       }
       {
         name: 'AZURE_OPENAI_ENDPOINT'
-        value: azureOpenAIEndpoint
-      }
-      {
-        name: 'AZURE_OPENAI_API_KEY'
-        secretRef: 'azure-openai-api-key'
+        value: cognitiveServices.outputs.endpoint
       }
       {
         name: 'AZURE_OPENAI_DEPLOYMENT_NAME'
@@ -155,15 +158,15 @@ module backendContainerApp 'modules/containerapp.bicep' = {
         value: azureOpenAIEmbeddingModel
       }
       {
+        name: 'AZURE_CLIENT_ID'
+        value: managedIdentity.properties.clientId
+      }
+      {
         name: 'DATABASE_URL'
         secretRef: 'database-url'
       }
     ]
     secrets: [
-      {
-        name: 'azure-openai-api-key'
-        value: azureOpenAIApiKey
-      }
       {
         name: 'database-url'
         value: postgresConnectionString
@@ -200,3 +203,4 @@ output containerRegistryLoginServer string = containerAppsStack.outputs.containe
 output managedIdentityClientId string = managedIdentity.properties.clientId
 output resourceGroupName string = resourceGroup().name
 output postgresServerFqdn string = postgresFlexibleServer.outputs.serverFqdn
+output azureOpenAIEndpoint string = cognitiveServices.outputs.endpoint
