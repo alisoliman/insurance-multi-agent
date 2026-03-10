@@ -53,7 +53,6 @@ var managedIdentityName = 'id-${uniqueSuffix}'
 var backendContainerAppName = 'backend-${uniqueSuffix}'
 var frontendContainerAppName = 'frontend-${uniqueSuffix}'
 var postgresServerName = 'pg-${uniqueSuffix}'
-var postgresConnectionString = 'postgresql+asyncpg://${postgresAdminLogin}:${postgresAdminPassword}@${postgresServerName}.postgres.database.azure.com:5432/${postgresDbName}?ssl=require'
 
 // Create managed identity for container registry access
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
@@ -169,7 +168,7 @@ module backendContainerApp 'modules/containerapp.bicep' = {
     secrets: [
       {
         name: 'database-url'
-        value: postgresConnectionString
+        value: 'postgresql+asyncpg://${postgresAdminLogin}:${postgresAdminPassword}@${network.outputs.privateDnsZoneName}:5432/${postgresDbName}?ssl=require'
       }
     ]
   }

@@ -17,7 +17,7 @@ param containerAppsSubnetPrefix string = '10.20.0.0/27'
 param postgresSubnetPrefix string = '10.20.1.0/28'
 
 var virtualNetworkName = 'vnet-${resourceSuffix}'
-var privateDnsZoneName = 'pgsql-${resourceSuffix}.postgres.database.azure.com'
+var privateDnsZoneName = 'pg-${resourceSuffix}.private.postgres.database.azure.com'
 
 resource virtualNetwork 'Microsoft.Network/virtualNetworks@2023-11-01' = {
   name: virtualNetworkName

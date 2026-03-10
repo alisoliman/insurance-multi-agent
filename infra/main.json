@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.34.44.8038",
-      "templateHash": "4142944792789229945"
+      "templateHash": "7702009326560958279"
     }
   },
   "parameters": {
@@ -98,8 +98,7 @@
     "managedIdentityName": "[format('id-{0}', variables('uniqueSuffix'))]",
     "backendContainerAppName": "[format('backend-{0}', variables('uniqueSuffix'))]",
     "frontendContainerAppName": "[format('frontend-{0}', variables('uniqueSuffix'))]",
-    "postgresServerName": "[format('pg-{0}', variables('uniqueSuffix'))]",
-    "postgresConnectionString": "[format('postgresql+asyncpg://{0}:{1}@{2}.postgres.database.azure.com:5432/{3}?ssl=require', parameters('postgresAdminLogin'), parameters('postgresAdminPassword'), variables('postgresServerName'), parameters('postgresDbName'))]"
+    "postgresServerName": "[format('pg-{0}', variables('uniqueSuffix'))]"
   },
   "resources": [
     {
@@ -136,7 +135,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.34.44.8038",
-              "templateHash": "18372954288781031147"
+              "templateHash": "14581425329122718159"
             }
           },
           "parameters": {
@@ -184,7 +183,7 @@
           },
           "variables": {
             "virtualNetworkName": "[format('vnet-{0}', parameters('resourceSuffix'))]",
-            "privateDnsZoneName": "[format('pgsql-{0}.postgres.database.azure.com', parameters('resourceSuffix'))]"
+            "privateDnsZoneName": "[format('pg-{0}.private.postgres.database.azure.com', parameters('resourceSuffix'))]"
           },
           "resources": [
             {
@@ -997,7 +996,7 @@
             "value": [
               {
                 "name": "database-url",
-                "value": "[variables('postgresConnectionString')]"
+                "value": "[format('postgresql+asyncpg://{0}:{1}@{2}:5432/{3}?ssl=require', parameters('postgresAdminLogin'), parameters('postgresAdminPassword'), reference(resourceId('Microsoft.Resources/deployments', 'network'), '2022-09-01').outputs.privateDnsZoneName.value, parameters('postgresDbName'))]"
               }
             ]
           }
@@ -1164,7 +1163,8 @@
       "dependsOn": [
         "[resourceId('Microsoft.Resources/deployments', 'cognitive-services')]",
         "[resourceId('Microsoft.Resources/deployments', 'container-apps-stack')]",
-        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]"
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]",
+        "[resourceId('Microsoft.Resources/deployments', 'network')]"
       ]
     },
     {
