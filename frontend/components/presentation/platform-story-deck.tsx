@@ -360,7 +360,7 @@ export function PlatformStoryDeck() {
 
           {/* Main content */}
           <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 xl:pr-12">
-            <div className="mx-auto flex min-h-full max-w-[90rem] flex-col justify-center">
+            <div className="mx-auto flex min-h-full max-w-[90rem] flex-col pt-[4vh]">
               <AnimatePresence initial={false} mode="wait" custom={slideDirection}>
                 <motion.section
                   key={currentSlide.id}
