@@ -23,9 +23,7 @@ class Settings(BaseSettings):  # noqa: D101
     database_max_overflow: int = Field(default=10, alias="DATABASE_MAX_OVERFLOW")
     test_database_url: str | None = Field(default=None, alias="TEST_DATABASE_URL")
 
-    # Azure OpenAI
-    azure_openai_api_key: str | None = Field(
-        default=None, alias="AZURE_OPENAI_API_KEY")
+    # Azure OpenAI (auth via DefaultAzureCredential — no API key needed)
     azure_openai_endpoint: str | None = Field(
         default=None, alias="AZURE_OPENAI_ENDPOINT")
     azure_openai_deployment_name: str | None = Field(
@@ -46,7 +44,7 @@ class Settings(BaseSettings):  # noqa: D101
     # Convenience: serialise to dict sans secrets
     def dict_safe(self) -> Dict[str, Any]:  # noqa: D401
         return self.model_dump(
-            exclude={"azure_openai_api_key", "database_url", "test_database_url"},
+            exclude={"database_url", "test_database_url"},
         )
 
 

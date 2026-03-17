@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from dotenv import load_dotenv
 
-from tests.live_auth import skip_if_key_auth_disabled
+from tests.live_auth import skip_if_auth_error, ensure_azure_credential
 
 
 def _load_env() -> None:
@@ -18,9 +18,9 @@ def _load_env() -> None:
 
 def _ensure_credentials() -> None:
     endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    api_key = os.getenv("AZURE_OPENAI_API_KEY")
-    if not endpoint or not api_key:
-        pytest.skip("API test requires AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY in .env")
+    if not endpoint:
+        pytest.skip("API test requires AZURE_OPENAI_ENDPOINT in .env (auth via az login)")
+    ensure_azure_credential()
 
 
 @pytest.mark.asyncio
@@ -41,7 +41,7 @@ async def test_workflow_run_endpoint_returns_structured_outputs(async_client):
     }
 
     response = await async_client.post("/api/v1/workflow/run", json=payload)
-    skip_if_key_auth_disabled(response.text)
+    skip_if_auth_error(response.text)
     if response.status_code != 200:
         pytest.skip(f"Live Azure workflow request failed in this environment: {response.text[:200]}")
     assert response.status_code == 200

@@ -6,7 +6,7 @@ import pytest
 from dotenv import load_dotenv
 
 from app.services.single_agent import run as run_single_agent
-from tests.live_auth import skip_if_key_auth_disabled
+from tests.live_auth import skip_if_auth_error, ensure_azure_credential
 
 
 def _load_env() -> None:
@@ -20,9 +20,9 @@ def _load_env() -> None:
 
 def _ensure_credentials() -> None:
     endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    api_key = os.getenv("AZURE_OPENAI_API_KEY")
-    if not endpoint or not api_key:
-        pytest.skip("Single-agent test requires AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY in .env")
+    if not endpoint:
+        pytest.skip("Single-agent test requires AZURE_OPENAI_ENDPOINT in .env (auth via az login)")
+    ensure_azure_credential()
 
 
 @pytest.mark.asyncio
@@ -75,7 +75,7 @@ async def test_single_agent_outputs(agent_name: str, expected_fields: list[str])
             timeout=180,
         )
     except Exception as exc:
-        skip_if_key_auth_disabled(str(exc))
+        skip_if_auth_error(str(exc))
         raise
 
     assert messages

@@ -6,7 +6,7 @@ import pytest
 from dotenv import load_dotenv
 
 from app.workflow import process_claim_with_supervisor
-from tests.live_auth import skip_if_key_auth_disabled
+from tests.live_auth import skip_if_auth_error, ensure_azure_credential
 
 
 def _load_env() -> None:
@@ -20,9 +20,9 @@ def _load_env() -> None:
 
 def _ensure_credentials() -> None:
     endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    api_key = os.getenv("AZURE_OPENAI_API_KEY")
-    if not endpoint or not api_key:
-        pytest.skip("E2E test requires AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY in .env")
+    if not endpoint:
+        pytest.skip("E2E test requires AZURE_OPENAI_ENDPOINT in .env (auth via az login)")
+    ensure_azure_credential()
 
 
 @pytest.mark.asyncio
@@ -61,7 +61,7 @@ async def test_e2e_workflow_with_sample_claims():
         try:
             chunks = await asyncio.wait_for(process_claim_with_supervisor(claim_data), timeout=180)
         except Exception as exc:
-            skip_if_key_auth_disabled(str(exc))
+            skip_if_auth_error(str(exc))
             raise
         structured = {}
         for chunk in chunks:
