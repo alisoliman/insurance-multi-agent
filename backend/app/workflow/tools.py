@@ -157,33 +157,10 @@ def get_claimant_history(
     """Retrieve historical claim information for a given claimant.
     
     Returns previous claims, fraud indicators, and risk factors.
-    For generated scenarios (CLT-xxx IDs), returns a default new customer profile.
+    Checks static database first, then falls back to a generic new-customer
+    profile for generated scenario claimants (CLT-xxx IDs).
     """
-    # Check if this is a generated scenario claimant (T029)
-    if claimant_id.startswith("CLT-"):
-        logger.info(f"Generated scenario claimant {claimant_id} - returning new customer profile")
-        return {
-            "claimant_id": claimant_id,
-            "name": "Generated Scenario Customer",
-            "customer_since": "2026-01-01",
-            "total_claims": 0,
-            "claim_history": [],
-            "risk_factors": {
-                "claim_frequency": "new_customer",
-                "average_claim_amount": 0,
-                "fraud_indicators": [],
-                "credit_score": "unknown",
-                "driving_record": "unknown",
-            },
-            "contact_info": {
-                "phone": "N/A",
-                "email": "N/A",
-                "address": "N/A",
-            },
-            "note": "This is a new customer from a generated demo scenario with no prior claim history.",
-            "source": "generated_scenario",
-        }
-    
+    # Static claimant database — checked first
     claimant_database = {
         "CLT-1001": {
             "claimant_id": "CLT-1001",
@@ -254,9 +231,31 @@ def get_claimant_history(
         },
     }
     claimant = claimant_database.get(claimant_id)
-    if not claimant:
-        return {"error": f"Claimant {claimant_id} not found in database"}
-    return claimant
+    if claimant:
+        return claimant
+
+    # Fall back to generic profile for generated scenario claimants
+    if claimant_id.startswith("CLT-"):
+        logger.info(f"Generated scenario claimant {claimant_id} - returning new customer profile")
+        return {
+            "claimant_id": claimant_id,
+            "name": "Generated Scenario Customer",
+            "customer_since": "2026-01-01",
+            "total_claims": 0,
+            "claim_history": [],
+            "risk_factors": {
+                "claim_frequency": "new_customer",
+                "average_claim_amount": 0,
+                "fraud_indicators": [],
+                "credit_score": "unknown",
+                "driving_record": "unknown",
+            },
+            "contact_info": {"phone": "N/A", "email": "N/A", "address": "N/A"},
+            "note": "New customer from a generated demo scenario with no prior claim history.",
+            "source": "generated_scenario",
+        }
+
+    return {"error": f"Claimant {claimant_id} not found in database"}
 
 
 def get_vehicle_details(
@@ -429,6 +428,11 @@ def _resolve_image(image_path: str) -> bytes | None:
 
     # Case 2: relative URL path (e.g. /demo-evidence/CLM-2026-001/front-damage.jpg)
     if image_path.startswith("/demo-evidence/"):
+        # Reject path traversal attempts
+        if ".." in image_path:
+            logger.warning("Blocked path traversal attempt: %s", image_path)
+            return None
+
         # Production: fetch from frontend container via HTTP
         frontend_origin = os.getenv("FRONTEND_ORIGIN", "").rstrip("/")
         if frontend_origin:
@@ -442,7 +446,10 @@ def _resolve_image(image_path: str) -> bytes | None:
 
         # Local dev: try resolving against frontend/public/
         for base in ["frontend/public", "../frontend/public"]:
-            candidate = os.path.join(base, image_path.lstrip("/"))
+            candidate = os.path.normpath(os.path.join(base, image_path.lstrip("/")))
+            # Ensure resolved path stays within the base directory
+            if not candidate.startswith(os.path.normpath(base)):
+                continue
             if os.path.exists(candidate):
                 with open(candidate, "rb") as f:
                     return f.read()

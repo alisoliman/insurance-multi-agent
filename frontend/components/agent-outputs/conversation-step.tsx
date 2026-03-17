@@ -314,6 +314,10 @@ function parseStructuredOutput(content: string): Record<string, string | string[
 function EvidenceGallery({ images }: { images: string[] }) {
   const [selectedImage, setSelectedImage] = React.useState<{ src: string; label: string } | null>(null)
 
+  const IMAGE_EXTS = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i
+  const imageFiles = images.filter((p) => IMAGE_EXTS.test(p))
+  const otherFiles = images.filter((p) => !IMAGE_EXTS.test(p))
+
   return (
     <>
       <div className="text-sm">
@@ -322,7 +326,7 @@ function EvidenceGallery({ images }: { images: string[] }) {
           <span className="text-muted-foreground">Submitted Evidence:</span>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {images.map((path, idx) => {
+          {imageFiles.map((path, idx) => {
             const filename = String(path).split('/').pop() || 'image'
             return (
               <button
@@ -345,6 +349,15 @@ function EvidenceGallery({ images }: { images: string[] }) {
             )
           })}
         </div>
+        {otherFiles.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {otherFiles.map((path, idx) => (
+              <div key={idx} className="text-xs text-muted-foreground">
+                📎 {String(path).split('/').pop()}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>

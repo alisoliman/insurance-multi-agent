@@ -101,7 +101,7 @@ async def _ensure_policy_exists(claim_data: dict) -> None:
             deductible=500.0,
             premium=1200.0,
             effective_date=claim_data.get("incident_date", "2026-01-01"),
-            expiration_date="2025-12-31",
+            expiration_date="2026-12-31",
             customer_name=claim_data.get("claimant_name", customer_info.get("name", "Unknown")),
             customer_email=customer_info.get("email"),
             customer_phone=customer_info.get("phone"),
