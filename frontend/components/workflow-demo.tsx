@@ -5,6 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 
@@ -71,6 +76,7 @@ import {
   IconSparkles,
   IconDeviceFloppy,
   IconFolder,
+  IconArrowsMaximize,
 } from '@tabler/icons-react'
 
 interface ClaimSummary {
@@ -188,6 +194,7 @@ export function WorkflowDemo() {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [savedScenariosRefreshTrigger, setSavedScenariosRefreshTrigger] = useState(0)
   const [savingScenarioId, setSavingScenarioId] = useState<string | null>(null)
+  const [traceExpanded, setTraceExpanded] = useState(false)
 
   // T040: Show loading indicator after 500ms delay to avoid flickering on fast responses
   useEffect(() => {
@@ -775,12 +782,20 @@ export function WorkflowDemo() {
                   {isLoading ? 'Agents are collaborating on claim analysis...' : 'Raw conversation history for debugging'}
                 </CardDescription>
               </div>
-              {workflowResult && (
-                <Button onClick={resetDemo} variant="outline" size="sm">
-                  <IconRefresh className="h-4 w-4 mr-2" />
-                  Reset
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {workflowResult && (
+                  <>
+                    <Button onClick={() => setTraceExpanded(true)} variant="outline" size="sm">
+                      <IconArrowsMaximize className="h-4 w-4 mr-2" />
+                      Expand
+                    </Button>
+                    <Button onClick={resetDemo} variant="outline" size="sm">
+                      <IconRefresh className="h-4 w-4 mr-2" />
+                      Reset
+                    </Button>
+                  </>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {showLoadingIndicator ? (
@@ -835,6 +850,29 @@ export function WorkflowDemo() {
           </Card>
         </div>
       )}
+
+      {/* Expanded Trace Dialog */}
+      <Dialog open={traceExpanded} onOpenChange={setTraceExpanded}>
+        <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0">
+          <DialogTitle className="px-6 pt-6 pb-2 text-lg font-semibold border-b">
+            Agent Conversation Trace
+          </DialogTitle>
+          <ScrollArea className="flex-1 px-6 py-4">
+            <div className="space-y-4 pr-4">
+              {workflowResult?.conversation_chronological
+                ?.filter(step => !shouldSkipStep(step))
+                .map((step, index, filteredArray) => (
+                  <ConversationStep
+                    key={index}
+                    step={{ role: step.role, content: step.content, node: step.node }}
+                    stepNumber={index + 1}
+                    isLast={index === filteredArray.length - 1}
+                  />
+                ))}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 } 

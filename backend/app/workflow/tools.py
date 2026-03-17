@@ -44,16 +44,20 @@ def get_policy_details(
     try:
         from app.db.policy_repo import get_policy_by_policy_number
         
-        # Run async function in sync context
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # We're in an async context, need to handle differently
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(asyncio.run, get_policy_by_policy_number(policy_number))
-                policy_record = future.result()
-        else:
-            policy_record = loop.run_until_complete(get_policy_by_policy_number(policy_number))
+        # Run async function from sync context without corrupting the
+        # running event loop.  asyncio.run() calls set_event_loop(None)
+        # on cleanup which breaks uvicorn on subsequent requests.
+        import concurrent.futures
+
+        def _fetch_policy():
+            loop = asyncio.new_event_loop()
+            try:
+                return loop.run_until_complete(get_policy_by_policy_number(policy_number))
+            finally:
+                loop.close()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            policy_record = pool.submit(_fetch_policy).result(timeout=10)
         
         if policy_record:
             logger.info(f"Found policy {policy_number} in policy_repo (generated scenario)")
@@ -273,16 +277,17 @@ def get_vehicle_details(
     try:
         from app.db.vehicle_repo import get_vehicle_by_vin
         
-        # Run async function in sync context
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # We're in an async context, need to handle differently
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(asyncio.run, get_vehicle_by_vin(vin))
-                vehicle_record = future.result()
-        else:
-            vehicle_record = loop.run_until_complete(get_vehicle_by_vin(vin))
+        import concurrent.futures
+
+        def _fetch_vehicle():
+            loop = asyncio.new_event_loop()
+            try:
+                return loop.run_until_complete(get_vehicle_by_vin(vin))
+            finally:
+                loop.close()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            vehicle_record = pool.submit(_fetch_vehicle).result(timeout=10)
         
         if vehicle_record:
             logger.info(f"Found vehicle {vin} in vehicle_repo (generated scenario)")
