@@ -251,6 +251,37 @@ function isJsonObject(content: string): boolean {
   }
 }
 
+// Detect synthesis prompt: "=== AGENT_NAME ASSESSMENT ===" with JSON blocks
+function isSynthesisPrompt(content: string): boolean {
+  return content.includes('=== ') && content.includes(' ASSESSMENT ===')
+}
+
+interface SynthesisSection {
+  agentName: string
+  data: Record<string, unknown> | null
+  rawText: string | null
+}
+
+function parseSynthesisPrompt(content: string): { intro: string; sections: SynthesisSection[] } | null {
+  const sectionPattern = /===\s+(\w+)\s+ASSESSMENT\s+===\s*\n([\s\S]*?)(?=\n===|\s*$)/g
+  const sections: SynthesisSection[] = []
+  let match
+  while ((match = sectionPattern.exec(content)) !== null) {
+    const body = match[2].trim()
+    let data: Record<string, unknown> | null = null
+    let rawText: string | null = null
+    try {
+      data = JSON.parse(body)
+    } catch {
+      rawText = body
+    }
+    sections.push({ agentName: match[1].toLowerCase().replace(/_/g, ' '), data, rawText })
+  }
+  if (sections.length === 0) return null
+  const intro = content.split(/===\s+\w+\s+ASSESSMENT/)[0].trim()
+  return { intro, sections }
+}
+
 function parseJsonObject(content: string): Record<string, unknown> | null {
   try {
     const parsed = JSON.parse(content.trim())
@@ -585,6 +616,42 @@ function ToolResponsesDisplay({ responses }: { responses: Array<{ name: string; 
   )
 }
 
+// Agent name → display config
+const AGENT_DISPLAY: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
+  'claim assessor': { label: 'Claim Assessor', icon: IconFileText, color: 'text-blue-600 dark:text-blue-400' },
+  'policy checker': { label: 'Policy Checker', icon: IconShield, color: 'text-emerald-600 dark:text-emerald-400' },
+  'risk analyst': { label: 'Risk Analyst', icon: IconTrendingUp, color: 'text-amber-600 dark:text-amber-400' },
+}
+
+// Component: Synthesis Prompt (the "Based on assessments..." step)
+function SynthesisPromptDisplay({ intro, sections }: { intro: string; sections: SynthesisSection[] }) {
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground italic">{intro}</p>
+      {sections.map((section, idx) => {
+        const agent = AGENT_DISPLAY[section.agentName] || { label: section.agentName, icon: IconFileText, color: 'text-gray-500' }
+        const Icon = agent.icon
+        return (
+          <Collapsible key={idx} defaultOpen={false}>
+            <CollapsibleTrigger className="flex items-center gap-2 w-full text-left p-2 rounded-md hover:bg-muted/50 transition-colors">
+              <Icon className={cn("h-4 w-4 shrink-0", agent.color)} />
+              <span className="text-sm font-medium">{agent.label}</span>
+              <IconChevronDown className="h-3.5 w-3.5 ml-auto text-muted-foreground transition-transform [[data-state=open]>&]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-1 ml-6">
+              {section.data ? (
+                <StructuredOutputDisplay data={section.data} />
+              ) : (
+                <pre className="text-xs text-muted-foreground whitespace-pre-wrap">{section.rawText}</pre>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+        )
+      })}
+    </div>
+  )
+}
+
 // Component: Structured Output Display
 function StructuredOutputDisplay({ data }: { data: Record<string, unknown> }) {
   // Field display configuration
@@ -732,10 +799,13 @@ export const ConversationStep = React.memo(function ConversationStep({
   const claimData = isUser && isClaimJson(step.content) ? parseClaimJson(step.content) : null
   const toolCalls = hasToolCalls(step.content) ? parseToolCalls(step.content) : null
   const toolResponses = hasToolResponses(step.content) ? parseToolResponses(step.content) : null
-  const jsonOutput = !claimData && !toolCalls && !toolResponses && isJsonObject(step.content)
+  const synthesisPrompt = !claimData && !toolCalls && !toolResponses && isSynthesisPrompt(step.content)
+    ? parseSynthesisPrompt(step.content)
+    : null
+  const jsonOutput = !claimData && !toolCalls && !toolResponses && !synthesisPrompt && isJsonObject(step.content)
     ? parseJsonObject(step.content)
     : null
-  const structuredOutput = !claimData && !toolCalls && !toolResponses && !jsonOutput && isStructuredOutput(step.content)
+  const structuredOutput = !claimData && !toolCalls && !toolResponses && !synthesisPrompt && !jsonOutput && isStructuredOutput(step.content)
     ? parseStructuredOutput(step.content)
     : null
 
@@ -796,6 +866,8 @@ export const ConversationStep = React.memo(function ConversationStep({
                 <ToolCallsDisplay toolCalls={toolCalls} />
               ) : toolResponses ? (
                 <ToolResponsesDisplay responses={toolResponses} />
+              ) : synthesisPrompt ? (
+                <SynthesisPromptDisplay intro={synthesisPrompt.intro} sections={synthesisPrompt.sections} />
               ) : jsonOutput ? (
                 <StructuredOutputDisplay data={jsonOutput} />
               ) : structuredOutput ? (
