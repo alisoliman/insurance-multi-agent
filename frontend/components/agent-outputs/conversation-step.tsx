@@ -8,6 +8,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { 
   IconUser,
@@ -302,6 +307,69 @@ function parseStructuredOutput(content: string): Record<string, string | string[
   return result
 }
 
+/**
+ * Evidence image gallery with lightbox.
+ * Shows thumbnails inline; click to view full-size in a dialog.
+ */
+function EvidenceGallery({ images }: { images: string[] }) {
+  const [selectedImage, setSelectedImage] = React.useState<{ src: string; label: string } | null>(null)
+
+  return (
+    <>
+      <div className="text-sm">
+        <div className="flex items-center gap-2 mb-2">
+          <IconPhoto className="h-4 w-4 text-muted-foreground" />
+          <span className="text-muted-foreground">Submitted Evidence:</span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {images.map((path, idx) => {
+            const filename = String(path).split('/').pop() || 'image'
+            return (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setSelectedImage({ src: path, label: filename })}
+                className="group relative rounded-lg overflow-hidden border bg-muted/30 hover:ring-2 hover:ring-primary/50 transition-all cursor-pointer"
+              >
+                <img
+                  src={path}
+                  alt={filename}
+                  className="w-full h-24 object-cover"
+                />
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1.5">
+                  <span className="text-white text-[10px] font-medium leading-tight block truncate">
+                    {filename}
+                  </span>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
+        <DialogContent className="max-w-3xl p-2">
+          <DialogTitle className="sr-only">
+            {selectedImage?.label || "Evidence image"}
+          </DialogTitle>
+          {selectedImage && (
+            <div className="space-y-2">
+              <img
+                src={selectedImage.src}
+                alt={selectedImage.label}
+                className="w-full rounded-lg"
+              />
+              <p className="text-sm text-muted-foreground text-center px-2 pb-1">
+                {selectedImage.label}
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
 // Component: Formatted Claim Data
 function ClaimDataDisplay({ claim }: { claim: Record<string, unknown> }) {
   const claimId = String(claim.claim_id || 'Unknown')
@@ -425,19 +493,7 @@ function ClaimDataDisplay({ claim }: { claim: Record<string, unknown> }) {
 
       {/* Supporting Images */}
       {claim.supporting_images && Array.isArray(claim.supporting_images) && claim.supporting_images.length > 0 ? (
-        <div className="text-sm">
-          <div className="flex items-center gap-2 mb-1">
-            <IconPhoto className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Attached Files:</span>
-          </div>
-          <div className="pl-6 space-y-1">
-            {(claim.supporting_images as string[]).map((path, idx) => (
-              <div key={idx} className="text-xs text-muted-foreground">
-                📎 {String(path).split('/').pop()}
-              </div>
-            ))}
-          </div>
-        </div>
+        <EvidenceGallery images={claim.supporting_images as string[]} />
       ) : null}
     </div>
   )

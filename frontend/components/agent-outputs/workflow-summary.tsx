@@ -210,21 +210,21 @@ export function DecisionDisplay({ recommendation, confidence, summary, keyFindin
           icon: IconCheck, 
           color: "text-green-600 dark:text-green-400", 
           bgColor: "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800",
-          label: "Approved"
+          label: "Recommend: Approve"
         }
       case "deny":
         return { 
           icon: IconX, 
           color: "text-red-600 dark:text-red-400", 
           bgColor: "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800",
-          label: "Denied"
+          label: "Recommend: Deny"
         }
       case "investigate":
         return { 
           icon: IconSearch, 
           color: "text-yellow-600 dark:text-yellow-400", 
           bgColor: "bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800",
-          label: "Further Investigation"
+          label: "Recommend: Investigate"
         }
       default:
         return { 
@@ -250,7 +250,7 @@ export function DecisionDisplay({ recommendation, confidence, summary, keyFindin
                 {config.label}
               </CardTitle>
               <CardDescription>
-                Final decision from workflow
+                AI Recommendation
               </CardDescription>
             </div>
           </div>
