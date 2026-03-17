@@ -35,50 +35,10 @@ def get_policy_details(
     """Retrieve detailed policy information for a given policy number.
     
     Returns coverage limits, deductibles, exclusions, and status.
-    First checks the dynamic policy_repo (for generated scenarios), then falls back to
-    the simulated policy database for static demo policies.
+    Checks the static policy database first (instant), then falls back to
+    the async policy_repo for generated scenarios.
     """
-    import asyncio
-    
-    # First, try to get policy from the policy_repo (generated scenarios)
-    try:
-        from app.db.policy_repo import get_policy_by_policy_number
-        
-        # Run async function from sync context without corrupting the
-        # running event loop.  asyncio.run() calls set_event_loop(None)
-        # on cleanup which breaks uvicorn on subsequent requests.
-        import concurrent.futures
-
-        def _fetch_policy():
-            loop = asyncio.new_event_loop()
-            try:
-                return loop.run_until_complete(get_policy_by_policy_number(policy_number))
-            finally:
-                loop.close()
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            policy_record = pool.submit(_fetch_policy).result(timeout=10)
-        
-        if policy_record:
-            logger.info(f"Found policy {policy_number} in policy_repo (generated scenario)")
-            return {
-                "policy_number": policy_record.policy_number,
-                "policy_holder": policy_record.customer_name,
-                "policy_type": policy_record.policy_type,
-                "coverage_limits": policy_record.coverage_limits,
-                "deductibles": {"collision": policy_record.deductible, "comprehensive": 250},
-                "premium": policy_record.premium,
-                "effective_date": policy_record.effective_date,
-                "expiry_date": policy_record.expiration_date,
-                "status": "active",
-                "exclusions": ["Racing or competitive driving", "Commercial use", "Intentional damage"],
-                "additional_coverage": [],
-                "source": "generated_scenario",
-            }
-    except Exception as e:
-        logger.debug(f"Could not look up policy in policy_repo: {e}")
-    
-    # Fall back to simulated policy database (full dataset from original file)
+    # Static policy database — checked first to avoid async complexity
     policy_database = {
         "POL-2026-001": {
             "policy_number": "POL-2026-001",
@@ -143,15 +103,52 @@ def get_policy_details(
         },
     }
     policy = policy_database.get(policy_number)
-    if not policy:
-        # Return INSUFFICIENT_EVIDENCE-friendly response (T013)
-        logger.info(f"Policy {policy_number} not found - returning insufficient evidence indicator")
-        return {
-            "error": f"Policy {policy_number} not found in database",
-            "insufficient_evidence": True,
-            "suggestion": "The policy may need to be re-indexed or generated scenario was not saved",
-        }
-    return policy
+    if policy:
+        return policy
+
+    # Not in static data — try async policy_repo (generated scenarios).
+    # The agent framework runs tools synchronously on the event loop thread,
+    # so we must use a separate thread with its own event loop.
+    try:
+        from app.db.policy_repo import get_policy_by_policy_number
+        import asyncio
+        import concurrent.futures
+
+        def _fetch():
+            _loop = asyncio.new_event_loop()
+            try:
+                return _loop.run_until_complete(get_policy_by_policy_number(policy_number))
+            finally:
+                _loop.close()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _pool:
+            policy_record = _pool.submit(_fetch).result(timeout=5)
+
+        if policy_record:
+            logger.info(f"Found policy {policy_number} in policy_repo (generated scenario)")
+            return {
+                "policy_number": policy_record.policy_number,
+                "policy_holder": policy_record.customer_name,
+                "policy_type": policy_record.policy_type,
+                "coverage_limits": policy_record.coverage_limits,
+                "deductibles": {"collision": policy_record.deductible, "comprehensive": 250},
+                "premium": policy_record.premium,
+                "effective_date": policy_record.effective_date,
+                "expiry_date": policy_record.expiration_date,
+                "status": "active",
+                "exclusions": ["Racing or competitive driving", "Commercial use", "Intentional damage"],
+                "additional_coverage": [],
+                "source": "generated_scenario",
+            }
+    except Exception as e:
+        logger.debug(f"Could not look up policy in policy_repo: {e}")
+
+    logger.info(f"Policy {policy_number} not found - returning insufficient evidence indicator")
+    return {
+        "error": f"Policy {policy_number} not found in database",
+        "insufficient_evidence": True,
+        "suggestion": "The policy may need to be re-indexed or generated scenario was not saved",
+    }
 
 
 def get_claimant_history(
@@ -268,50 +265,10 @@ def get_vehicle_details(
     """Retrieve vehicle information for a given VIN number.
     
     Returns vehicle make, model, year, value, and specifications.
-    First checks the dynamic vehicle_repo (for generated scenarios), then falls back
-    to the simulated vehicle database for static demo vehicles.
+    Checks static database first, then falls back to async vehicle_repo
+    for generated scenarios.
     """
-    import asyncio
-    
-    # First, try to get vehicle from the vehicle_repo (generated scenarios)
-    try:
-        from app.db.vehicle_repo import get_vehicle_by_vin
-        
-        import concurrent.futures
-
-        def _fetch_vehicle():
-            loop = asyncio.new_event_loop()
-            try:
-                return loop.run_until_complete(get_vehicle_by_vin(vin))
-            finally:
-                loop.close()
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            vehicle_record = pool.submit(_fetch_vehicle).result(timeout=10)
-        
-        if vehicle_record:
-            logger.info(f"Found vehicle {vin} in vehicle_repo (generated scenario)")
-            return {
-                "vin": vehicle_record.vin,
-                "make": vehicle_record.make,
-                "model": vehicle_record.model,
-                "year": vehicle_record.year,
-                "license_plate": vehicle_record.license_plate,
-                "color": vehicle_record.color or "Unknown",
-                "vehicle_type": vehicle_record.vehicle_type or "personenauto",
-                "mileage": 20000,  # Default for generated
-                "market_value": 25000,  # Default for generated
-                "condition": "good",
-                "accident_history": [],
-                "maintenance_records": "up_to_date",
-                "recalls": [],
-                "modifications": [],
-                "source": "generated_scenario",
-            }
-    except Exception as e:
-        logger.debug(f"Could not look up vehicle in vehicle_repo: {e}")
-    
-    # Fall back to simulated vehicle database
+    # Static vehicle database — checked first
     vehicle_database = {
         "VF32AKFXE43210987": {
             "vin": "VF32AKFXE43210987",
@@ -360,10 +317,49 @@ def get_vehicle_details(
         },
     }
     vehicle = vehicle_database.get(vin)
-    if not vehicle:
-        logger.info(f"Vehicle {vin} not found - returning not found response")
-        return {"error": f"Vehicle with VIN {vin} not found in database"}
-    return vehicle
+    if vehicle:
+        return vehicle
+
+    # Not in static data — try async vehicle_repo (generated scenarios)
+    try:
+        from app.db.vehicle_repo import get_vehicle_by_vin
+        import asyncio
+        import concurrent.futures
+
+        def _fetch_v():
+            _loop = asyncio.new_event_loop()
+            try:
+                return _loop.run_until_complete(get_vehicle_by_vin(vin))
+            finally:
+                _loop.close()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _pool:
+            vehicle_record = _pool.submit(_fetch_v).result(timeout=5)
+
+        if vehicle_record:
+            logger.info(f"Found vehicle {vin} in vehicle_repo (generated scenario)")
+            return {
+                "vin": vehicle_record.vin,
+                "make": vehicle_record.make,
+                "model": vehicle_record.model,
+                "year": vehicle_record.year,
+                "license_plate": vehicle_record.license_plate,
+                "color": vehicle_record.color or "Unknown",
+                "vehicle_type": vehicle_record.vehicle_type or "personenauto",
+                "mileage": 20000,
+                "market_value": 25000,
+                "condition": "good",
+                "accident_history": [],
+                "maintenance_records": "up_to_date",
+                "recalls": [],
+                "modifications": [],
+                "source": "generated_scenario",
+            }
+    except Exception as e:
+        logger.debug(f"Could not look up vehicle in vehicle_repo: {e}")
+
+    logger.info(f"Vehicle {vin} not found - returning not found response")
+    return {"error": f"Vehicle with VIN {vin} not found in database"}
 
 
 def search_policy_documents(
