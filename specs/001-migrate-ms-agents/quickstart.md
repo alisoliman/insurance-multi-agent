@@ -68,14 +68,14 @@ The API will be available at `http://localhost:8000`.
    ```bash
    curl -X POST http://localhost:8000/api/v1/workflow/run \
      -H "Content-Type: application/json" \
-     -d '{"claim_id": "CLM-2024-001"}'
+     -d '{"claim_id": "CLM-2026-001"}'
    ```
 
 4. **Test individual agent**:
    ```bash
    curl -X POST http://localhost:8000/api/v1/agent/claim_assessor/run \
      -H "Content-Type: application/json" \
-     -d '{"claim_id": "CLM-2024-001"}'
+     -d '{"claim_id": "CLM-2026-001"}'
    ```
 
 ## Running Tests
@@ -186,7 +186,7 @@ After migration, compare performance:
 # Time a claim processing request
 time curl -X POST http://localhost:8000/api/v1/workflow/run \
   -H "Content-Type: application/json" \
-  -d '{"claim_id": "CLM-2024-001"}'
+  -d '{"claim_id": "CLM-2026-001"}'
 ```
 
 Expected: Within ±10% of previous LangGraph implementation.

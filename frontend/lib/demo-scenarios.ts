@@ -28,8 +28,8 @@ export const demoScenarios: DemoScenario[] = [
     complexity: 'simple',
     data: {
       claim_description: 'Rear-ended at traffic light. Minor damage to bumper and taillight. Other driver admitted fault.',
-      policy_number: 'AUTO-2024-001234',
-      incident_date: '2024-06-01',
+      policy_number: 'AUTO-2026-001234',
+      incident_date: '2026-06-01',
       claim_type: 'auto',
       estimated_amount: 2500,
       additional_info: 'Police report filed. Photos available.',
@@ -48,8 +48,8 @@ export const demoScenarios: DemoScenario[] = [
     complexity: 'complex',
     data: {
       claim_description: 'Vehicle totaled in highway collision. Airbags deployed. Significant damage to front end and engine compartment.',
-      policy_number: 'AUTO-2024-005678',
-      incident_date: '2024-05-28',
+      policy_number: 'AUTO-2026-005678',
+      incident_date: '2026-05-28',
       claim_type: 'auto',
       estimated_amount: 35000,
       additional_info: 'Emergency services responded. Vehicle towed to certified facility.',
@@ -68,8 +68,8 @@ export const demoScenarios: DemoScenario[] = [
     complexity: 'moderate',
     data: {
       claim_description: 'Burst pipe in master bathroom caused flooding in bedroom and living room. Hardwood floors damaged, drywall needs replacement.',
-      policy_number: 'HOME-2024-009876',
-      incident_date: '2024-06-03',
+      policy_number: 'HOME-2026-009876',
+      incident_date: '2026-06-03',
       claim_type: 'home',
       estimated_amount: 15000,
       additional_info: 'Water mitigation company contacted immediately. Photos and moisture readings documented.',
@@ -88,8 +88,8 @@ export const demoScenarios: DemoScenario[] = [
     complexity: 'complex',
     data: {
       claim_description: 'Home burglarized while on vacation. Electronics, jewelry, and cash stolen. Front door lock damaged.',
-      policy_number: 'HOME-2024-011223',
-      incident_date: '2024-05-25',
+      policy_number: 'HOME-2026-011223',
+      incident_date: '2026-05-25',
       claim_type: 'home',
       estimated_amount: 25000,
       additional_info: 'Police report filed. Security system footage available. Itemized list of stolen items provided.',
@@ -108,8 +108,8 @@ export const demoScenarios: DemoScenario[] = [
     complexity: 'moderate',
     data: {
       claim_description: 'Emergency room visit for severe chest pain. EKG, blood work, and CT scan performed. Diagnosed with anxiety attack.',
-      policy_number: 'HEALTH-2024-445566',
-      incident_date: '2024-06-05',
+      policy_number: 'HEALTH-2026-445566',
+      incident_date: '2026-06-05',
       claim_type: 'health',
       estimated_amount: 8500,
       additional_info: 'All medical records and bills provided. Pre-authorization not required for emergency care.',
@@ -128,8 +128,8 @@ export const demoScenarios: DemoScenario[] = [
     complexity: 'complex',
     data: {
       claim_description: 'Knee replacement surgery with post-operative complications requiring extended hospital stay and additional procedures.',
-      policy_number: 'HEALTH-2024-778899',
-      incident_date: '2024-05-15',
+      policy_number: 'HEALTH-2026-778899',
+      incident_date: '2026-05-15',
       claim_type: 'health',
       estimated_amount: 45000,
       additional_info: 'Pre-authorization obtained. Complications documented by surgeon. Extended physical therapy required.',
@@ -150,9 +150,9 @@ export const communicationScenarios = [
     type: 'email',
     languages: ['en', 'es', 'fr'],
     context: {
-      claim_id: 'CLM-2024-001',
+      claim_id: 'CLM-2026-001',
       customer_name: 'John Smith',
-      policy_number: 'AUTO-2024-001234'
+      policy_number: 'AUTO-2026-001234'
     }
   },
   {
@@ -162,7 +162,7 @@ export const communicationScenarios = [
     type: 'email',
     languages: ['en', 'es'],
     context: {
-      claim_id: 'CLM-2024-002',
+      claim_id: 'CLM-2026-002',
       customer_name: 'Sarah Johnson',
       required_docs: ['Police report', 'Repair estimates', 'Photos']
     }
@@ -174,7 +174,7 @@ export const communicationScenarios = [
     type: 'email',
     languages: ['en', 'fr'],
     context: {
-      claim_id: 'CLM-2024-003',
+      claim_id: 'CLM-2026-003',
       customer_name: 'Michael Chen',
       settlement_amount: 15000
     }
@@ -186,7 +186,7 @@ export const communicationScenarios = [
     type: 'sms',
     languages: ['en', 'es'],
     context: {
-      claim_id: 'CLM-2024-004',
+      claim_id: 'CLM-2026-004',
       customer_name: 'Emily Rodriguez',
       current_status: 'Under review'
     }

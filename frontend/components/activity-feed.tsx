@@ -31,7 +31,7 @@ const defaultActivities: ActivityItem[] = [
     action: 'Claim assessment completed',
     status: 'success',
     details: 'Auto claim approved with 96% confidence',
-    claimId: 'CLM-2024-001234'
+    claimId: 'CLM-2026-001234'
   },
   {
     id: '2',
@@ -40,7 +40,7 @@ const defaultActivities: ActivityItem[] = [
     action: 'Customer notification sent',
     status: 'success',
     details: 'Approval notification sent in English',
-    claimId: 'CLM-2024-001234'
+    claimId: 'CLM-2026-001234'
   },
   {
     id: '3',
@@ -49,7 +49,7 @@ const defaultActivities: ActivityItem[] = [
     action: 'Workflow initiated',
     status: 'info',
     details: 'New claim processing workflow started',
-    claimId: 'CLM-2024-001235'
+    claimId: 'CLM-2026-001235'
   },
   {
     id: '4',
@@ -58,7 +58,7 @@ const defaultActivities: ActivityItem[] = [
     action: 'Manual review required',
     status: 'warning',
     details: 'Complex claim flagged for human review',
-    claimId: 'CLM-2024-001233'
+    claimId: 'CLM-2026-001233'
   },
   {
     id: '5',
@@ -75,7 +75,7 @@ const defaultActivities: ActivityItem[] = [
     action: 'Multi-language response generated',
     status: 'success',
     details: 'Response generated in Spanish and French',
-    claimId: 'CLM-2024-001232'
+    claimId: 'CLM-2026-001232'
   }
 ]
 

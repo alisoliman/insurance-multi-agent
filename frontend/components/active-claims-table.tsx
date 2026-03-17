@@ -40,7 +40,7 @@ interface ActiveClaimsTableProps {
 const defaultClaims: ClaimData[] = [
   {
     id: '1',
-    claimNumber: 'CLM-2024-001234',
+    claimNumber: 'CLM-2026-001234',
     customerName: 'John Smith',
     policyType: 'Auto Insurance',
     claimAmount: 15750,
@@ -52,7 +52,7 @@ const defaultClaims: ClaimData[] = [
   },
   {
     id: '2',
-    claimNumber: 'CLM-2024-001235',
+    claimNumber: 'CLM-2026-001235',
     customerName: 'Sarah Johnson',
     policyType: 'Home Insurance',
     claimAmount: 45200,
@@ -63,7 +63,7 @@ const defaultClaims: ClaimData[] = [
   },
   {
     id: '3',
-    claimNumber: 'CLM-2024-001236',
+    claimNumber: 'CLM-2026-001236',
     customerName: 'Michael Brown',
     policyType: 'Health Insurance',
     claimAmount: 2850,
@@ -75,7 +75,7 @@ const defaultClaims: ClaimData[] = [
   },
   {
     id: '4',
-    claimNumber: 'CLM-2024-001237',
+    claimNumber: 'CLM-2026-001237',
     customerName: 'Emily Davis',
     policyType: 'Auto Insurance',
     claimAmount: 8900,
@@ -87,7 +87,7 @@ const defaultClaims: ClaimData[] = [
   },
   {
     id: '5',
-    claimNumber: 'CLM-2024-001238',
+    claimNumber: 'CLM-2026-001238',
     customerName: 'Robert Wilson',
     policyType: 'Life Insurance',
     claimAmount: 125000,

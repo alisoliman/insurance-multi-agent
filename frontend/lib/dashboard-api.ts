@@ -222,7 +222,7 @@ export async function fetchRecentActivity(): Promise<ActivityItem[]> {
         action: 'Claim assessment completed',
         status: 'success',
         details: 'Auto claim approved with 96% confidence',
-        claimId: 'CLM-2024-001234'
+        claimId: 'CLM-2026-001234'
       },
       {
         id: '2',
@@ -231,7 +231,7 @@ export async function fetchRecentActivity(): Promise<ActivityItem[]> {
         action: 'Customer notification sent',
         status: 'success',
         details: 'Approval notification sent in English',
-        claimId: 'CLM-2024-001234'
+        claimId: 'CLM-2026-001234'
       },
       {
         id: '3',
@@ -240,7 +240,7 @@ export async function fetchRecentActivity(): Promise<ActivityItem[]> {
         action: 'Workflow initiated',
         status: 'info',
         details: 'New claim processing workflow started',
-        claimId: 'CLM-2024-001235'
+        claimId: 'CLM-2026-001235'
       }
     ]
   } catch (error) {
@@ -264,7 +264,7 @@ export async function fetchActiveClaims(): Promise<ClaimData[]> {
     return [
       {
         id: '1',
-        claimNumber: 'CLM-2024-001234',
+        claimNumber: 'CLM-2026-001234',
         customerName: 'John Smith',
         policyType: 'Auto Insurance',
         claimAmount: 15750,
@@ -276,7 +276,7 @@ export async function fetchActiveClaims(): Promise<ClaimData[]> {
       },
       {
         id: '2',
-        claimNumber: 'CLM-2024-001235',
+        claimNumber: 'CLM-2026-001235',
         customerName: 'Sarah Johnson',
         policyType: 'Home Insurance',
         claimAmount: 45200,

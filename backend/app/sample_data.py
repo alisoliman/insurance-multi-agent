@@ -3,91 +3,88 @@
 Sample Insurance Claim Data
 
 This module contains sample claim data for testing the multi-agent insurance claim processing system.
+Each claim is designed around real evidence photos (Wikimedia Commons, CC BY-SA)
+so that descriptions, vehicles, and locations match the actual images.
 """
 
-# Sample insurance claim data with tool-compatible IDs
+# Claim A — Low-value residential fender bender (auto-approve path)
 sample_claim = {
-    "claim_id": "CLM-2024-001",
-    "policy_number": "POL-2024-001",  # Matches our policy database
-    "claimant_id": "CLM-001",  # Added for claimant history lookup
-    "claimant_name": "John Smith",
-    "incident_date": "2024-01-15",
+    "claim_id": "CLM-2026-001",
+    "policy_number": "POL-2026-001",
+    "claimant_id": "CLT-1001",
+    "claimant_name": "Marie Claes",
+    "incident_date": "2026-02-08",
     "claim_type": "Auto Accident",
-    "description": "Rear-end collision at intersection. Vehicle sustained damage to rear bumper, trunk, and tail lights. No injuries reported.",
-    "estimated_damage": 4500.00,
-    "location": "Main St & Oak Ave, Springfield",
-    "police_report": True,
-    "photos_provided": True,
-    "witness_statements": "2",
-    "vehicle_info": {
-        "vin": "1HGBH41JXMN109186",  # Added for vehicle lookup
-        "make": "Honda",
-        "model": "Civic",
-        "year": 2021,
-        "license_plate": "ABC123"
-    },
-    "supporting_images": [
-        "/demo-evidence/CLM-2024-001/rear-bumper-damage.jpg",
-        "/demo-evidence/CLM-2024-001/trunk-damage.jpg",
-        "/demo-evidence/CLM-2024-001/intersection-scene.jpg"
-    ]
-}
-
-# High-value claim
-high_value_claim = {
-    "claim_id": "CLM-2024-002",
-    "policy_number": "POL-2024-001",
-    "claimant_id": "CLM-001",
-    "claimant_name": "John Smith",
-    "incident_date": "2024-02-15",
-    "claim_type": "Major Collision",
-    "description": "Multi-vehicle accident on highway during rush hour. Extensive front-end damage, airbag deployment.",
-    "estimated_damage": 45000.00,
-    "location": "Highway 101, Mile Marker 45",
-    "police_report": True,
-    "photos_provided": True,
-    "witness_statements": "3",
-    "vehicle_info": {
-        "vin": "1HGBH41JXMN109186",
-        "make": "Honda",
-        "model": "Civic",
-        "year": 2021,
-        "license_plate": "ABC123"
-    },
-    "supporting_images": [
-        "/demo-evidence/CLM-2024-002/highway-collision.jpg",
-        "/demo-evidence/CLM-2024-002/front-end-damage.jpg",
-        "/demo-evidence/CLM-2024-002/airbag-deployed.jpg",
-        "/demo-evidence/CLM-2024-002/tow-truck-scene.jpg"
-    ]
-}
-
-# Dutch auto insurance claim for policy checker demo
-dutch_auto_claim = {
-    "claim_id": "CLM-2024-004",
-    "policy_number": "UNAuto-02-2024-567890",
-    "claimant_id": "CLM-004",
-    "claimant_name": "Jan de Vries",
-    "incident_date": "2024-01-14",
-    "claim_type": "Auto Collision",
-    "description": "Aanrijding met een andere auto tijdens het uitparkeren. Ik reed achteruit uit een parkeerplaats toen een andere bestuurder plotseling van rechts kwam en tegen mijn rechterzijkant botste. De andere bestuurder beweerde dat ik niet goed had gekeken, maar ik had wel degelijk gecheckt.",
-    "estimated_damage": 3500.00,
-    "location": "Damrak 45, Amsterdam",
+    "description": "Low-speed collision in residential area. Vehicle struck a parked bicycle while maneuvering on a narrow street. Front bumper crushed and hood dented. No injuries reported. Police report filed.",
+    "estimated_damage": 2400.00,
+    "location": "Rue de la Station, Hamme-Mille, Belgium",
     "police_report": True,
     "photos_provided": True,
     "witness_statements": "1",
     "vehicle_info": {
-        "vin": "WVWZZZ1JZXW123456",
-        "make": "Volkswagen",
-        "model": "Golf",
-        "year": 2022,
-        "license_plate": "12-ABC-3"
+        "vin": "VF32AKFXE43210987",
+        "make": "Peugeot",
+        "model": "206",
+        "year": 2008,
+        "license_plate": "FCR-407"
     },
     "supporting_images": [
-        "/demo-evidence/CLM-2024-004/side-damage.jpg",
-        "/demo-evidence/CLM-2024-004/bumper-closeup.jpg"
-    ]
+        "/demo-evidence/CLM-2026-001/front-damage.jpg",
+    ],
+}
+
+# Claim B — Intersection collision, total-loss candidate (review path)
+high_value_claim = {
+    "claim_id": "CLM-2026-002",
+    "policy_number": "POL-2026-002",
+    "claimant_id": "CLT-2001",
+    "claimant_name": "David Park",
+    "incident_date": "2026-01-23",
+    "claim_type": "Major Collision",
+    "description": "Intersection collision near school zone on Gregson Street, Durham NC. Vehicle collided with a Toyota Camry. Front end destroyed — bumper, hood, radiator, and headlights crushed. Driver-side airbag deployed. Durham Police responded and filed report. Likely total loss on older vehicle.",
+    "estimated_damage": 7500.00,
+    "location": "Gregson St & Knox St, Durham, NC",
+    "police_report": True,
+    "photos_provided": True,
+    "witness_statements": "2",
+    "vehicle_info": {
+        "vin": "1HGEJ8145XL038295",
+        "make": "Honda",
+        "model": "Civic DX",
+        "year": 1999,
+        "license_plate": "NCR-4851"
+    },
+    "supporting_images": [
+        "/demo-evidence/CLM-2026-002/front-damage.jpg",
+        "/demo-evidence/CLM-2026-002/police-scene.jpg",
+    ],
+}
+
+# Claim C — Nighttime T-bone, severe structural damage (investigate path)
+suspicious_claim = {
+    "claim_id": "CLM-2026-003",
+    "policy_number": "POL-2026-003",
+    "claimant_id": "CLT-3001",
+    "claimant_name": "Robert Harmon",
+    "incident_date": "2026-03-05",
+    "claim_type": "Major Collision",
+    "description": "Nighttime T-bone collision at intersection. Vehicle was struck on the passenger side by an unidentified vehicle that fled the scene. Severe side-impact damage to rear passenger door and quarter panel. Rear wheel pushed inward. No witnesses located. Claimant reports delayed notification — filed claim 3 days after incident.",
+    "estimated_damage": 9800.00,
+    "location": "29th St & 5th Ave N, Great Falls, MT",
+    "police_report": True,
+    "photos_provided": True,
+    "witness_statements": "0",
+    "vehicle_info": {
+        "vin": "2G1WF52E839271045",
+        "make": "Chevrolet",
+        "model": "Impala",
+        "year": 2003,
+        "license_plate": "MT-45821A"
+    },
+    "supporting_images": [
+        "/demo-evidence/CLM-2026-003/side-damage.jpg",
+    ],
 }
 
 # List of all sample claims for easy access
-ALL_SAMPLE_CLAIMS = [sample_claim, high_value_claim, dutch_auto_claim]
+ALL_SAMPLE_CLAIMS = [sample_claim, high_value_claim, suspicious_claim]

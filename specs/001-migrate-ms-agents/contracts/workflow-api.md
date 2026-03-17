@@ -14,7 +14,7 @@ Process a claim through the multi-agent workflow.
 
 ```json
 {
-  "claim_id": "CLM-2024-001"
+  "claim_id": "CLM-2026-001"
 }
 ```
 
@@ -22,12 +22,12 @@ Or with full claim data:
 
 ```json
 {
-  "claim_id": "CLM-2024-001",
-  "policy_number": "POL-2024-001",
+  "claim_id": "CLM-2026-001",
+  "policy_number": "POL-2026-001",
   "claimant_name": "John Smith",
   "claimant_id": "CLT-001",
   "claim_type": "auto_collision",
-  "incident_date": "2024-01-15",
+  "incident_date": "2026-01-23",
   "description": "Rear-end collision at intersection",
   "estimated_damage": 5000,
   "supporting_images": ["/images/damage1.jpg"]
@@ -40,8 +40,8 @@ Or with full claim data:
 {
   "success": true,
   "claim_body": {
-    "claim_id": "CLM-2024-001",
-    "policy_number": "POL-2024-001",
+    "claim_id": "CLM-2026-001",
+    "policy_number": "POL-2026-001",
     ...
   },
   "conversation_grouped": {
@@ -83,7 +83,7 @@ List available sample claims for testing.
 {
   "available_claims": [
     {
-      "claim_id": "CLM-2024-001",
+      "claim_id": "CLM-2026-001",
       "claimant_name": "John Smith",
       "claim_type": "auto_collision",
       "estimated_damage": 5000,
@@ -91,6 +91,6 @@ List available sample claims for testing.
     },
     ...
   ],
-  "usage": "Use POST /api/v1/workflow/run with {'claim_id': 'CLM-2024-001'} to process a sample claim"
+  "usage": "Use POST /api/v1/workflow/run with {'claim_id': 'CLM-2026-001'} to process a sample claim"
 }
 ```

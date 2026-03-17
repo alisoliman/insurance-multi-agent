@@ -71,7 +71,7 @@
 
 ### Validation (US1)
 
-- [x] T021 [US1] Test full workflow with sample claim CLM-2024-001 via API endpoint
+- [x] T021 [US1] Test full workflow with sample claim CLM-2026-001 via API endpoint
 - [x] T022 [US1] Verify output format matches expected assessment structure (PRIMARY RECOMMENDATION, etc.)
 - [x] T023 [US1] Verify conversation_grouped and conversation_chronological format in response
 

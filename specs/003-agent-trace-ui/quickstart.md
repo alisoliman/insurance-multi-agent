@@ -33,7 +33,7 @@ npm run dev
 ### 3. Run Workflow Demo
 
 1. Open http://localhost:3000/demo
-2. Select a sample claim (e.g., "CLM-2024-001")
+2. Select a sample claim (e.g., "CLM-2026-001")
 3. Click "Run Workflow"
 4. Observe agent outputs in the timeline
 
@@ -87,7 +87,7 @@ import { ToolCallCard } from '@/components/agent-outputs/tool-call-card'
     id: "tc_001",
     name: "get_vehicle_details",
     arguments: { vin: "1HGBH41JXMN109186" },
-    result: { make: "Honda", model: "Accord", year: 2021 },
+    result: { make: "Honda", model: "Accord", year": 1999 },
     duration_ms: 145
   }}
   defaultExpanded={true}
@@ -154,5 +154,5 @@ frontend/
 # Run workflow and check for agent_outputs field
 curl -X POST http://localhost:8000/api/v1/workflow/run \
   -H "Content-Type: application/json" \
-  -d '{"claim_id": "CLM-2024-001"}' | jq '.agent_outputs'
+  -d '{"claim_id": "CLM-2026-001"}' | jq '.agent_outputs'
 ```

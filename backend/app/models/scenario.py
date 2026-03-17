@@ -94,7 +94,7 @@ class GeneratedClaimData(BaseModel):
     )
     incident_date: str = Field(
         ...,
-        description="Date of incident in ISO 8601 format: YYYY-MM-DD, e.g., 2024-01-15",
+        description="Date of incident in ISO 8601 format: YYYY-MM-DD, e.g., 2026-01-15",
     )
     claim_type: str = Field(
         ...,

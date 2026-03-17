@@ -20,7 +20,7 @@ Run a single specialist agent and return its conversation trace.
 
 ```json
 {
-  "claim_id": "CLM-2024-001"
+  "claim_id": "CLM-2026-001"
 }
 ```
 
@@ -31,8 +31,8 @@ Run a single specialist agent and return its conversation trace.
   "success": true,
   "agent_name": "claim_assessor",
   "claim_body": {
-    "claim_id": "CLM-2024-001",
-    "policy_number": "POL-2024-001",
+    "claim_id": "CLM-2026-001",
+    "policy_number": "POL-2026-001",
     ...
   },
   "conversation_chronological": [

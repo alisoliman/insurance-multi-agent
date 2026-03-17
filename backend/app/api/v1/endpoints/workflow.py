@@ -100,7 +100,7 @@ async def _ensure_policy_exists(claim_data: dict) -> None:
             },
             deductible=500.0,
             premium=1200.0,
-            effective_date=claim_data.get("incident_date", "2024-01-01"),
+            effective_date=claim_data.get("incident_date", "2026-01-01"),
             expiration_date="2025-12-31",
             customer_name=claim_data.get("claimant_name", customer_info.get("name", "Unknown")),
             customer_email=customer_info.get("email"),
@@ -142,7 +142,7 @@ async def list_sample_claims():
 
     return {
         "available_claims": claims_summary,
-        "usage": "Use POST /api/v1/workflow/run with {'claim_id': 'CLM-2024-001'} to process a sample claim"
+        "usage": "Use POST /api/v1/workflow/run with {'claim_id': 'CLM-2026-001'} to process a sample claim"
     }
 
 
@@ -151,7 +151,7 @@ async def workflow_run(claim: ClaimIn):  # noqa: D401
     """Run the claim through the multi-agent workflow and return full trace.
 
     Accepts either:
-    - A claim_id to load sample data: {"claim_id": "CLM-2024-001"}
+    - A claim_id to load sample data: {"claim_id": "CLM-2026-001"}
     - Full claim data: {"claim_id": "...", "policy_number": "...", ...}
     """
 

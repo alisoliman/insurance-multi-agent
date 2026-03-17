@@ -12,29 +12,24 @@ import { PlayCircle, ShieldCheck, ShieldAlert, AlertTriangle, ImageIcon } from "
 // Evidence images matched to known sample claims by description keywords
 const EVIDENCE_SETS: { match: (c: Claim) => boolean; images: { src: string; label: string }[] }[] = [
   {
-    match: (c) => c.description?.toLowerCase().includes("rear-end") || c.description?.toLowerCase().includes("rear bumper"),
+    match: (c) => c.description?.toLowerCase().includes("residential") || c.description?.toLowerCase().includes("bicycle") || c.description?.toLowerCase().includes("peugeot"),
     images: [
-      { src: "/demo-evidence/CLM-2024-001/rear-bumper-damage.jpg", label: "Rear bumper crumpled" },
-      { src: "/demo-evidence/CLM-2024-001/trunk-damage.jpg", label: "Tail light cracked" },
-      { src: "/demo-evidence/CLM-2024-001/intersection-scene.jpg", label: "Intersection scene" },
+      { src: "/demo-evidence/CLM-2026-001/front-damage.jpg", label: "Front bumper damage — struck bicycle" },
       { src: "/demo-evidence/generic/police-report.jpg", label: "Police report" },
     ],
   },
   {
-    match: (c) => c.description?.toLowerCase().includes("highway") || c.description?.toLowerCase().includes("multi-vehicle") || c.description?.toLowerCase().includes("airbag"),
+    match: (c) => c.description?.toLowerCase().includes("school zone") || c.description?.toLowerCase().includes("airbag") || c.description?.toLowerCase().includes("gregson") || c.description?.toLowerCase().includes("total loss"),
     images: [
-      { src: "/demo-evidence/CLM-2024-002/highway-collision.jpg", label: "Highway pileup scene" },
-      { src: "/demo-evidence/CLM-2024-002/front-end-damage.jpg", label: "Front-end crushed" },
-      { src: "/demo-evidence/CLM-2024-002/airbag-deployed.jpg", label: "Airbag deployed" },
-      { src: "/demo-evidence/CLM-2024-002/tow-truck-scene.jpg", label: "Tow truck recovery" },
+      { src: "/demo-evidence/CLM-2026-002/front-damage.jpg", label: "Front end crushed — Honda Civic DX" },
+      { src: "/demo-evidence/CLM-2026-002/police-scene.jpg", label: "Police on scene — airbag deployed" },
       { src: "/demo-evidence/generic/police-report.jpg", label: "Police report" },
     ],
   },
   {
-    match: (c) => c.description?.toLowerCase().includes("parkeer") || c.description?.toLowerCase().includes("parking"),
+    match: (c) => c.description?.toLowerCase().includes("t-bone") || c.description?.toLowerCase().includes("nighttime") || c.description?.toLowerCase().includes("side-impact") || c.description?.toLowerCase().includes("hit-and-run"),
     images: [
-      { src: "/demo-evidence/CLM-2024-004/side-damage.jpg", label: "Right-side impact dent" },
-      { src: "/demo-evidence/CLM-2024-004/bumper-closeup.jpg", label: "Fender scrape detail" },
+      { src: "/demo-evidence/CLM-2026-003/side-damage.jpg", label: "Side-impact structural damage" },
       { src: "/demo-evidence/generic/police-report.jpg", label: "Police report" },
     ],
   },

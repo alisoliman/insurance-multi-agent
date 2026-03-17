@@ -59,7 +59,7 @@ async def test_single_agent_outputs(agent_name: str, expected_fields: list[str])
         "claim_id": "SINGLE-AGENT-001",
         "claimant_name": "Jordan Lee",
         "claimant_id": "CLT-5001",
-        "policy_number": "POL-2024-TEST",
+        "policy_number": "POL-2026-TEST",
         "claim_type": "auto",
         "description": "Parking lot fender bender with minor bumper damage. Photos attached.",
         "incident_date": "2025-10-05T00:00:00Z",

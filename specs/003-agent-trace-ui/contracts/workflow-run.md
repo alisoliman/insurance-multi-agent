@@ -36,7 +36,7 @@ Content-Type: application/json
 
 ```json
 {
-  "claim_id": "CLM-2024-001"
+  "claim_id": "CLM-2026-001"
 }
 ```
 
@@ -136,7 +136,7 @@ Content-Type: application/json
     },
     {
       "role": "tool",
-      "content": "🔧 Tool Response (get_vehicle_details):\n{\"make\": \"Honda\", \"model\": \"Accord\", \"year\": 2021}",
+      "content": "🔧 Tool Response (get_vehicle_details):\n{\"make\": \"Honda\", \"model\": \"Accord\", \"year": 1999}",
       "node": "claim_assessor"
     },
     {
@@ -159,7 +159,7 @@ Content-Type: application/json
           "id": "tc_001",
           "name": "get_vehicle_details",
           "arguments": { "vin": "1HGBH41JXMN109186" },
-          "result": { "make": "Honda", "model": "Accord", "year": 2021, "value": 28000 },
+          "result": { "make": "Honda", "model": "Accord", "year": 1999, "value": 28000 },
           "duration_ms": 145
         }
       ]
@@ -175,7 +175,7 @@ Content-Type: application/json
         {
           "id": "tc_002",
           "name": "search_policy",
-          "arguments": { "policy_number": "POL-2024-001", "query": "collision coverage" },
+          "arguments": { "policy_number": "POL-2026-001", "query": "collision coverage" },
           "result": { "matches": [...] },
           "duration_ms": 230
         }
