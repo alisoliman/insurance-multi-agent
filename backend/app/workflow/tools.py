@@ -410,6 +410,45 @@ def search_policy_documents(
         return {"status": "error", "message": f"Search failed: {str(e)}", "query": query}
 
 
+def _resolve_image(image_path: str) -> bytes | None:
+    """Resolve an image path to raw bytes.
+
+    Handles three cases:
+    1. Absolute/relative file path that exists on disk -> read directly.
+    2. /demo-evidence/... path -> fetch from frontend (FRONTEND_ORIGIN in
+       production, or frontend/public/ locally).
+    3. Returns None if the image cannot be found.
+    """
+    import urllib.request
+
+    # Case 1: already a real file on disk
+    if os.path.exists(image_path):
+        with open(image_path, "rb") as f:
+            return f.read()
+
+    # Case 2: relative URL path (e.g. /demo-evidence/CLM-2026-001/front-damage.jpg)
+    if image_path.startswith("/demo-evidence/"):
+        # Production: fetch from frontend container via HTTP
+        frontend_origin = os.getenv("FRONTEND_ORIGIN", "").rstrip("/")
+        if frontend_origin:
+            url = f"{frontend_origin}{image_path}"
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": "InsuranceBackend/1.0"})
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    return resp.read()
+            except Exception as exc:
+                logger.warning("Failed to fetch image from %s: %s", url, exc)
+
+        # Local dev: try resolving against frontend/public/
+        for base in ["frontend/public", "../frontend/public"]:
+            candidate = os.path.join(base, image_path.lstrip("/"))
+            if os.path.exists(candidate):
+                with open(candidate, "rb") as f:
+                    return f.read()
+
+    return None
+
+
 def analyze_image(
     image_path: Annotated[str, Field(description="Path or URL to the image file to analyze")]
 ) -> Dict[str, Any]:
@@ -422,15 +461,15 @@ def analyze_image(
     Returns extracted text and visual analysis from the image.
     """
 
-    if not os.path.exists(image_path):
+    image_data = _resolve_image(image_path)
+    if image_data is None:
         return {"status": "error", "message": f"Image not found: {image_path}"}
 
     try:
         # ------------------------------------------------------------
         # 1) Base64-encode the image so we can send via data URL.
         # ------------------------------------------------------------
-        with open(image_path, "rb") as f:
-            image_b64 = base64.b64encode(f.read()).decode("utf-8")
+        image_b64 = base64.b64encode(image_data).decode("utf-8")
 
         # ------------------------------------------------------------
         # 2) Build multimodal ChatCompletion request.

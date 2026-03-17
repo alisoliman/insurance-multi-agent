@@ -31,6 +31,10 @@ class Settings(BaseSettings):  # noqa: D101
     azure_openai_embedding_model: str | None = Field(
         default="text-embedding-ada-002", alias="AZURE_OPENAI_EMBEDDING_MODEL")
 
+    # Frontend (used to fetch demo evidence images for AI vision analysis)
+    frontend_origin: str | None = Field(
+        default=None, alias="FRONTEND_ORIGIN")
+
     # FastAPI
     app_name: str = "Insurance Multi-Agent Backend"
     api_v1_prefix: str = "/api/v1"
