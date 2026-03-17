@@ -853,12 +853,12 @@ export function WorkflowDemo() {
 
       {/* Expanded Trace Dialog */}
       <Dialog open={traceExpanded} onOpenChange={setTraceExpanded}>
-        <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0">
-          <DialogTitle className="px-6 pt-6 pb-2 text-lg font-semibold border-b">
+        <DialogContent className="max-w-5xl h-[90vh] p-0 flex flex-col overflow-hidden">
+          <DialogTitle className="shrink-0 px-6 pt-6 pb-3 text-lg font-semibold border-b">
             Agent Conversation Trace
           </DialogTitle>
-          <ScrollArea className="flex-1 px-6 py-4">
-            <div className="space-y-4 pr-4">
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div className="space-y-4">
               {workflowResult?.conversation_chronological
                 ?.filter(step => !shouldSkipStep(step))
                 .map((step, index, filteredArray) => (
@@ -870,7 +870,7 @@ export function WorkflowDemo() {
                   />
                 ))}
             </div>
-          </ScrollArea>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
