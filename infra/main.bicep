@@ -34,6 +34,9 @@ param postgresAdminPassword string
 @description('PostgreSQL application database name')
 param postgresDbName string = 'claims_app'
 
+@description('Custom domain for the frontend (e.g. claims.go-agentic.com). Leave empty to skip.')
+param frontendCustomDomain string = ''
+
 // Generate a short unique suffix for resource naming
 var uniqueSuffix = take(uniqueString(resourceGroup().id), 6)
 
@@ -139,6 +142,10 @@ module backendContainerApp 'modules/containerapp.bicep' = {
       {
         name: 'FRONTEND_ORIGIN'
         value: 'https://${frontendContainerAppName}.${containerAppsStack.outputs.containerAppsEnvironmentDefaultDomain}'
+      }
+      {
+        name: 'FRONTEND_CUSTOM_ORIGIN'
+        value: frontendCustomDomain != '' ? 'https://${frontendCustomDomain}' : ''
       }
       {
         name: 'AZURE_OPENAI_ENDPOINT'

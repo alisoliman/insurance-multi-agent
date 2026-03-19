@@ -34,6 +34,9 @@
         },
         "postgresDbName": {
             "value": "${POSTGRES_DB_NAME=claims_app}"
+        },
+        "frontendCustomDomain": {
+            "value": "${FRONTEND_CUSTOM_DOMAIN=}"
         }
     }
 }

@@ -18,6 +18,7 @@ app = FastAPI()
 
 # Add CORS middleware
 frontend_origin = os.getenv("FRONTEND_ORIGIN")
+frontend_custom_origin = os.getenv("FRONTEND_CUSTOM_ORIGIN")
 
 # Default origins for local development
 default_dev_origins = [
@@ -34,17 +35,16 @@ azure_origins = [
 
 # Determine CORS configuration
 if frontend_origin:
-    # Explicit frontend origin set
     allow_origins = [frontend_origin]
+    if frontend_custom_origin:
+        allow_origins.append(frontend_custom_origin)
     allow_origin_regex = None
-    logger.info(f"CORS configured for explicit frontend origin: {frontend_origin}")
+    logger.info(f"CORS configured for origins: {allow_origins}")
 elif os.getenv("ALLOW_ALL_CORS", "false").lower() == "true":
-    # Allow all origins (not recommended for production)
     allow_origins = ["*"]
     allow_origin_regex = None
     logger.warning("CORS is configured to allow all origins – set FRONTEND_ORIGIN for stricter policy.")
 else:
-    # Use development origins + regex for Azure Container Apps
     allow_origins = default_dev_origins + azure_origins
     allow_origin_regex = r"https://.*\.azurecontainerapps\.io"
     logger.info(f"CORS configured for development origins: {default_dev_origins}")

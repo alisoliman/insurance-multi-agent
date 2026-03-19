@@ -38,6 +38,29 @@ export const getApiUrl = async (): Promise<string> => {
       cachedApiUrl = `https://${backendHost}`
       return cachedApiUrl
     }
+
+    // Custom domain (not localhost, not azurecontainerapps.io) — ask the server for the backend URL
+    if (currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
+      try {
+        const res = await fetch('/api/config')
+        if (res.ok) {
+          const { apiUrl } = await res.json()
+          if (apiUrl) {
+            cachedApiUrl = normalizeUrl(apiUrl)
+            return cachedApiUrl
+          }
+        }
+      } catch {
+        // fall through to other detection methods
+      }
+    }
+  }
+
+  // Server-side: prefer the runtime API_URL env var set by Bicep deployment
+  const apiUrlEnv = process.env.API_URL
+  if (apiUrlEnv) {
+    cachedApiUrl = normalizeUrl(apiUrlEnv)
+    return cachedApiUrl
   }
 
   // Attempt to build backend URL from server-side env (Azure Container Apps passes WEBSITE_HOSTNAME)
